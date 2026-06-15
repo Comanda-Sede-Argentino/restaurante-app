@@ -1,0 +1,25 @@
+# Dependencias (se reinstalan con "npm install")
+node_modules/
+
+# Build generado del frontend (se regenera con "npm run build")
+frontend/dist/
+
+# Instalador de SQL Server Express (797 MB, NO debe versionarse)
+frontend/SQLEXPR_x64_ESN/
+
+# Base de datos local en vivo (cada PC tiene la suya; se siembra con "npm run seed")
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
+
+# Comandas impresas de respaldo (datos operativos, se generan en cada PC)
+backend/comandas_impresas/*.txt
+
+# Credenciales de la sesion de WhatsApp (Baileys) - SECRETO, NUNCA subir
+backend/auth_wa/
+
+# Logs y temporales
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

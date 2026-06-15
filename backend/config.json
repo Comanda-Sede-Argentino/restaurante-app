@@ -1,0 +1,8 @@
+{
+  "impresion": {
+    "habilitada": true,
+    "anchoColumnas": 42,
+    "porSector": {},
+    "impresoraPorDefecto": ""
+  }
+}

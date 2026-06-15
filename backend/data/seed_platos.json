@@ -1,0 +1,3954 @@
+﻿[
+    {
+        "nombre":  "Alma Mora",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  800,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Aperitivo",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  2000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Aperol",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Baileys",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Baileys Cream",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Baron B",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  45000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Café Irlandes",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  18,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Caipiroska",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Campari C/ Naranja",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Carpano Vermut",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Andes",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Brahma",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Corona Chica",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  5000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Corona Grande",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Corona S/Alcohol",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  5000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Patagonia Amber",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  9000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Quilmes",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Stella Artois",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  9000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Stella Chica",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cerveza Stella S/ Alcohol Chica",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Chacabuco Malbec",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Champ. Baron B",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  45000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Champ. Chandon",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  25000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Champ. Lopez",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Chandon",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  25000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Chandon Aperitif",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Chandon Chico",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cinzano",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Círoc Vodka",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  75,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Copa De Vino",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cynar",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fernet (Medida)",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fernet Branca Menta",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fernet Con Coca",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fernet Medida",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gancia C/ Gaseosa",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gancia C/ Soda",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gancia Medida",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gin Beefeater",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gin Blu",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gin Bombay",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  9500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gin Bosque",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gin Paff",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gin Tonic",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gin Tonic El Bosque",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jarra Limonada",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jarrita De Terma",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jarrita De Vino",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Las Perdices Malbec",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lata Cerveza Brahma",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lata Cerveza Stella",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lata Stella Negra",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  5000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lemon Champ",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Licores",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  15,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Margarita Frozzen",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ron Havana 7 Años",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Santa Julia Chardonnay",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  5000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Santa Julia Chenin",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Santa Julia Tension Rivera Malbec",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  11000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Smirnoff",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Smirnoff C/ Gaseosa",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  5000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Speed",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Speed Con Vodka",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  1200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tequila",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  30,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tequila Sonrise",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Terma Jarrita",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Trago C.D.A.",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  180,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vaso De Vino",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Ala Colorada",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  22000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Alamos",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  12000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Angelica Zapata",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  45000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Dada",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Dv Catena Cabernet",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Dv Catena Malbec/Malbec",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  30000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino El Enemigo",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  35000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Estancia Mendoza",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Fabre Terruño Cabernet Franc",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  13500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Finca Gabriel",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino La Espera",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino La Linda",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Las Perdices Partridge",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Las Perdices Reserva",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  13000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Latitud 33",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Luigi Bosca",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Nampe",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Nicasia Red Blend Cabe.Franc",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  13500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Saint Felicen Chardonay",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  17000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Saint Felicien Cavernet Franc",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  15000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Saint Felicien Chardonnay",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  17000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Saint Felicien Malbec",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  17000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Santa Julia Chenin",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Santa Julia Magna",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Santa Julia Reserva Malbec",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  9500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Santa Julia Sauvignon Blanc",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  12000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Terrazas Reserva",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  2300,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Terruño Fabre",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  13000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Trumpeter",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  16000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Viñalba Reserva",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  14500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vodka",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  15,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vodka Medida",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  80,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Ballantinez",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Con Coca",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Goal Label Reserva",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky J\u0026B",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky J\u0026B 1/2",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Jack Daniels",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Jack Daniel\u0027s",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Jack Daniels Negro",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Jack Daniels Rojo",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Jhonnie Walker Red",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Jhonny Walker Azul 1/2",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  230,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Johnni Rojo",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  1800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Johnnie Azul",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  25000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Johnnie Negro",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Johnnie Walker Doble Negro",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  8500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Johnnie Walker Negro",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Johnny Rojo",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  2200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky Johnny Walker Verde",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky The Famous Grouse",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky White Horse",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whisky White Horse 1/2",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  1800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Whiskyjohnnie Walker Gold",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Wisky Caballito",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Wisky Jack Daniels",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  5500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Wisky Jb",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Wisky Jonnie Double Black",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  7500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Wisky Jonnie Gold",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Wisky Jonnie Rojo",
+        "categoria":  "Bebidas con Alcohol",
+        "sector":  "Barra",
+        "precio":  5500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Agua  C/ Gas",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Agua Grande",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Agua S/ Gas",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Agua Sabori 500Ml",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Agua Saborizada Grande",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Coca Cola De 500",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  1200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Coca Zero Grande",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fanta De 500",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  780,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gaseosa 500 Cc",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gaseosa Grande",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gaseosa Pepsi",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  6500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Gaseosa Seven 1.5 Plastico",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "H20 De 500",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "H20 Grande",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "H2o",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jugo",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jugo Exprimido",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  1500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lata Coca",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  2500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lata Mirinda",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  2500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lata Paso De Los Toros",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  1700,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lata Seven Up",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Levite",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  20,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Licuado C/Agua",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Paso De Los Toros 500",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Paso De Los Toros Grande",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Paso De Los Toros1.5L",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Red Bull",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  2500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Seven Up",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Seven Up 500",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Soda",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  2000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sprite Lts",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  25,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sprite X 350 Cc",
+        "categoria":  "Bebidas sin Alcohol",
+        "sector":  "Barra",
+        "precio":  13,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe Calipso",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe Chico",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe Con Leche",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  2000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe Cubano",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  40,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe En Jarrita",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe Español",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe Expreso",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  700,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafe Grande",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Capucchino",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  2500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Capuccino",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Capuccino Chico",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  1700,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lagrima",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  1800,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Submarino",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Te",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  1500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Té",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  1000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Te Con Leche",
+        "categoria":  "Cafetería",
+        "sector":  "Barra",
+        "precio":  1500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Adicional Carne",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Asado Por Persona",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  30000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Barroluco",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  28000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Barroluco 1/2",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  16000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Barroluco Para Compartir",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  28000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bife De Chorizo",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  23000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bife De Chorizo Con Salsa",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  25000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bife De Pechuga",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bondiola De Cerdo",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  5500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cazuela Albondigas",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Costillar",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Entrecot",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Entrecot C/ Salsa",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  7000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Entrecot Con Salsa",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  21000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomo Al Plato C/ Salsa",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  4500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomo Para Compartir",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  20000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Mollejas",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  30,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Mollejas Crocantes",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  30,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Muslo Deshuesado",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Parrillada",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  12000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pollo Asado",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pollo Asado P/Persona",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  10000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sugerencia Bondiola",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  18500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Turinesa",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Turinesa  1/2",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  11500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vino Cordero C Piel De Lobo",
+        "categoria":  "Carnes y Parrilla",
+        "sector":  "Parrilla",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ens Rucula",
+        "categoria":  "Ensaladas",
+        "sector":  "Cocina",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ens. A Eleccion",
+        "categoria":  "Ensaladas",
+        "sector":  "Cocina",
+        "precio":  1200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ens. Clasica",
+        "categoria":  "Ensaladas",
+        "sector":  "Cocina",
+        "precio":  900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ensalada Completa",
+        "categoria":  "Ensaladas",
+        "sector":  "Cocina",
+        "precio":  12000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ensalada De Frutas",
+        "categoria":  "Ensaladas",
+        "sector":  "Cocina",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Macedonia",
+        "categoria":  "Ensaladas",
+        "sector":  "Cocina",
+        "precio":  5000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cazuelas",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Empanada",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Empanadas De Copetin",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Locro Y Emp.",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  16500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Nachos C/ Cheddar",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Picada Caliente P/2",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  36000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Picada Caliente P/3",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  45000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Picada Caliente P/4",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  30000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Picada Fria P/2",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  30000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Picada Fria P/3",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  36000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Platito De Aceitunas",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Platito De Fontinna",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  2000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Platito De Mani",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Platito De Palitos",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Platito De Queso",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Platito De Salame",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Plato De Salame Y Queso",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Provoleta",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Queso Fontina",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Queso Y Dulce",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Salame Aceituna Y Queso P/2",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Salame Y Queso P/4",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  15000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tarta 1/4",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tartas 1/2",
+        "categoria":  "Entradas y Picadas",
+        "sector":  "Cocina",
+        "precio":  4500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Factura Manteca",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Familiar C/Papas",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  9500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Familiar Con Papas",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  230,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fritas P/ Llevar",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  25,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Manteca",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Papas Con Cheddar",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Papas Fritas",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  9000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Papas Revuelta C/ Huevo",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  12500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Platito De Papas",
+        "categoria":  "Guarniciones",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Familiar",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Familiar 1/2",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  8500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Familiar 1/2 Con Huevo",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Menu",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  30000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Menu Del Dia",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  12000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Menu Infaltil",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sugerencia",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  20000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sugerencia.",
+        "categoria":  "Menúes y Combos",
+        "sector":  "Cocina",
+        "precio":  14500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa A Caball0",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa C/ Guarnicion",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  4500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa C/Rucula Y Parmesano",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  10500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa De Pollo",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  13000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa Gratinada",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  15000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa Napolitana",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  16500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa Sin Guarnicion",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesa Ternera",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  13000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Milanesas De Merluza",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Suprema De Pollo  C/Fritas",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  38,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Suprema Rellena",
+        "categoria":  "Milanesas",
+        "sector":  "Cocina",
+        "precio":  15000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "1 Tostada C/ Mer Y Queso O Mant",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  1200,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Carlito",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  9000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Carlito 1/2",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Carlito C/ Fritas",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cazuela Salchichas",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Hamburguesa Cheddar",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  15000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Hamburguesa Clasica",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  12000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Hamburguesa Crispy",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Hamburguesa Doble",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  6000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Huevo Revuelto",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  5000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Huevos Revueltos",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  1000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomito",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  21000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomito 1/2",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomito Al Plato",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  19500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomito Especial",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  23000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomito P/ Compartir",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  22000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Omelette",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  10000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Omelette C/ Guarnicion",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  12000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sand. Miga",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  8000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sandwich Vegetariano",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  1000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tostada Cada Una",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tostadas C/ Queso Y Mermelada",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tostadas Lactal",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  700,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tostado",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  9000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tostado 1/2",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tostado C/ Copetin",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tostado Con Fritas",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Triple 1/2",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  2000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Triple De Ver",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  4000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Triple De Verdur 1/2",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Triple De Verdura",
+        "categoria":  "Minutas y Sándwiches",
+        "sector":  "Cocina",
+        "precio":  12000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Canelones",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  135,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ñoquis",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  9500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ñoquis 1/2 Porcion",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  2000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pasta De Roquefort",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  5000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pasta Vigilia",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  450,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ravioles",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  15000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ravioles De Cordero",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ravioles De Salmon",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sorrentinos",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  15000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sorrentinos 1/2",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  1800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sorrentinos J Y Q",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  7500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tallarines",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  9500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tallarines 1/2 Porcion",
+        "categoria":  "Pastas",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Calamares  C/Guarnicion",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  2900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Langostinos Rebozados",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  18000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Merluza Rebozada",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  5000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pescado",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  20000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Rabas",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  15000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Rabas Con Fritas",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  2000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Salmon Rosado",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  26000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Trucha",
+        "categoria":  "Pescados y Mariscos",
+        "sector":  "Cocina",
+        "precio":  23000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Carlito A La Pizza",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  14500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Matambre A La Pizza",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  2900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  8000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza 1/2 Anana",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  950,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza 1/2 Calabreza",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza 1/2 Especial",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  12500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza 1/2 Mozzarella",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  2900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza 1/2 Palmitos 1/2 Especial",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  18500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza Choclo",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  4800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza De Palmito",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza Especial",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  19000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza Fugazzetta",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  6500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza Muzza",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  16500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza Muzza 1/2",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  9000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pizza Napolitana",
+        "categoria":  "Pizzas",
+        "sector":  "Cocina",
+        "precio":  8000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Filet De Pollo",
+        "categoria":  "Pollo",
+        "sector":  "Parrilla",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lomito De Pollo",
+        "categoria":  "Pollo",
+        "sector":  "Parrilla",
+        "precio":  16500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Menu Pollo + Derecho Esp.",
+        "categoria":  "Pollo",
+        "sector":  "Parrilla",
+        "precio":  14000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Patitas De Pollo Porcion",
+        "categoria":  "Pollo",
+        "sector":  "Parrilla",
+        "precio":  45,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pollo A La Piedra C/Guarnicion",
+        "categoria":  "Pollo",
+        "sector":  "Parrilla",
+        "precio":  5200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pollo Del Vaticano (Rol)",
+        "categoria":  "Pollo",
+        "sector":  "Parrilla",
+        "precio":  50,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sugerencia Pollo",
+        "categoria":  "Pollo",
+        "sector":  "Parrilla",
+        "precio":  18500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Alfajor",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  2000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Alfajor Cachafaz",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  190,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bay Biscuit",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bizcochos",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  400,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bombon Escoces",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  4500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bombon Suizo",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  4000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Brownnie Tibio Con Helado",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  1800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Budin De Pan",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Chacabuco Dulce Natural",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  700,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cheese Cake",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Dilema Dulce Natural",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  700,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Flan",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Flan Casero",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  1800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Frutas Varias",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  6,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Helado 1 Bocha",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  3500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Helado 2 Bochas",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  6000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lopez Dulce",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  2900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Mafalda",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  2000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Medialunas",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  1000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pico Dulce",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  220,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Postre",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  9500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Postre Borracho",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Postre Chocolino",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  1800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Postre Trilogia",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  2000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tiramisu",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Trapiche Dulce",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Trilogia",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  6000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Trilogia De Chocolate",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  700,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Turron Aleman",
+        "categoria":  "Postres y Dulces",
+        "sector":  "Postres",
+        "precio":  1000,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Aberdeen Angu",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  130,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Absolud",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Alamos",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  8300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Alaris",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  340,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Alaris 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  100,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bellini",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Black Russian",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  150,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Bombón Escoces",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cab.De La Cepa",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  130,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Caballero De La Cepa",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  350,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cafayate",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  170,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Café Ruso",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  18,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Callia Alta Bco",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  46,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Callia Alta Tinto",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  46,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Caña Durazno",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  10,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Castel",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Chac Chac Carbernet",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Clos Du Moulin",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  380,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Cuba Libre",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Daikiri Frozzen",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Derecho Espectaculo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Desa O Meri.De Campo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Don David",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  280,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Don Valentin 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  90,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Dry Martini",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Dry Martini El Rey",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Entrada Fiambre Por Persona",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  10000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Est. Mendoza 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  150,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Est. Mendoza Tinto",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  350,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Est. Mendoza Varietal",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Etchar Privado",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  100,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Etnia Roble",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  430,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fabre Montmayou",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  4200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Finca Flichman Reserva",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Finca Las Moras",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fon De Cabe",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  280,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fond De Cave",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  140,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fond De Cave 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  140,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Freeze",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  35,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Fresita",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  80,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Guara",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  64,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Havana",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  90,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Havana   Oro",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  60,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Higos En Almibar",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Hj. Fabre Reserva",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  4500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Imago",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  105,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Individuales",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  250,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jack Daniel\u0027s",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jagermaifter",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Jamon Crudo Porc.",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Johnnie Walker Gold Label",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Johnnie Walker Negro",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  800,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Johnnie Walker Verde",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  150,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "La Espera",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  95,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "La Linda 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  245,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lagarde",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  90,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lenguado",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Lopez",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Malibu",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Malibu Citron",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  180,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Manhattan",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Marques Del Sur",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  90,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Marquise",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Martini 1/2",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  150,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Martini Rosso",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Masas Finas",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  4,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Matecocido",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  1,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Merianda Saludable",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  48,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Merienda 1",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  30,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Merienda C.D.A.",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  65,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Mermelada",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Mimosa",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  150,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Modelo Negra",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  40,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Mojiot",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Mojito",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  4500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Naa",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  260,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Nada",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  300,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Navarro Correa Coleccion Privada",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  90,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Navarro Correas Enologo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  250,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Navarro Enologo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  260,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Negrito",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  80,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Negroni",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Nicasia",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  12000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Nicasia 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  380,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Norton Cosecha Tardia",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  310,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ogro Boroch",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  250,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Otro Loco Mas",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  120,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Oveja Black",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Pecado",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  125,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Phebus",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  530,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Plato De Mayo Ave C/ Fiam Especial",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Plato De Mayo Ave C/ Jamon Crudo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  900,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Portillo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  650,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Primavera C/Alcohol",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  20,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Primavera S/Alcohol",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  15,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Quara",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  130,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Redbull",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ribs Bbq",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  350,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Roll De Ave",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  55,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ruttini",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  150,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Salsa Bolognesa",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  45,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Salsa De Verdeo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  200,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Salsa Porcion",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  10,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sambuca",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  45,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "San Felipe 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  160,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sand De Jamon Crudo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Santelmo",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  95,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Saurus",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  110,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Selva Negra",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  3500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Septima",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  380,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sernova",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sernova Con Spedd",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sheri",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  700,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Sin Palabra",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  40,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Suter",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  130,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Swing",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  85,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tanguero",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  120,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tequeños",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  400,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tia Maria Cream",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  30,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tortilla Chica",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  2500,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Tortilla Grande",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  3000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Totadas Porcion",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  1000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Trivento Golden",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  4290,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Trumpeter (Blanco)",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  220,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Valmont 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  480,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Ventus Roble",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  70,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Vianda",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  5000,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Viñas De Balbo 3/8",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  18,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Viñas De Balbo Tinto",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  26,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "White Ledy",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  40,
+        "activo":  0,
+        "ventas":  0
+    },
+    {
+        "nombre":  "Wiske Famous Grouse",
+        "categoria":  "Varios",
+        "sector":  "Cocina",
+        "precio":  4500,
+        "activo":  0,
+        "ventas":  0
+    }
+]
