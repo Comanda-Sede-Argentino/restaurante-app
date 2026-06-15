@@ -72,3 +72,26 @@ cd frontend && npm run build                                 # recompila el fron
 
 ## Re-sembrar la base desde cero
 Borrar `backend/data/restaurante.db*` y correr `npm run seed` en `backend`.
+
+## Actualizar el sistema (GitHub)
+El código vive en un repositorio **privado** de GitHub. Flujo de trabajo:
+
+- **En el portátil (desarrollo):** se hacen los cambios y se suben con doble clic en
+  **`SUBIR-CAMBIOS.bat`** (hace `git add` + `commit` + `push`).
+- **En la PC del restaurante:** doble clic en **`ACTUALIZAR.bat`** para bajar los últimos
+  cambios (`git pull`), reinstalar dependencias y recompilar el frontend. Al terminar,
+  ejecutar `INICIAR.bat` para arrancar el sistema actualizado.
+
+Lo que **no** viaja por GitHub (ver `.gitignore`): `node_modules/` (se reinstala solo),
+`frontend/dist/` (se recompila), el instalador `SQLEXPR_x64_ESN/`, la base de datos local
+`backend/data/*.db`, las comandas impresas y las **credenciales de WhatsApp** (`backend/auth_wa/`).
+Por eso cada PC mantiene su propia base de datos y su propia vinculación de WhatsApp.
+
+### Primera instalación en la PC del restaurante
+Requisitos: **Node.js** y **Git** instalados. Luego, una sola vez:
+```
+git clone https://github.com/mreggiori/restaurante-app.git
+cd restaurante-app
+ACTUALIZAR.bat   (instala dependencias y compila)
+INICIAR.bat      (arranca el sistema)
+```
