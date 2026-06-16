@@ -88,10 +88,13 @@ Lo que **no** viaja por GitHub (ver `.gitignore`): `node_modules/` (se reinstala
 Por eso cada PC mantiene su propia base de datos y su propia vinculación de WhatsApp.
 
 ### Primera instalación en la PC del restaurante
-Requisitos: **Node.js** y **Git** instalados. Luego, una sola vez:
+Guía paso a paso completa (para alguien no técnico): **`INSTALACION-RESTAURANTE.md`**.
+Resumen: con **Node.js 24** y **Git** instalados, una sola vez:
 ```
 git clone https://github.com/mreggiori2026/restaurante-app.git
 cd restaurante-app
-ACTUALIZAR.bat   (instala dependencias y compila)
+INSTALAR.bat     (instala dependencias, SIEMBRA la base y compila) -- solo la 1ra vez
 INICIAR.bat      (arranca el sistema)
 ```
+Diferencia clave: **`INSTALAR.bat`** siembra la base (primera vez); **`ACTUALIZAR.bat`** baja
+cambios sin tocar los datos (uso diario tras cada mejora subida desde el portátil).
