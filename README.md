@@ -90,7 +90,7 @@ Por eso cada PC mantiene su propia base de datos y su propia vinculación de Wha
 ### Primera instalación en la PC del restaurante
 Requisitos: **Node.js** y **Git** instalados. Luego, una sola vez:
 ```
-git clone https://github.com/mreggiori/restaurante-app.git
+git clone https://github.com/mreggiori2026/restaurante-app.git
 cd restaurante-app
 ACTUALIZAR.bat   (instala dependencias y compila)
 INICIAR.bat      (arranca el sistema)
