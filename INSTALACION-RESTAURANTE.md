@@ -42,7 +42,7 @@ Ambos deben mostrar un número de versión. Si uno dice "no se reconoce", reinst
 
 ## 2. Iniciar sesión en GitHub (una vez)
 
-El código está en un repositorio **privado** (`mreggiori2026/restaurante-app`), así que la PC
+El código está en un repositorio **privado** (`Comanda-Sede-Argentino/restaurante-app`), así que la PC
 necesita autorización para descargarlo. La primera vez que descargues, Git abrirá el navegador
 para iniciar sesión:
 
@@ -60,7 +60,7 @@ Elegir una carpeta donde vivirá el sistema (ej. el Escritorio). En PowerShell:
 
 ```powershell
 cd $HOME\Desktop
-git clone https://github.com/mreggiori2026/restaurante-app.git
+git clone https://github.com/Comanda-Sede-Argentino/restaurante-app.git
 ```
 
 (Acá se abre el login de GitHub del paso 2 si es la primera vez.)

@@ -20,12 +20,27 @@ const defaultConfig = {
     porSector: {}, // { "Cocina": "Nombre Impresora", "Barra": "...", ... }
     impresoraPorDefecto: '', // si un sector no tiene impresora, usa esta
   },
+  whatsapp: {
+    habilitado: true,
+    autoRespuesta: true,
+    cooldownMin: 180, // no repetir la auto-respuesta al mismo número dentro de este lapso
+    palabrasPedido: [
+      'pedido', 'pedir', 'encargar', 'encargo', 'quiero', 'quisiera', 'querria',
+      'mandame', 'manda', 'enviar', 'envien', 'envienme', 'delivery', 'para llevar',
+      'llevar', 'necesito', 'me traes', 'traeme', 'comprar', 'ordenar', 'anotar', 'agregar',
+    ],
+    textoRecepcion:
+      '¡Hola! 👋 Recibimos tu pedido en Sede Social. En unos minutos te lo confirmamos. ¡Gracias!',
+    textoConsulta:
+      '¡Hola! 👋 Gracias por escribir a Sede Social. En breve te respondemos. Si querés hacer un pedido, escribinos con la palabra "pedido" junto con lo que querés encargar. 🍽️',
+  },
 };
 
 export function getConfig() {
   try {
     const c = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8').replace(/^﻿/, ''));
     c.impresion = { ...defaultConfig.impresion, ...(c.impresion || {}) };
+    c.whatsapp = { ...defaultConfig.whatsapp, ...(c.whatsapp || {}) };
     return c;
   } catch {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(defaultConfig, null, 2));
@@ -36,6 +51,7 @@ export function getConfig() {
 export function setConfig(nuevo) {
   const c = getConfig();
   c.impresion = { ...c.impresion, ...(nuevo.impresion || {}) };
+  c.whatsapp = { ...c.whatsapp, ...(nuevo.whatsapp || {}) };
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2));
   return c;
 }

@@ -285,6 +285,19 @@ app.post('/api/pedidos/:id/anular', (req, res) => {
 });
 
 // ================= WHATSAPP =================
+// Normaliza texto para comparar sin acentos ni mayúsculas
+const normalizar = (s) =>
+  (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+// Clasifica el mensaje entrante: 'pedido' si contiene alguna palabra clave, si no 'consulta'
+function clasificarMensaje(texto, palabras) {
+  const t = normalizar(texto);
+  return (palabras || []).some((p) => t.includes(normalizar(p))) ? 'pedido' : 'consulta';
+}
+
+// Memoria de la última auto-respuesta enviada a cada número (para no repetir)
+const ultimaRespuestaWa = new Map(); // jid -> { tipo, ts }
+
 wa.setHandlers({
   emitEstado: (st) => io.emit('wa:estado', st),
   onMensaje: ({ jid, telefono, nombre, texto }) => {
@@ -293,13 +306,28 @@ wa.setHandlers({
     ).run(jid, telefono, nombre, texto);
     const row = db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(r.lastInsertRowid);
     io.emit('wa:nuevo', row);
-    // Auto-respuesta de recepción (configurable)
+
+    // Auto-respuesta inteligente: distinta según tipo de mensaje y sin repetir
     const cfg = getConfig();
-    if (cfg.whatsapp?.autoRespuesta !== false) {
-      const txt = cfg.whatsapp?.textoRecepcion ||
-        '¡Hola! 👋 Recibimos tu mensaje en Sede Social. En breve confirmamos tu pedido. ¡Gracias!';
-      wa.enviarMensaje(jid, txt);
-    }
+    const w = cfg.whatsapp || {};
+    if (w.autoRespuesta === false) return;
+
+    const tipo = clasificarMensaje(texto, w.palabrasPedido);
+    const prev = ultimaRespuestaWa.get(jid);
+    const cooldownMs = (w.cooldownMin ?? 180) * 60000;
+    const ahora = Date.now();
+    const enCooldown = prev && ahora - prev.ts < cooldownMs;
+    // Dentro del cooldown NO se repite la respuesta (evita contestar varios
+    // mensajes seguidos del mismo cliente). Única excepción: venía haciendo una
+    // consulta y ahora sí hace un pedido -> se le confirma el pedido (una sola vez).
+    const upgradeAPedido = prev && prev.tipo === 'consulta' && tipo === 'pedido';
+    if (enCooldown && !upgradeAPedido) return;
+
+    const txt = tipo === 'pedido'
+      ? (w.textoRecepcion || '¡Hola! Recibimos tu pedido. En breve te confirmamos. ¡Gracias!')
+      : (w.textoConsulta || '¡Hola! Gracias por escribir. En breve te respondemos.');
+    wa.enviarMensaje(jid, txt);
+    ultimaRespuestaWa.set(jid, { tipo, ts: ahora });
   },
 });
 

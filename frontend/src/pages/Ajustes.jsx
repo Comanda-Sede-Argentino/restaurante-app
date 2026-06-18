@@ -15,12 +15,15 @@ export default function Ajustes() {
 
   if (!cfg) return <p>Cargando...</p>;
   const imp = cfg.impresion;
+  const wa = cfg.whatsapp || {};
 
   const setSector = (sector, valor) =>
     setCfg({ ...cfg, impresion: { ...imp, porSector: { ...imp.porSector, [sector]: valor } } });
+  const setWa = (campo, valor) =>
+    setCfg({ ...cfg, whatsapp: { ...wa, [campo]: valor } });
 
   const guardar = async () => {
-    await api.guardarConfig({ impresion: imp });
+    await api.guardarConfig({ impresion: imp, whatsapp: wa });
     setMsg('✅ Configuración guardada.');
     setTimeout(() => setMsg(''), 3000);
   };
@@ -88,6 +91,45 @@ export default function Ajustes() {
             onChange={(e) => setCfg({ ...cfg, impresion: { ...imp, anchoColumnas: Number(e.target.value) } })}
             style={{ width: 100, marginLeft: 8 }} />
           <span style={{ color: 'var(--muted)', marginLeft: 8, fontSize: 13 }}>(48 mm ≈ 32 · 80 mm ≈ 42/48)</span>
+        </div>
+      </div>
+
+      <h1 className="h1" style={{ marginTop: 24 }}>Ajustes · Respuestas automáticas de WhatsApp</h1>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={wa.autoRespuesta !== false}
+            onChange={(e) => setWa('autoRespuesta', e.target.checked)} />
+          Responder automáticamente los mensajes entrantes
+        </label>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 0 }}>
+          El sistema detecta si el mensaje es un <b>pedido</b> (por las palabras clave) o una
+          <b> consulta</b>, y responde distinto en cada caso. No repite la respuesta al mismo número
+          dentro del tiempo configurado (salvo que cambie de consulta a pedido).
+        </p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h2 className="h2">Palabras clave que indican un pedido</h2>
+        <textarea
+          value={(wa.palabrasPedido || []).join(', ')}
+          onChange={(e) => setWa('palabrasPedido', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+          rows={2} style={{ width: '100%' }}
+          placeholder="pedido, encargar, quiero, mandame, delivery..." />
+        <p style={{ color: 'var(--muted)', fontSize: 12 }}>Separadas por comas. No distingue mayúsculas ni acentos.</p>
+
+        <h2 className="h2" style={{ marginTop: 12 }}>Mensaje cuando ES un pedido</h2>
+        <textarea value={wa.textoRecepcion || ''} onChange={(e) => setWa('textoRecepcion', e.target.value)}
+          rows={3} style={{ width: '100%' }} />
+
+        <h2 className="h2" style={{ marginTop: 12 }}>Mensaje cuando es otra consulta</h2>
+        <textarea value={wa.textoConsulta || ''} onChange={(e) => setWa('textoConsulta', e.target.value)}
+          rows={3} style={{ width: '100%' }} />
+
+        <div style={{ marginTop: 12 }}>
+          <label className="h2">No repetir la respuesta dentro de</label>
+          <input type="number" value={wa.cooldownMin ?? 180}
+            onChange={(e) => setWa('cooldownMin', Number(e.target.value))}
+            style={{ width: 90, marginLeft: 8 }} /> <span style={{ color: 'var(--muted)' }}>minutos</span>
         </div>
       </div>
 

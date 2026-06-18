@@ -34,10 +34,15 @@ anterior: 494 platos (230 activos) con sus **precios exactos** extraídos de la 
 - El sistema se conecta a WhatsApp (no oficial, vía **Baileys**) escaneando un **QR** desde
   **WhatsApp → Dispositivos vinculados**. Usá un **número dedicado a pedidos** (no el personal).
   Corre 100% local; la sesión queda guardada (se escanea una sola vez).
-- Cuando un cliente escribe, el mensaje entra a la **bandeja de entrada** y se le envía una
-  auto-respuesta de recepción. El cajero revisa el mensaje y con **"Crear pedido"** genera un
-  pedido de delivery (con nombre y teléfono del cliente ya cargados), agrega los ítems del catálogo
-  y al enviar a cocina **se imprime la comanda** automáticamente.
+- Cuando un cliente escribe, el mensaje entra a la **bandeja de entrada**. El cajero revisa el
+  mensaje y con **"Crear pedido"** genera un pedido de delivery (con nombre y teléfono del cliente
+  ya cargados), agrega los ítems del catálogo y al enviar a cocina **se imprime la comanda**.
+- **Auto-respuesta inteligente:** el sistema detecta si el mensaje es un **pedido** (por palabras
+  clave: *pedido, encargar, quiero, delivery…*) o una **consulta**, y responde distinto en cada
+  caso. **No repite** la respuesta a un mismo número dentro de un lapso configurable (evita
+  contestar varios mensajes seguidos); única excepción: si venía consultando y luego hace un
+  pedido, se le confirma una vez. Todo editable en **`/ajustes`** (palabras clave, los dos
+  mensajes y los minutos del lapso).
 - Nota: el método no oficial puede implicar bloqueo del número si WhatsApp lo detecta; por eso se
   recomienda un número exclusivo. Para cumplir 100% los términos se puede migrar a la API oficial
   de WhatsApp Cloud (la lógica de bandeja/pedido/impresión queda igual).
@@ -91,7 +96,7 @@ Por eso cada PC mantiene su propia base de datos y su propia vinculación de Wha
 Guía paso a paso completa (para alguien no técnico): **`INSTALACION-RESTAURANTE.md`**.
 Resumen: con **Node.js 24** y **Git** instalados, una sola vez:
 ```
-git clone https://github.com/mreggiori2026/restaurante-app.git
+git clone https://github.com/Comanda-Sede-Argentino/restaurante-app.git
 cd restaurante-app
 INSTALAR.bat     (instala dependencias, SIEMBRA la base y compila) -- solo la 1ra vez
 INICIAR.bat      (arranca el sistema)
