@@ -48,10 +48,15 @@ anterior: 494 platos (230 activos) con sus **precios exactos** extraídos de la 
   de WhatsApp Cloud (la lógica de bandeja/pedido/impresión queda igual).
 
 ## Impresión térmica de comandas
-- Al enviar a cocina, se imprime automáticamente una comanda por cada sector involucrado.
-- En `/ajustes` se asigna la impresora (de las instaladas en Windows) a cada sector y se prueba.
-- Si un sector no tiene impresora asignada, la comanda se guarda en `backend/comandas_impresas/`
-  (sirve de respaldo y para operar sin hardware). Botón 🖨 en el KDS para reimprimir.
+- Al enviar a cocina se imprime **una sola comanda** con todo el pedido (no una por sector).
+- La comanda destaca en **grande/negrita**: **DELIVERY** o **MESA N**, la **cantidad + nombre del
+  plato**, la **hora de entrega** y el **TOTAL**. Incluye cliente, dirección y teléfono (delivery).
+- Impresión por **ESC/POS** (estándar de las térmicas de tickets), enviada en crudo a la impresora
+  vía `rawprint.ps1` (winspool). En `/ajustes` se elige la **impresora de comandas**, el **tipo**
+  (térmica ESC/POS o impresora común de texto) y se prueba con un ticket de ejemplo.
+- Si no hay impresora configurada, la comanda se guarda en `backend/comandas_impresas/` (respaldo y
+  para operar sin hardware). Botón 🖨 en el KDS para reimprimir.
+- La **hora de entrega** se carga en Delivery y en los pedidos de WhatsApp antes de mandar a cocina.
 
 ## Datos migrados (Fase 0 completada)
 Se instaló SQL Server Express **LocalDB**, se adjuntó una **copia** de `mrccentral.MDF`

@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
 import {
-  imprimirPorSectores, imprimirComanda, listarImpresoras, getConfig, setConfig,
+  imprimirComandaUnica, imprimirCuenta, listarImpresoras, getConfig, setConfig,
 } from './printer.js';
 import * as wa from './whatsapp.js';
 
@@ -114,11 +114,14 @@ app.get('/api/mesas', (req, res) => {
   const mesas = db.prepare('SELECT * FROM mesa ORDER BY numero').all();
   for (const m of mesas) {
     const ped = db.prepare(
-      `SELECT id,total,abierto_en,mozo_nombre FROM pedido
-       WHERE mesa_id=? AND estado IN ('abierto','en_cocina','servido')
-       ORDER BY id DESC LIMIT 1`
+      `SELECT p.id, p.total, p.abierto_en, p.mozo_nombre,
+         (SELECT COUNT(*) FROM pedido_item i WHERE i.pedido_id=p.id AND i.estado<>'anulado') AS nitems
+       FROM pedido p
+       WHERE p.mesa_id=? AND p.estado IN ('abierto','en_cocina','servido')
+       ORDER BY p.id DESC LIMIT 1`
     ).get(m.id);
-    m.pedido = ped || null;
+    // La mesa se considera ocupada solo si su pedido tiene al menos un plato vigente
+    m.pedido = ped && ped.nitems > 0 ? ped : null;
   }
   res.json(mesas);
 });
@@ -143,7 +146,7 @@ app.get('/api/pedidos/:id', (req, res) => {
 app.post('/api/pedidos', (req, res) => {
   const {
     tipo = 'salon', mesa_id, mozo_id, mozo_nombre, cubiertos = 1,
-    cliente_nombre, cliente_telefono, cliente_direccion,
+    cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega,
   } = req.body;
   // Reutilizar pedido abierto de la mesa si existe
   if (mesa_id) {
@@ -153,14 +156,32 @@ app.post('/api/pedidos', (req, res) => {
     if (ex) return res.json(pedidoCompleto(ex.id));
   }
   const r = db.prepare(
-    `INSERT INTO pedido (tipo, mesa_id, mozo_id, mozo_nombre, cubiertos, cliente_nombre, cliente_telefono, cliente_direccion)
-     VALUES (?,?,?,?,?,?,?,?)`
+    `INSERT INTO pedido (tipo, mesa_id, mozo_id, mozo_nombre, cubiertos, cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega)
+     VALUES (?,?,?,?,?,?,?,?,?)`
   ).run(tipo, mesa_id || null, mozo_id || null, mozo_nombre || null, cubiertos,
-        cliente_nombre || null, cliente_telefono || null, cliente_direccion || null);
+        cliente_nombre || null, cliente_telefono || null, cliente_direccion || null, hora_entrega || null);
   if (mesa_id) db.prepare("UPDATE mesa SET estado='ocupada' WHERE id=?").run(mesa_id);
   const p = pedidoCompleto(r.lastInsertRowid);
   io.emit('pedido:nuevo', p);
   emitDashboard();
+  res.json(p);
+});
+
+// Actualizar datos de cabecera del pedido (hora de entrega, cliente, cubiertos)
+app.put('/api/pedidos/:id', (req, res) => {
+  const { cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega, cubiertos } = req.body;
+  db.prepare(
+    `UPDATE pedido SET
+       cliente_nombre=COALESCE(?,cliente_nombre),
+       cliente_telefono=COALESCE(?,cliente_telefono),
+       cliente_direccion=COALESCE(?,cliente_direccion),
+       hora_entrega=COALESCE(?,hora_entrega),
+       cubiertos=COALESCE(?,cubiertos)
+     WHERE id=?`
+  ).run(cliente_nombre ?? null, cliente_telefono ?? null, cliente_direccion ?? null,
+        hora_entrega ?? null, cubiertos ?? null, req.params.id);
+  const p = pedidoCompleto(req.params.id);
+  io.emit('pedido:actualizado', p);
   res.json(p);
 });
 
@@ -203,8 +224,8 @@ app.post('/api/pedidos/:id/items', (req, res) => {
   const p = pedidoCompleto(pedidoId);
   io.emit('pedido:actualizado', p);
   emitDashboard();
-  // Imprimir comandas en térmica (una por sector). No bloquea la respuesta.
-  imprimirPorSectores(p, nuevos)
+  // Imprimir UNA comanda con todo lo enviado. No bloquea la respuesta.
+  imprimirComandaUnica(p, nuevos)
     .then((r) => io.emit('impresion', { pedido_id: pedidoId, resultado: r }))
     .catch((e) => console.error('Error impresión:', e.message));
   res.json(p);
@@ -215,23 +236,35 @@ app.get('/api/impresoras', async (req, res) => res.json(await listarImpresoras()
 app.get('/api/config', (req, res) => res.json(getConfig()));
 app.put('/api/config', (req, res) => res.json(setConfig(req.body)));
 
-// Reimprimir la comanda de un pedido (todos sus items vigentes), o por sector
+// Reimprimir la comanda de un pedido (todos sus items vigentes)
 app.post('/api/pedidos/:id/reimprimir', async (req, res) => {
   const p = pedidoCompleto(req.params.id);
   if (!p) return res.status(404).json({ error: 'No existe' });
   const items = (p.items || []).filter((i) => i.estado !== 'anulado');
-  const r = await imprimirPorSectores(p, items);
+  const r = await imprimirComandaUnica(p, items);
+  res.json({ ok: true, resultado: r });
+});
+
+// Imprimir la CUENTA del cliente (total). NO cierra la mesa.
+app.post('/api/pedidos/:id/cuenta', async (req, res) => {
+  const p = pedidoCompleto(req.params.id);
+  if (!p) return res.status(404).json({ error: 'No existe' });
+  const items = (p.items || []).filter((i) => i.estado !== 'anulado');
+  if (!items.length) return res.status(400).json({ error: 'El pedido no tiene platos' });
+  const r = await imprimirCuenta(p, items);
   res.json({ ok: true, resultado: r });
 });
 
 // Probar impresora
 app.post('/api/impresoras/test', async (req, res) => {
   const { impresora } = req.body;
-  const fake = { id: 0, tipo: 'salon', mesa: { numero: '—' }, mozo_nombre: 'PRUEBA' };
-  const r = await imprimirComanda(
+  const fake = {
+    id: 0, tipo: 'delivery', cliente_nombre: 'PRUEBA', cliente_direccion: 'Calle Falsa 123',
+    cliente_telefono: '000', hora_entrega: '20:30',
+  };
+  const r = await imprimirComandaUnica(
     fake,
-    [{ cantidad: 1, nombre: 'PRUEBA DE IMPRESION', observacion: 'ticket de test' }],
-    'PRUEBA',
+    [{ cantidad: 2, nombre: 'PRUEBA DE IMPRESION', precio_unit: 1000, observacion: 'ticket de test' }],
     impresora
   );
   res.json(r);

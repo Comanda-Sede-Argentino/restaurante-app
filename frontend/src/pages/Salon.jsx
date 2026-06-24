@@ -20,7 +20,7 @@ export default function Salon() {
     };
   }, []);
 
-  const ocupadas = mesas.filter((m) => m.estado === 'ocupada').length;
+  const ocupadas = mesas.filter((m) => m.pedido).length;
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
@@ -29,7 +29,7 @@ export default function Salon() {
       </div>
       <div className="mesas">
         {mesas.map((m) => (
-          <div key={m.id} className={'mesa ' + m.estado} onClick={() => nav('/mozo/' + m.id)}>
+          <div key={m.id} className={'mesa ' + (m.pedido ? 'ocupada' : 'libre')} onClick={() => nav('/mozo/' + m.id)}>
             <div className="num">{m.numero}</div>
             <div className="est">{m.sala}</div>
             {m.pedido

@@ -4,7 +4,7 @@ import OrderTaker from '../components/OrderTaker.jsx';
 
 export default function Delivery() {
   const [pedido, setPedido] = useState(null);
-  const [cli, setCli] = useState({ cliente_nombre: '', cliente_telefono: '', cliente_direccion: '' });
+  const [cli, setCli] = useState({ cliente_nombre: '', cliente_telefono: '', cliente_direccion: '', hora_entrega: '' });
   const [activos, setActivos] = useState([]);
 
   const cargarActivos = () =>
@@ -31,6 +31,10 @@ export default function Delivery() {
 
   const abrir = async (id) => setPedido(await api.pedido(id));
   const refrescar = async () => { if (pedido) setPedido(await api.pedido(pedido.id)); cargarActivos(); };
+  const setHora = async (hora) => {
+    setPedido((p) => ({ ...p, hora_entrega: hora }));
+    await api.actualizarPedido(pedido.id, { hora_entrega: hora });
+  };
 
   const cobrar = async () => {
     const p = await api.pedido(pedido.id);
@@ -50,9 +54,11 @@ export default function Delivery() {
           {pedido.total > 0 && <button className="btn-green" onClick={cobrar}>💵 Cobrar {money(pedido.total)}</button>}
         </div>
         <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ color: 'var(--muted)', fontSize: 14 }}>
+          <div style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 10 }}>
             📞 {pedido.cliente_telefono || '—'} &nbsp;·&nbsp; 📍 {pedido.cliente_direccion || '—'}
           </div>
+          <label>🕒 Hora de entrega: </label>
+          <input type="time" value={pedido.hora_entrega || ''} onChange={(e) => setHora(e.target.value)} />
         </div>
         {pedido.items?.length > 0 && (
           <div className="card" style={{ marginBottom: 12 }}>
@@ -83,6 +89,11 @@ export default function Delivery() {
               onChange={(e) => setCli({ ...cli, cliente_telefono: e.target.value })} />
             <input placeholder="Dirección de entrega" value={cli.cliente_direccion}
               onChange={(e) => setCli({ ...cli, cliente_direccion: e.target.value })} />
+            <label style={{ color: 'var(--muted)', fontSize: 13 }}>🕒 Hora de entrega
+              <input type="time" value={cli.hora_entrega}
+                onChange={(e) => setCli({ ...cli, hora_entrega: e.target.value })}
+                style={{ display: 'block', width: '100%', marginTop: 4 }} />
+            </label>
             <button className="btn-accent" style={{ padding: 13 }} onClick={crear}>+ Crear pedido</button>
           </div>
         </div>

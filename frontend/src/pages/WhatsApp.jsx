@@ -35,6 +35,10 @@ export default function WhatsApp() {
     cargarInbox();
   };
   const refrescar = async () => { if (pedido) setPedido(await api.pedido(pedido.id)); };
+  const setHora = async (hora) => {
+    setPedido((p) => ({ ...p, hora_entrega: hora }));
+    await api.actualizarPedido(pedido.id, { hora_entrega: hora });
+  };
 
   // Vista de carga de pedido (tras convertir un mensaje)
   if (pedido) {
@@ -52,6 +56,13 @@ export default function WhatsApp() {
             <div style={{ whiteSpace: 'pre-wrap' }}>{msgRef.texto}</div>
           </div>
         )}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 10 }}>
+            📍 {pedido.cliente_direccion || '— (cargar dirección)'}
+          </div>
+          <label>🕒 Hora de entrega: </label>
+          <input type="time" value={pedido.hora_entrega || ''} onChange={(e) => setHora(e.target.value)} />
+        </div>
         {pedido.items?.length > 0 && (
           <div className="card" style={{ marginBottom: 12 }}>
             {pedido.items.map((i) => (

@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS pedido (
   cliente_nombre TEXT,
   cliente_telefono TEXT,
   cliente_direccion TEXT,
+  hora_entrega TEXT,
   abierto_en TEXT DEFAULT (datetime('now','localtime')),
   cerrado_en TEXT,
   total REAL DEFAULT 0
@@ -109,5 +110,6 @@ const addCol = (sql) => { try { db.exec(sql); } catch (e) { /* ya existe */ } };
 addCol("ALTER TABLE pedido ADD COLUMN cliente_nombre TEXT");
 addCol("ALTER TABLE pedido ADD COLUMN cliente_telefono TEXT");
 addCol("ALTER TABLE pedido ADD COLUMN cliente_direccion TEXT");
+addCol("ALTER TABLE pedido ADD COLUMN hora_entrega TEXT");
 
 export default db;

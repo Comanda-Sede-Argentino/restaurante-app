@@ -33,6 +33,20 @@ export default function Mozo() {
     cargarMesas();
   };
 
+  const quitarItem = async (id) => {
+    if (!window.confirm('¿Quitar este plato del pedido?')) return;
+    await api.estadoItem(id, 'anulado');
+    refrescarPedido();
+  };
+
+  const imprimirCuenta = async () => {
+    const r = await api.imprimirCuenta(pedido.id);
+    const m = r.resultado?.modo;
+    alert(m === 'impreso' ? '🧾 Cuenta enviada a la impresora.'
+      : m === 'archivo' ? '🧾 Cuenta generada (sin impresora configurada, guardada como archivo).'
+      : 'No se pudo imprimir la cuenta.');
+  };
+
   if (pedido) {
     return (
       <div>
@@ -42,16 +56,20 @@ export default function Mozo() {
             Mesa {pedido.mesa?.numero} · {money(pedido.total)}
           </h1>
           <span className="spacer" />
+          {pedido.total > 0 && (
+            <button className="btn-blue" onClick={imprimirCuenta}>🧾 Imprimir cuenta</button>
+          )}
           <span className="badge warn">{pedido.estado}</span>
         </div>
-        {pedido.items?.length > 0 && (
+        {pedido.items?.filter((i) => i.estado !== 'anulado').length > 0 && (
           <div className="card" style={{ marginBottom: 12 }}>
-            <h2 className="h2">Ya pedido</h2>
-            {pedido.items.map((i) => (
+            <h2 className="h2">Ya enviado a cocina</h2>
+            {pedido.items.filter((i) => i.estado !== 'anulado').map((i) => (
               <div key={i.id} className="cart-item">
                 <span style={{ flex: 1 }}>{i.cantidad}× {i.nombre} {i.observacion ? `(${i.observacion})` : ''}</span>
                 <span className="badge warn">{i.estado}</span>
                 <span>{money(i.cantidad * i.precio_unit)}</span>
+                <button className="btn-red" title="Quitar plato" onClick={() => quitarItem(i.id)}>✕</button>
               </div>
             ))}
           </div>
@@ -74,7 +92,7 @@ export default function Mozo() {
       </div>
       <div className="mesas">
         {mesas.map((m) => (
-          <div key={m.id} className={'mesa ' + m.estado} onClick={() => abrirMesa(m.id)}>
+          <div key={m.id} className={'mesa ' + (m.pedido ? 'ocupada' : 'libre')} onClick={() => abrirMesa(m.id)}>
             <div className="num">{m.numero}</div>
             <div className="est">{m.sala}</div>
             {m.pedido ? <div className="tot">{money(m.pedido.total)}</div> : <div className="est">libre</div>}

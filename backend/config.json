@@ -2,7 +2,40 @@
   "impresion": {
     "habilitada": true,
     "anchoColumnas": 42,
+    "modo": "escpos",
+    "impresoraComanda": "",
     "porSector": {},
     "impresoraPorDefecto": ""
+  },
+  "whatsapp": {
+    "habilitado": true,
+    "autoRespuesta": true,
+    "cooldownMin": 180,
+    "palabrasPedido": [
+      "pedido",
+      "pedir",
+      "encargar",
+      "encargo",
+      "quiero",
+      "quisiera",
+      "querria",
+      "mandame",
+      "manda",
+      "enviar",
+      "envien",
+      "envienme",
+      "delivery",
+      "para llevar",
+      "llevar",
+      "necesito",
+      "me traes",
+      "traeme",
+      "comprar",
+      "ordenar",
+      "anotar",
+      "agregar"
+    ],
+    "textoRecepcion": "¡Hola! 👋 Recibimos tu pedido en Sede Social. En unos minutos te lo confirmamos. ¡Gracias!",
+    "textoConsulta": "¡Hola! 👋 Gracias por escribir a Sede Social. En breve te respondemos. Si querés hacer un pedido, escribinos con la palabra \"pedido\" junto con lo que querés encargar. 🍽️"
   }
 }
