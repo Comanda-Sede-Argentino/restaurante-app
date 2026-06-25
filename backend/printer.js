@@ -142,39 +142,47 @@ function construirTicketEscpos(pedido, items, cuenta = false) {
   const txt = (s) => { for (const c of Buffer.from(sinAcentos(s), 'latin1')) b.push(c); };
   const nl = () => b.push(0x0a);
   const align = (n) => raw(ESC, 0x61, n);   // 0 izq, 1 centro, 2 der
-  const bold = (on) => raw(ESC, 0x45, on ? 1 : 0);
-  const grande = (on) => raw(GS, 0x21, on ? 0x11 : 0x00); // doble alto y ancho
+  const sep = () => { txt('------------------------'); nl(); };
+  // Tamaño/estilo en el "idioma" que la TM-T58 entiende: mandamos ESC ! y GS ! JUNTOS
+  // (esta impresora es finicky con la fuente; uno u otro le hace caso). Bits ESC !:
+  // 0x08 negrita | 0x10 doble alto | 0x20 doble ancho. GS ! n = alto|ancho (x2).
+  const estilo = (escBits, gsMag) => { raw(ESC, 0x21, escBits); raw(GS, 0x21, gsMag); raw(ESC, 0x45, (escBits & 0x08) ? 1 : 0); };
+  const NORMAL = () => estilo(0x00, 0x00);
+  const BOLD = () => estilo(0x08, 0x00);                 // negrita, tamaño normal
+  const ALTO = () => estilo(0x18, 0x01);                 // doble alto + negrita
+  const GRANDE = () => estilo(0x38, 0x11);               // doble alto + doble ancho + negrita
   const precios = llevaPrecios(pedido, cuenta);
 
   raw(ESC, 0x40); // init
-  // Encabezado DESTACADO (CUENTA / DELIVERY / MESA)
-  align(1); bold(1); grande(1);
+  // Encabezado bien GRANDE (CUENTA / DELIVERY / MESA)
+  align(1); GRANDE();
   txt(cuenta ? 'CUENTA' : origenDe(pedido)); nl();
   if (cuenta) { txt(origenDe(pedido)); nl(); }
-  grande(0); bold(0); align(0);
+  NORMAL(); align(0);
   txt('Pedido #' + pedido.id + '  ' + new Date().toLocaleString('es-AR')); nl();
-  if (!cuenta && pedido.mozo_nombre) { bold(1); txt('Mozo: ' + pedido.mozo_nombre); bold(0); nl(); }
+  if (!cuenta && pedido.mozo_nombre) { ALTO(); txt('Mozo: ' + pedido.mozo_nombre); NORMAL(); nl(); }
   if (pedido.tipo === 'delivery') {
-    if (pedido.cliente_nombre) { bold(1); txt('Cliente: ' + pedido.cliente_nombre); bold(0); nl(); }
-    if (pedido.cliente_direccion) { txt('Dir: ' + pedido.cliente_direccion); nl(); }
+    if (pedido.cliente_nombre) { ALTO(); txt(pedido.cliente_nombre); NORMAL(); nl(); }
+    if (pedido.cliente_direccion) { BOLD(); txt('Dir: ' + pedido.cliente_direccion); NORMAL(); nl(); }
     if (pedido.cliente_telefono) { txt('Tel: ' + pedido.cliente_telefono); nl(); }
   }
-  if (!cuenta && pedido.hora_entrega) { nl(); align(1); bold(1); grande(1); txt('ENTREGAR ' + pedido.hora_entrega); nl(); grande(0); bold(0); align(0); }
-  txt('--------------------------------'); nl();
+  if (!cuenta && pedido.hora_entrega) { nl(); align(1); GRANDE(); txt('ENTREGAR ' + pedido.hora_entrega); nl(); NORMAL(); align(0); }
+  sep();
   let total = 0;
   for (const it of items) {
     total += it.cantidad * it.precio_unit;
-    bold(1); grande(1);
+    GRANDE();
     txt(it.cantidad + ' ' + (it.nombre || '').toUpperCase()); nl();
-    grande(0); bold(0);
-    if (it.observacion) { txt('   >> ' + it.observacion); nl(); }
-    if (precios) { align(2); txt(money(it.cantidad * it.precio_unit)); nl(); align(0); }
+    NORMAL();
+    if (it.observacion) { ALTO(); txt('>> ' + it.observacion); NORMAL(); nl(); }
+    if (precios) { align(2); BOLD(); txt(money(it.cantidad * it.precio_unit)); NORMAL(); nl(); align(0); }
   }
   if (precios) {
-    txt('--------------------------------'); nl();
-    align(2); bold(1); grande(1); txt('TOTAL ' + money(total)); nl(); grande(0); bold(0); align(0);
+    sep();
+    align(2); GRANDE(); txt('TOTAL ' + money(total)); nl(); NORMAL(); align(0);
   }
-  raw(0x0a, 0x0a, 0x0a, 0x0a);
+  NORMAL();
+  raw(0x0a, 0x0a, 0x0a);
   raw(GS, 0x56, 66, 0); // corte parcial
   return Buffer.from(b);
 }
