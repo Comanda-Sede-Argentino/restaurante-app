@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
 import {
-  imprimirComandaUnica, imprimirCuenta, listarImpresoras, getConfig, setConfig,
+  imprimirComandaUnica, imprimirCuenta, listarImpresoras, listarPuertosCom, getConfig, setConfig,
 } from './printer.js';
 import * as wa from './whatsapp.js';
 
@@ -233,6 +233,7 @@ app.post('/api/pedidos/:id/items', (req, res) => {
 
 // ================= IMPRESIÓN =================
 app.get('/api/impresoras', async (req, res) => res.json(await listarImpresoras()));
+app.get('/api/puertos-com', async (req, res) => res.json(await listarPuertosCom()));
 app.get('/api/config', (req, res) => res.json(getConfig()));
 app.put('/api/config', (req, res) => res.json(setConfig(req.body)));
 

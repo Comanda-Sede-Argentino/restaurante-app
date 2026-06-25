@@ -37,6 +37,7 @@ export const api = {
   reimprimir: (id) => req('/pedidos/' + id + '/reimprimir', { method: 'POST' }),
   imprimirCuenta: (id) => req('/pedidos/' + id + '/cuenta', { method: 'POST' }),
   impresoras: () => req('/impresoras'),
+  puertosCom: () => req('/puertos-com'),
   config: () => req('/config'),
   guardarConfig: (data) => req('/config', { method: 'PUT', body: data }),
   testImpresora: (impresora) => req('/impresoras/test', { method: 'POST', body: { impresora } }),

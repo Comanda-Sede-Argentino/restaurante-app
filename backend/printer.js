@@ -18,7 +18,10 @@ const defaultConfig = {
     habilitada: true,
     anchoColumnas: 42,
     modo: 'escpos', // 'escpos' (térmica, texto destacado) | 'texto' (impresora común GDI)
-    impresoraComanda: '', // impresora donde sale la comanda única (cocina)
+    conexion: 'windows', // 'windows' (impresora instalada) | 'serial' (puerto COM directo)
+    impresoraComanda: '', // impresora Windows donde sale la comanda (si conexion=windows)
+    puertoCom: '', // ej. 'COM1' (si conexion=serial)
+    baud: 9600, // velocidad del puerto serial
     porSector: {}, // compatibilidad: { "Cocina": "Nombre Impresora", ... }
     impresoraPorDefecto: '',
   },
@@ -190,6 +193,35 @@ function imprimirTextoGDI(texto, impresora) {
   });
 }
 
+// Lista los puertos serie (COM) disponibles en Windows
+export function listarPuertosCom() {
+  return new Promise((resolve) => {
+    exec(
+      'powershell -NoProfile -Command "[System.IO.Ports.SerialPort]::GetPortNames()"',
+      { windowsHide: true },
+      (err, stdout) => {
+        if (err) return resolve([]);
+        resolve(stdout.split(/\r?\n/).map((s) => s.trim()).filter(Boolean));
+      }
+    );
+  });
+}
+
+// Envío RAW de bytes ESC/POS a un puerto serie (COM) vía serialprint.ps1
+function imprimirSerial(bytes, puerto, baud) {
+  return new Promise((resolve) => {
+    const tmp = path.join(OUT_DIR, `_tmp_${Date.now()}_${Math.floor(Math.random() * 1e6)}.bin`);
+    fs.writeFileSync(tmp, bytes);
+    const ps1 = path.join(__dirname, 'serialprint.ps1');
+    const ps = spawn('powershell', [
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1,
+      '-Port', puerto, '-Baud', String(baud || 9600), '-File', tmp,
+    ], { windowsHide: true });
+    ps.on('close', (code) => { fs.unlink(tmp, () => {}); resolve(code === 0); });
+    ps.on('error', () => resolve(false));
+  });
+}
+
 // Envío RAW de bytes ESC/POS vía winspool (rawprint.ps1)
 function imprimirRaw(bytes, impresora) {
   return new Promise((resolve) => {
@@ -219,6 +251,14 @@ async function imprimirTicket(pedido, items, { cuenta = false, impresoraOverride
   fs.writeFileSync(archivo, texto, 'latin1');
 
   if (!impresion.habilitada && !impresoraOverride) return { ok: true, modo: 'deshabilitada', archivo };
+
+  // Conexión por puerto serial (COM): se manda ESC/POS directo al puerto.
+  if (impresion.conexion === 'serial' && impresion.puertoCom && !impresoraOverride) {
+    const ok = await imprimirSerial(construirTicketEscpos(pedido, items, cuenta), impresion.puertoCom, impresion.baud);
+    return { ok, modo: ok ? 'impreso' : 'error-impresion', destino: impresion.puertoCom, archivo };
+  }
+
+  // Conexión por impresora de Windows (USB/red instalada)
   const impresora = impresoraComanda(impresion, impresoraOverride);
   if (!impresora) return { ok: true, modo: 'archivo', archivo };
 

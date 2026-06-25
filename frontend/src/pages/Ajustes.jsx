@@ -3,12 +3,14 @@ import { api } from '../api';
 
 export default function Ajustes() {
   const [impresoras, setImpresoras] = useState([]);
+  const [puertos, setPuertos] = useState([]);
   const [sectores, setSectores] = useState([]);
   const [cfg, setCfg] = useState(null);
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
     api.impresoras().then(setImpresoras);
+    api.puertosCom().then(setPuertos);
     api.sectores().then(setSectores);
     api.config().then(setCfg);
   }, []);
@@ -17,10 +19,8 @@ export default function Ajustes() {
   const imp = cfg.impresion;
   const wa = cfg.whatsapp || {};
 
-  const setSector = (sector, valor) =>
-    setCfg({ ...cfg, impresion: { ...imp, porSector: { ...imp.porSector, [sector]: valor } } });
-  const setWa = (campo, valor) =>
-    setCfg({ ...cfg, whatsapp: { ...wa, [campo]: valor } });
+  const setImp = (campo, valor) => setCfg({ ...cfg, impresion: { ...imp, [campo]: valor } });
+  const setWa = (campo, valor) => setCfg({ ...cfg, whatsapp: { ...wa, [campo]: valor } });
 
   const guardar = async () => {
     await api.guardarConfig({ impresion: imp, whatsapp: wa });
@@ -28,10 +28,12 @@ export default function Ajustes() {
     setTimeout(() => setMsg(''), 3000);
   };
 
+  // Para serial: guardamos primero y probamos con la config guardada (sin override).
   const probar = async (impresora) => {
     setMsg('Imprimiendo prueba...');
-    const r = await api.testImpresora(impresora);
-    setMsg(r.ok ? `✅ Enviado (${r.modo})${r.archivo ? ' · respaldo: ' + r.archivo : ''}` : '❌ Error de impresión');
+    if (imp.conexion === 'serial') await api.guardarConfig({ impresion: imp });
+    const r = await api.testImpresora(imp.conexion === 'serial' ? undefined : impresora);
+    setMsg(r.ok ? `✅ Enviado (${r.modo})${r.archivo ? ' · respaldo: ' + r.archivo : ''}` : `❌ No se pudo imprimir (${r.modo || 'error'})`);
   };
 
   return (
@@ -52,40 +54,56 @@ export default function Ajustes() {
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>
-        <h2 className="h2">Impresora de comandas</h2>
-        {!impresoras.length && (
-          <p style={{ color: 'var(--orange)' }}>
-            ⚠ No se detectaron impresoras en Windows. Instalá el driver de la térmica y recargá.
-          </p>
+        <h2 className="h2">Cómo está conectada la impresora</h2>
+        <label style={{ display: 'block', marginBottom: 4 }}>
+          <input type="radio" name="conexion" checked={(imp.conexion || 'windows') === 'windows'}
+            onChange={() => setImp('conexion', 'windows')} />
+          {' '}Impresora de Windows (USB o red, ya instalada con su driver)
+        </label>
+        <label style={{ display: 'block' }}>
+          <input type="radio" name="conexion" checked={imp.conexion === 'serial'}
+            onChange={() => setImp('conexion', 'serial')} />
+          {' '}Puerto serie (COM) — <span style={{ color: 'var(--muted)' }}>para térmicas con cable serial, como la TM-T58</span>
+        </label>
+
+        {imp.conexion === 'serial' ? (
+          <div style={{ marginTop: 14 }}>
+            <h2 className="h2">Puerto y velocidad</h2>
+            {!puertos.length && <p style={{ color: 'var(--orange)' }}>⚠ No se detectaron puertos COM. Conectá la impresora y recargá.</p>}
+            <label>Puerto: </label>
+            <select value={imp.puertoCom || ''} onChange={(e) => setImp('puertoCom', e.target.value)} style={{ minWidth: 120 }}>
+              <option value="">— elegir —</option>
+              {puertos.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <label style={{ marginLeft: 12 }}>Velocidad (baud): </label>
+            <select value={imp.baud || 9600} onChange={(e) => setImp('baud', Number(e.target.value))}>
+              {[9600, 19200, 38400, 57600, 115200].map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>Si no imprime o sale "chino", probá otra velocidad (las TM-T58 suelen ser 9600 o 19200).</p>
+          </div>
+        ) : (
+          <div style={{ marginTop: 14 }}>
+            <h2 className="h2">Impresora de Windows</h2>
+            {!impresoras.length && <p style={{ color: 'var(--orange)' }}>⚠ No se detectaron impresoras. Instalá el driver y recargá.</p>}
+            <select value={imp.impresoraComanda || ''} onChange={(e) => setImp('impresoraComanda', e.target.value)} style={{ minWidth: 280 }}>
+              <option value="">— (solo guardar en archivo)</option>
+              {impresoras.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <div style={{ marginTop: 12 }}>
+              <label style={{ display: 'block', marginBottom: 4 }}>
+                <input type="radio" name="modo" checked={(imp.modo || 'escpos') === 'escpos'} onChange={() => setImp('modo', 'escpos')} />
+                {' '}Térmica de tickets (ESC/POS) — <span style={{ color: 'var(--muted)' }}>destaca plato y mesa en grande</span>
+              </label>
+              <label style={{ display: 'block' }}>
+                <input type="radio" name="modo" checked={imp.modo === 'texto'} onChange={() => setImp('modo', 'texto')} />
+                {' '}Impresora común (texto simple)
+              </label>
+            </div>
+          </div>
         )}
-        <select value={imp.impresoraComanda || ''}
-          onChange={(e) => setCfg({ ...cfg, impresion: { ...imp, impresoraComanda: e.target.value } })}
-          style={{ minWidth: 280 }}>
-          <option value="">— (solo guardar en archivo)</option>
-          {impresoras.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <button style={{ marginLeft: 8 }} onClick={() => probar(imp.impresoraComanda)}>🖨 Probar</button>
 
         <div style={{ marginTop: 14 }}>
-          <h2 className="h2">Tipo de impresora</h2>
-          <label style={{ display: 'block', marginBottom: 4 }}>
-            <input type="radio" name="modo" checked={(imp.modo || 'escpos') === 'escpos'}
-              onChange={() => setCfg({ ...cfg, impresion: { ...imp, modo: 'escpos' } })} />
-            {' '}Térmica de tickets (ESC/POS) — <span style={{ color: 'var(--muted)' }}>recomendado: destaca plato, cantidad y mesa/delivery en grande</span>
-          </label>
-          <label style={{ display: 'block' }}>
-            <input type="radio" name="modo" checked={imp.modo === 'texto'}
-              onChange={() => setCfg({ ...cfg, impresion: { ...imp, modo: 'texto' } })} />
-            {' '}Impresora común (texto simple)
-          </label>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <label className="h2">Ancho del ticket (columnas, solo modo texto)</label>
-          <input type="number" value={imp.anchoColumnas}
-            onChange={(e) => setCfg({ ...cfg, impresion: { ...imp, anchoColumnas: Number(e.target.value) } })}
-            style={{ width: 100, marginLeft: 8 }} />
-          <span style={{ color: 'var(--muted)', marginLeft: 8, fontSize: 13 }}>(58 mm ≈ 32 · 80 mm ≈ 42/48)</span>
+          <button className="btn-accent" onClick={() => probar(imp.impresoraComanda)}>🖨 Imprimir ticket de prueba</button>
         </div>
       </div>
 
