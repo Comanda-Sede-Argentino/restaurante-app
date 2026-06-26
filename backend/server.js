@@ -9,6 +9,9 @@ import {
   imprimirComandaUnica, imprimirCuenta, listarImpresoras, listarPuertosCom, getConfig, setConfig,
 } from './printer.js';
 import * as wa from './whatsapp.js';
+import os from 'os';
+import QRCode from 'qrcode';
+import { iniciarBackups, listarBackups, hacerBackup } from './backup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -466,6 +469,51 @@ app.get('/api/stats/top-historico', (req, res) =>
   )
 );
 
+// ================= RED / CONEXIÓN / BACKUP =================
+function lanIPs() {
+  const nets = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(nets)) {
+    for (const ni of nets[name] || []) {
+      if (ni.family === 'IPv4' && !ni.internal) ips.push(ni.address);
+    }
+  }
+  // Priorizar redes locales típicas
+  ips.sort((a, b) => (b.startsWith('192.168') || b.startsWith('10.') || b.startsWith('172.') ? 1 : 0) -
+                     (a.startsWith('192.168') || a.startsWith('10.') || a.startsWith('172.') ? 1 : 0));
+  return ips;
+}
+
+app.get('/api/ip', (req, res) => res.json({ ips: lanIPs(), port: PORT }));
+app.get('/api/backups', (req, res) => res.json(listarBackups().map((b) => b.archivo)));
+app.post('/api/backup', async (req, res) => {
+  try { const d = await hacerBackup(); res.json({ ok: true, archivo: path.basename(d) }); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Página para conectar el celular: muestra la IP actual y un QR para escanear
+app.get('/conectar', async (req, res) => {
+  const ips = lanIPs();
+  const ip = ips[0] || 'localhost';
+  const url = `http://${ip}:${PORT}/mozo`;
+  let qr = '';
+  try { qr = await QRCode.toDataURL(url, { width: 320, margin: 1 }); } catch { /* sin qr */ }
+  res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Conectar celular</title>
+<style>body{font-family:system-ui,Segoe UI,sans-serif;background:#0f172a;color:#e2e8f0;text-align:center;padding:24px;margin:0}
+h1{color:#f59e0b;margin:8px 0}.url{font-size:24px;font-weight:800;margin:18px;word-break:break-all;color:#fff}
+img{background:#fff;padding:14px;border-radius:16px;max-width:90%}.nota{color:#94a3b8;font-size:14px;max-width:520px;margin:10px auto}
+a{color:#f59e0b}</style></head>
+<body><h1>📱 Conectar el celular del mozo</h1>
+<p class="nota">Escaneá este código con la cámara del celular (tiene que estar en el <b>mismo WiFi</b> que esta PC):</p>
+${qr ? `<img src="${qr}" alt="QR">` : ''}
+<div class="url">${url}</div>
+<p class="nota">Si no abre: 1) el celu debe estar en el mismo WiFi; 2) hay que haber corrido <b>ABRIR-PUERTO.bat</b> como administrador (una vez).</p>
+${ips.length > 1 ? `<p class="nota">Otras direcciones posibles: ${ips.map((i) => `http://${i}:${PORT}/mozo`).join(' &nbsp; ')}</p>` : ''}
+<p class="nota">Tip: en el celu, una vez abierto, "Agregar a pantalla de inicio" para que quede como app.</p>
+</body></html>`);
+});
+
 // Fallback SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(dist, 'index.html'), (err) => {
@@ -479,7 +527,10 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, () => {
   console.log(`\n  Sistema Restaurante — backend en http://localhost:${PORT}`);
-  console.log(`  API:    http://localhost:${PORT}/api/dashboard`);
+  const ips = lanIPs();
+  if (ips.length) console.log(`  Celulares (mismo WiFi): http://${ips[0]}:${PORT}/mozo  ·  QR: http://localhost:${PORT}/conectar`);
+  // Backups automáticos de la base (al arrancar y cada 6 hs)
+  iniciarBackups();
   // Iniciar WhatsApp (no bloquea el arranque). Si falla, el resto sigue funcionando.
   const cfg = getConfig();
   if (cfg.whatsapp?.habilitado !== false) {
