@@ -49,7 +49,15 @@ export default function Ajustes() {
   const cajaCfg = cfg.caja || {};
   const fact = cfg.facturador || {};
 
-  const setImp = (campo, valor) => setCfg({ ...cfg, impresion: { ...imp, [campo]: valor } });
+  // Cambiar una opción de impresión y GUARDARLA al instante (no depende del botón de abajo).
+  // Todos los controles de impresión son desplegables/casillas, así que es un guardado por clic.
+  const setImp = (campo, valor) => {
+    const nuevoImp = { ...imp, [campo]: valor };
+    setCfg({ ...cfg, impresion: nuevoImp });
+    api.guardarConfig({ impresion: nuevoImp })
+      .then(() => { setMsg('✅ Impresión guardada.'); setTimeout(() => setMsg(''), 2000); })
+      .catch(() => setMsg('❌ No se pudo guardar la impresión (revisá la conexión).'));
+  };
   const setWa = (campo, valor) => setCfg({ ...cfg, whatsapp: { ...wa, [campo]: valor } });
   const setTg = (campo, valor) => setCfg({ ...cfg, telegram: { ...tg, [campo]: valor } });
   const setCocina = (campo, valor) => setCfg({ ...cfg, cocina: { ...cocina, [campo]: valor } });
@@ -156,6 +164,7 @@ export default function Ajustes() {
         ) : (
           <div style={{ marginTop: 14 }}>
             <h2 className="h2">Impresoras de Windows</h2>
+            <p style={{ color: 'var(--green)', fontSize: 12, margin: '0 0 8px' }}>✅ La impresora que elijas acá se <b>guarda sola</b> al instante (no hace falta el botón de abajo).</p>
             {!impresoras.length && <p style={{ color: 'var(--orange)' }}>⚠ No se detectaron impresoras. Instalá el driver y recargá.</p>}
 
             {/* COMANDAS (cocina) */}
