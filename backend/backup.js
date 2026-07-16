@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
+import { getConfig } from './printer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.join(__dirname, 'backups');
@@ -18,7 +19,9 @@ function sello() {
 
 export async function hacerBackup() {
   const dest = path.join(DIR, `restaurante-${sello()}.db`);
-  await db.backup(dest); // backup online seguro (no corta el uso)
+  const tmp = dest + '.tmp';
+  await db.backup(tmp); // backup online seguro (no corta el uso)
+  fs.renameSync(tmp, dest); // publicar solo si terminó OK
   // Conservar solo las últimas N copias
   const files = fs
     .readdirSync(DIR)
@@ -27,7 +30,31 @@ export async function hacerBackup() {
   while (files.length > MAX_COPIAS) {
     try { fs.unlinkSync(path.join(DIR, files.shift())); } catch { /* ignorar */ }
   }
+  copiarAExterno(dest); // copia extra fuera de la PC (si está configurada y disponible)
   return dest;
+}
+
+// Copia el respaldo a una carpeta externa (pendrive / Google Drive). Nunca tumba el backup local.
+function copiarAExterno(origen) {
+  let ruta = '';
+  try { ruta = (getConfig().backup || {}).rutaExterna || ''; } catch { ruta = ''; }
+  if (!ruta) return;
+  try {
+    if (!fs.existsSync(ruta)) { // pendrive desconectado / carpeta no disponible: se ignora sin romper
+      console.warn('  Backup externo: la carpeta no está disponible (' + ruta + ')');
+      return;
+    }
+    fs.copyFileSync(origen, path.join(ruta, path.basename(origen)));
+    const ext = fs.readdirSync(ruta)
+      .filter((f) => f.startsWith('restaurante-') && f.endsWith('.db'))
+      .sort();
+    while (ext.length > MAX_COPIAS) {
+      try { fs.unlinkSync(path.join(ruta, ext.shift())); } catch { /* ignorar */ }
+    }
+    console.log('  Backup externo OK:', path.basename(origen), '->', ruta);
+  } catch (e) {
+    console.error('  Backup externo falló (se ignora):', e.message);
+  }
 }
 
 export function listarBackups() {

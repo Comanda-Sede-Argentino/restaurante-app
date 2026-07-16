@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, socket, money } from '../api';
 import OrderTaker from '../components/OrderTaker.jsx';
+import { toast } from '../ui.jsx';
 
 export default function WhatsApp() {
   const [estado, setEstado] = useState(null);
@@ -36,8 +37,15 @@ export default function WhatsApp() {
   };
   const refrescar = async () => { if (pedido) setPedido(await api.pedido(pedido.id)); };
   const setHora = async (hora) => {
+    if (!pedido) return;
+    const prev = pedido.hora_entrega;
     setPedido((p) => ({ ...p, hora_entrega: hora }));
-    await api.actualizarPedido(pedido.id, { hora_entrega: hora });
+    try {
+      await api.actualizarPedido(pedido.id, { hora_entrega: hora });
+    } catch {
+      setPedido((p) => ({ ...p, hora_entrega: prev }));
+      toast('No se pudo guardar la hora de entrega.', 'error');
+    }
   };
 
   // Vista de carga de pedido (tras convertir un mensaje)

@@ -23,3 +23,9 @@ backend/auth_wa/
 npm-debug.log*
 .DS_Store
 Thumbs.db
+
+# Configuracion local (cada PC la suya; tiene secretos) - NO subir
+backend/config.json
+
+# Respaldos automaticos de la base (operativo)
+backend/backups/

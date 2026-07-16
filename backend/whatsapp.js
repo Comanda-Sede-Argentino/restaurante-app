@@ -10,6 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AUTH_DIR = path.join(__dirname, 'auth_wa');
 
 let sock = null;
+let reintentos = 0;
 let estado = { conectado: false, numero: null, qr: null, iniciando: false, error: null };
 let onMensajeCb = null;
 let emit = () => {};
@@ -73,6 +74,7 @@ export async function iniciar() {
         estado.conectado = true;
         estado.qr = null;
         estado.iniciando = false;
+        reintentos = 0;
         estado.numero = sock?.user?.id ? sock.user.id.split(':')[0] : null;
         emit(getEstado());
       }
@@ -83,8 +85,10 @@ export async function iniciar() {
         estado.iniciando = false;
         emit(getEstado());
         if (!loggedOut) {
-          // Reconectar automáticamente
-          setTimeout(() => iniciar().catch(() => {}), 3000);
+          // Reconectar con backoff exponencial (3s, 6s, 12s... tope 60s)
+          const espera = Math.min(60000, 3000 * 2 ** reintentos);
+          reintentos++;
+          setTimeout(() => iniciar().catch(() => {}), espera);
         } else {
           estado.error = 'Sesión cerrada. Volvé a escanear el QR.';
           estado.numero = null;

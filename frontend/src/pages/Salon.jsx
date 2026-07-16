@@ -13,10 +13,12 @@ export default function Salon() {
     socket.on('pedido:nuevo', reload);
     socket.on('pedido:actualizado', reload);
     socket.on('pedido:cobrado', reload);
+    socket.on('connect', reload);
     return () => {
       socket.off('pedido:nuevo', reload);
       socket.off('pedido:actualizado', reload);
       socket.off('pedido:cobrado', reload);
+      socket.off('connect', reload);
     };
   }, []);
 
