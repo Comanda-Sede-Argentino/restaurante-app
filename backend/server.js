@@ -358,8 +358,14 @@ app.post('/api/pedidos/:id/items', (req, res) => {
   const p = pedidoCompleto(pedidoId);
   io.emit('pedido:actualizado', p);
   emitDashboard();
-  // Imprimir UNA comanda con todo lo enviado (en salón sin las bebidas). No bloquea.
-  const aCocina = itemsComandaCocina(nuevos, p.tipo);
+  // Qué se imprime en la comanda:
+  // - SALÓN: es la comanda de cocina -> solo lo NUEVO (sin bebidas, sin precios).
+  // - DELIVERY / MOSTRADOR: la comanda es también el remito del cliente (con precios y TOTAL),
+  //   así que imprimimos el pedido COMPLETO para que salga el Envío y el total correcto.
+  const paraComanda = (p.tipo === 'salon')
+    ? nuevos
+    : (p.items || []).filter((i) => i.estado !== 'anulado');
+  const aCocina = itemsComandaCocina(paraComanda, p.tipo);
   if (aCocina.length) {
     imprimirComandaUnica(p, aCocina)
       .then((r) => {
