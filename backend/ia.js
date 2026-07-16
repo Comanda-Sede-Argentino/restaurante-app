@@ -78,8 +78,18 @@ REGLAS DE MATCH (importante):
   ni en los alias (ej. "tarta de jamón y queso", "arroz con atún y palta", "flan casero"), NO lo
   reemplaces por otro parecido y NO lo descartes: ponelo en "items_libres" (con su nombre prolijo, la
   cantidad, y el precio si el mensaje lo dice). Así igual sale en la comanda para la cocina.
+- NO FUERCES coincidencias por parecido de palabras. Si el nombre NO corresponde EXACTAMENTE a un plato
+  del menú, va a items_libres aunque comparta alguna palabra. OJO ESPECIAL con las carnes:
+  · "bife de lomo" NO es "Lomito" (eso es un sándwich) ni "Bife de chorizo" ni "Bife de pechuga"
+    (son OTROS cortes distintos). Si "bife de lomo" no está en el menú -> va a items_libres.
+  · un corte o plato que no figura TAL CUAL en la carta -> items_libres, NO el más parecido.
+  Ante la duda de si está o no en el menú, elegí items_libres (es mejor eso que matchear mal).
 - Reservá "no_reconocidos" SOLO para cosas que no son comida (ej. un saludo). La comida que no está
   en la carta va SIEMPRE en items_libres.
+- REGLA DE ORO: NUNCA omitas algo que el cliente pidió. CADA ítem pedido tiene que aparecer sí o sí,
+  o en "items" (si está en el menú, ej. "milanesa de pollo" = "Milanesa de pollo") o en "items_libres"
+  (si no está, ej. "bife de lomo"). Nunca lo dejes afuera. Contá: la cantidad de cosas que pidió el
+  cliente = items + items_libres.
 
 PORCIONES Y MITADES (con cuidado):
 - MEDIA PORCIÓN: "medio X" o "1/2 X" = usá la variante de MEDIA PORCIÓN del menú ("X 1/2" o
@@ -99,6 +109,8 @@ ENVÍO O RETIRO (devolvé SIEMPRE es_envio, true o false):
 OBSERVACIONES Y GUARNICIÓN — regla simple (la guarnición por defecto NO se aclara):
 - Poné en "observacion" SOLO lo que el cliente aclara y que se aparta de lo habitual:
   ej. "sin sal", "sin tomate", "sin papas", "con puré", "con ensalada", "con huevo", "poca mayonesa".
+- Poné TODO lo que aclara, COMPLETO, sin recortar (ej. "con rúcula y huevo" queda "con rúcula y huevo",
+  NO solo "con huevo").
 - Si el cliente NO aclara nada, dejá "observacion" VACÍA. NUNCA inventes ni agregues "con papas fritas"
   ni ninguna guarnición por tu cuenta: los platos ya vienen con su guarnición y la cocina la conoce.
 - Si pide algo SIN o DISTINTO a lo de siempre, ahí SÍ ponelo (ej. "sin papas", "con puré en vez de papas").
