@@ -849,6 +849,7 @@ app.post('/api/whatsapp/responder', async (req, res) => {
 const moneyTxt = (n) => '$' + Math.round(Number(n || 0)).toLocaleString('es-AR');
 const ultimoPedidoTg = new Map(); // chatId -> timestamp del último pedido
 const pendientesTg = new Map();   // chatId -> { parsed, items, nombre, ts } (modo confirmación)
+const ultimaComandaTg = new Map(); // chatId -> { pedidoId, ts } (para reimprimir desde el celular)
 const clampCant = (n) => Math.max(1, Math.min(50, Math.round(Number(n) || 1)));
 
 // Detectar respuestas de SÍ / NO (sin acentos, sin signos)
@@ -858,6 +859,13 @@ const SI_TG = ['si', 's', 'dale', 'ok', 'oka', 'okey', 'oki', 'listo', 'va', 'va
 const NO_TG = ['no', 'nop', 'cancelar', 'cancela', 'cancelalo', 'cancelala', 'negativo', 'anular', 'anulalo', 'borrar', 'borralo', 'mal', 'esta mal', 'no confirmo', 'cancelo', 'no gracias', 'dejalo', 'olvidalo', 'no va', 'mejor no', 'para', 'frena'];
 const esSiTg = (t) => SI_TG.includes(limpiarResp(t));
 const esNoTg = (t) => NO_TG.includes(limpiarResp(t));
+
+// Pedir REIMPRIMIR la última comanda (si salió cortada, no salió, etc.)
+const REIMP_TG = ['reimprimir', 'reimprimi', 'reimprimila', 'reimprimilo', 'reimprima', 'reimprimir comanda',
+  'imprimi de nuevo', 'imprimir de nuevo', 'imprimila de nuevo', 'de nuevo la comanda', 'otra vez la comanda',
+  'no salio', 'no salio la comanda', 'no imprimio', 'no se imprimio', 'salio cortada', 'salio cortado',
+  'salio mal', 'salio fea', 'no salio nada', 'volve a imprimir', 'volves a imprimir'];
+const esReimprimirTg = (t) => REIMP_TG.includes(limpiarResp(t));
 
 // Botones tocables para confirmar/corregir el pedido (según su estado: envío sí/no)
 function botonesConfirma(parsed) {
@@ -876,20 +884,32 @@ function botonesConfirma(parsed) {
 
 // Convierte los items parseados por la IA en items reales (con precio/sector del menú)
 function preparaItemsTg(parsed) {
-  const items = (parsed.items || []).map((it) => {
+  const items = [];
+  for (const it of (parsed.items || [])) {
     const plato = db.prepare(
       'SELECT p.*, s.nombre sector FROM plato p LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE p.id=?'
     ).get(it.plato_id);
-    if (!plato) return null;
     // Precio: el que indicó la persona en el mensaje si vino; si no, el del sistema
     const precioManual = Number(it.precio_unit);
-    const precio_unit = (Number.isFinite(precioManual) && precioManual > 0) ? Math.round(precioManual) : plato.precio;
-    return {
+    const precioManualOk = Number.isFinite(precioManual) && precioManual > 0;
+    if (!plato) {
+      // RED DE SEGURIDAD: la IA eligió un plato que no existe (ID inválido). NO perdemos el ítem:
+      // lo mandamos igual a la cocina como "fuera de carta" usando el nombre que devolvió la IA.
+      const nombre = (it.nombre || '').trim();
+      if (!nombre) continue; // sin nombre no hay nada que anotar
+      items.push({
+        plato_id: null, nombre, cantidad: clampCant(it.cantidad),
+        precio_unit: precioManualOk ? Math.round(precioManual) : 0,
+        observacion: it.observacion || null, sector_id: null, sector_nombre: null, fuera_carta: true,
+      });
+      continue;
+    }
+    items.push({
       plato_id: plato.id, nombre: plato.nombre, cantidad: clampCant(it.cantidad),
-      precio_unit, observacion: it.observacion || null,
+      precio_unit: precioManualOk ? Math.round(precioManual) : plato.precio, observacion: it.observacion || null,
       sector_id: plato.sector_id, sector_nombre: plato.sector,
-    };
-  }).filter(Boolean);
+    });
+  }
   // Ítems FUERA DE CARTA: van igual a la comanda (plato_id null), con el precio que se haya dicho (o 0 = se pone en caja)
   for (const it of (parsed.items_libres || [])) {
     const nombre = (it.nombre || '').trim();
@@ -1000,17 +1020,42 @@ async function crearEImprimirTg(chatId, mozo, parsed, items, cfg) {
   const bebidas = bebidasDeItems(p.items);
   if (bebidas.length) imprimirBebidas(p, bebidas).catch((e) => console.error('Bebidas:', e.message));
 
+  // Guardamos la última comanda de esta persona para poder REIMPRIMIRLA desde el celular.
+  ultimaComandaTg.set(String(chatId), { pedidoId, ts: Date.now() });
+
   const { texto, avisos } = resumenPedidoTg(parsed, items, mozo, envio);
   const aviso = avisos.length ? '\n\n' + avisos.join('\n') : '';
-  let cabecera;
+  let cabecera, markup;
   if (!res || res.ok === false) {
-    cabecera = `⚠️ Pedido #${pedidoId} CARGADO, pero la comanda *NO se imprimió*.\nRevisá la impresora (papel / encendida) y reimprimila desde Cocina 🖨.`;
+    cabecera = `⚠️ Pedido #${pedidoId} CARGADO, pero la comanda *NO se imprimió*.\nRevisá la impresora (papel / encendida) y tocá el botón para reintentar 🖨.`;
+    markup = { inline_keyboard: [[{ text: '🖨 Reintentar impresión', callback_data: 'reimprimir' }]] };
   } else if (res.modo === 'impreso') {
     cabecera = `🛵 *DELIVERY* — Comanda IMPRESA ✅ (Pedido #${pedidoId})`;
   } else {
     cabecera = `🛵 *DELIVERY* — Pedido #${pedidoId} cargado (no hay impresora configurada; quedó guardado en archivo).`;
   }
-  tg.enviar(chatId, `${cabecera}\n${texto}${aviso}`);
+  tg.enviar(chatId, `${cabecera}\n${texto}${aviso}`, markup);
+}
+
+// Reimprime la última comanda que cargó esta persona (por si no salió o salió cortada).
+async function reimprimirUltimaTg(chatId) {
+  const u = ultimaComandaTg.get(String(chatId));
+  if (!u) { tg.enviar(chatId, '🖨 No tengo ninguna comanda reciente tuya para reimprimir. Mandame el pedido de nuevo.'); return; }
+  const p = pedidoCompleto(u.pedidoId);
+  if (!p) { tg.enviar(chatId, `🖨 No encontré la comanda #${u.pedidoId} para reimprimir.`); return; }
+  const aCocina = itemsComandaCocina(p.items, p.tipo);
+  if (!aCocina.length) { tg.enviar(chatId, `🖨 La comanda #${u.pedidoId} no tiene nada para la cocina.`); return; }
+  tg.enviarAccion(chatId, 'typing');
+  let res;
+  try { res = await imprimirComandaUnica(p, aCocina); }
+  catch (e) { res = { ok: false, error: e.message }; }
+  if (res && res.ok !== false) {
+    tg.enviar(chatId, `🖨 Comanda #${u.pedidoId} REIMPRESA ✅`);
+  } else {
+    io.emit('impresion:error', { pedido_id: u.pedidoId, resultado: res });
+    tg.enviar(chatId, `⚠️ No pude reimprimir la comanda #${u.pedidoId}. Revisá la impresora (papel / encendida).`,
+      { inline_keyboard: [[{ text: '🖨 Reintentar', callback_data: 'reimprimir' }]] });
+  }
 }
 
 tg.setHandlers({
@@ -1042,6 +1087,9 @@ tg.setHandlers({
         return;
       }
     }
+
+    // REIMPRIMIR la última comanda (si no salió / salió cortada), desde cualquier momento.
+    if (esReimprimirTg(texto)) { await reimprimirUltimaTg(chatId); return; }
 
     // Modo confirmación: si hay un pedido esperando SÍ/NO, resolverlo primero
     let pend = pendientesTg.get(key);
@@ -1131,6 +1179,8 @@ tg.setHandlers({
     const key = String(chatId);
     const autor = autorizadosTg(cfg);
     if (!autor.has(key)) return;
+    // El botón "Reintentar impresión" no depende de que haya un pedido pendiente.
+    if (data === 'reimprimir') { await reimprimirUltimaTg(chatId); return; }
     let pend = pendientesTg.get(key);
     if (pend && Date.now() - pend.ts > 10 * 60000) { pendientesTg.delete(key); pend = undefined; } // venció
     if (!pend) {
@@ -1146,9 +1196,11 @@ tg.setHandlers({
       pendientesTg.delete(key);
       if (messageId) tg.editar(chatId, messageId, '❌ Pedido cancelado. Mandame el pedido corregido cuando quieras.');
     } else if (data === 'edit') {
+      pendientesTg.set(key, { ...pend, ts: Date.now() }); // reiniciar el reloj mientras escribe el cambio
       if (messageId) tg.editar(chatId, messageId, '✏️ Dale, decime el cambio.');
       tg.enviar(chatId, 'Decime qué cambiar (ej. "agregá una coca", "sacá la pizza", "cambiá la dirección a Rivadavia 100"). Después te muestro el pedido actualizado.');
     } else if (data === 'hora') {
+      pendientesTg.set(key, { ...pend, ts: Date.now() }); // reiniciar el reloj mientras escribe la hora
       if (messageId) tg.editar(chatId, messageId, '🕒 Decime la hora de entrega (ej. "21:30" o "en 40 minutos").');
     } else if (data === 'noenvio' || data === 'sienvio') {
       // Toggle de envío en un toque: recalcula el total y refresca el mismo mensaje

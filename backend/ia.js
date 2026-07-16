@@ -19,11 +19,12 @@ const HERRAMIENTA = {
           type: 'object',
           properties: {
             plato_id: { type: 'integer', description: 'ID del plato del menú que mejor coincide' },
+            nombre: { type: 'string', description: 'Nombre del plato elegido TAL CUAL figura en el menú. Sirve de respaldo: si el ID estuviera mal, con este nombre el ítem igual se anota y no se pierde.' },
             cantidad: { type: 'integer', description: 'Cantidad pedida' },
             observacion: { type: 'string', description: 'Aclaración del ítem, ej. "sin sal" (vacío si no hay)' },
             precio_unit: { type: 'integer', description: 'Precio POR UNIDAD, SOLO si el mensaje lo indica para este ítem (ej. "lomito a 20000" -> 20000). Si el mensaje no da precio, NO incluyas este campo (se usa el del sistema).' },
           },
-          required: ['plato_id', 'cantidad'],
+          required: ['plato_id', 'nombre', 'cantidad'],
         },
       },
       items_libres: {
