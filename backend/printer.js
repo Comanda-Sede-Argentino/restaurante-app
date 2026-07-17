@@ -51,7 +51,7 @@ const defaultConfig = {
     autorizados: [], // IDs de chat de Telegram autorizados a mandar pedidos
     claveIA: '', // clave de API de Claude (Anthropic) para interpretar el pedido
     modeloIA: 'claude-sonnet-4-6', // Sonnet: mejor interpretación de pedidos (cambiable en Ajustes)
-    claveVoz: '', // clave de OpenAI (Whisper) para transcribir notas de voz. Vacío = audios desactivados.
+    claveVoz: '', // clave de Groq (Whisper, gratis) para transcribir notas de voz. Vacío = audios desactivados.
     costoEnvio: 0, // cargo de delivery que se suma al total (0 = sin cargo)
     guarnicionDefault: 'papas fritas', // guarnición por defecto si el cliente no aclara
     confirmar: false, // si true, el bot muestra el pedido y espera "SÍ" antes de imprimir

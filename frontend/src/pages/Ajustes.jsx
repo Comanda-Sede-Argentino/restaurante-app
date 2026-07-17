@@ -356,10 +356,10 @@ export default function Ajustes() {
         </div>
         <div style={{ marginTop: 10 }}>
           <label style={{ color: 'var(--muted)', fontSize: 13, display: 'block', marginBottom: 4 }}>
-            🎤 Notas de voz (opcional): clave de OpenAI para transcribir audios. Dejala vacía si no usás audios.
+            🎤 Notas de voz (opcional): clave de <b>Groq</b> (gratis) para transcribir audios. Dejala vacía si no usás audios.
           </label>
           <input type="password" value={tg.claveVoz || ''} onChange={(e) => setTg('claveVoz', e.target.value)}
-            placeholder="sk-... (OpenAI, para Whisper)" style={{ width: '100%', fontFamily: 'monospace' }} />
+            placeholder="gsk_... (Groq, para transcribir voz)" style={{ width: '100%', fontFamily: 'monospace' }} />
         </div>
 
         <h2 className="h2" style={{ marginTop: 14 }}>3) Quién puede mandar pedidos</h2>
