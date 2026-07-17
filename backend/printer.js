@@ -106,7 +106,12 @@ export function setConfig(nuevo) {
   // No sobreescribir los secretos si llegan enmascarados desde el frontend
   if (tg.token === MASK) tg.token = c.telegram.token;
   if (tg.claveIA === MASK) tg.claveIA = c.telegram.claveIA;
-  if (tg.claveVoz === MASK) tg.claveVoz = c.telegram.claveVoz;
+  // Clave de voz (Groq): limpiar espacios y puntitos de enmascarado que se hayan pegado por error.
+  // Si después de limpiar no queda nada (llegó solo el enmascarado ••••), conservar la que ya estaba.
+  if (typeof tg.claveVoz === 'string') {
+    const limpia = tg.claveVoz.replace(/[•\s]/g, '');
+    tg.claveVoz = limpia || c.telegram.claveVoz;
+  }
   c.telegram = tg;
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(c, null, 2));
   return getConfigPublic();

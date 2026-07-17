@@ -4,7 +4,8 @@
 // así que si algún día se quiere volver a OpenAI, solo cambia la URL y el modelo.
 
 export async function transcribirAudio(audioBase64, mime, apiKey) {
-  if (!apiKey) throw new Error('Falta la clave de transcripción (voz)');
+  const key = (apiKey || '').replace(/[•\s]/g, ''); // limpiar espacios/puntitos por si quedaron pegados
+  if (!key) throw new Error('Falta la clave de transcripción (voz)');
   const bytes = Buffer.from(audioBase64, 'base64');
   const form = new FormData();
   // Telegram manda las notas de voz en OGG/opus; Whisper lo acepta.
@@ -18,7 +19,7 @@ export async function transcribirAudio(audioBase64, mime, apiKey) {
   try {
     r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + apiKey },
+      headers: { Authorization: 'Bearer ' + key },
       body: form,
       signal: ctrl.signal,
     });
