@@ -11,6 +11,7 @@ export default function Ajustes() {
   const [tgEstado, setTgEstado] = useState(null);
   const [mozos, setMozos] = useState([]);
   const [nuevoMozo, setNuevoMozo] = useState('');
+  const [vozNueva, setVozNueva] = useState(''); // clave de voz a pegar (visible, arranca vacía)
 
   const refrescarTg = () => api.tgEstado().then(setTgEstado).catch(() => {});
   const cargarMozos = () => api.usuarios().then((u) => setMozos(u.filter((x) => x.rol === 'mozo')));
@@ -67,6 +68,8 @@ export default function Ajustes() {
 
   const guardar = async () => {
     await api.guardarConfig({ impresion: imp, whatsapp: wa, telegram: tg, cocina, backup, caja: cajaCfg, facturador: fact });
+    setVozNueva('');                    // limpiar el campo de la clave de voz
+    api.config().then(setCfg);          // recargar (la clave queda enmascarada = guardada)
     setMsg('✅ Configuración guardada.');
     setTimeout(() => setMsg(''), 3000);
   };
@@ -356,10 +359,19 @@ export default function Ajustes() {
         </div>
         <div style={{ marginTop: 10 }}>
           <label style={{ color: 'var(--muted)', fontSize: 13, display: 'block', marginBottom: 4 }}>
-            🎤 Notas de voz (opcional): clave de <b>Groq</b> (gratis) para transcribir audios. Dejala vacía si no usás audios.
+            🎤 Notas de voz (opcional): clave de <b>Groq</b> (gratis) para transcribir audios.
           </label>
-          <input type="password" value={tg.claveVoz || ''} onChange={(e) => setTg('claveVoz', e.target.value)}
-            placeholder="gsk_... (Groq, para transcribir voz)" style={{ width: '100%', fontFamily: 'monospace' }} />
+          {tg.claveVoz && /^[•]+$/.test(tg.claveVoz) && vozNueva === '' && (
+            <p style={{ color: 'var(--green)', fontSize: 12, margin: '0 0 4px' }}>
+              ✅ Ya hay una clave guardada. Dejá esto vacío para no cambiarla, o pegá una nueva para reemplazarla.
+            </p>
+          )}
+          <input type="text" value={vozNueva}
+            onChange={(e) => { setVozNueva(e.target.value); setTg('claveVoz', e.target.value); }}
+            placeholder="gsk_... (pegá acá la clave de Groq)" style={{ width: '100%', fontFamily: 'monospace' }} />
+          <p style={{ color: 'var(--muted)', fontSize: 12, margin: '4px 0 0' }}>
+            La vas a ver como texto: fijate que empiece con <code>gsk_</code> y que esté completa (sin espacios).
+          </p>
         </div>
 
         <h2 className="h2" style={{ marginTop: 14 }}>3) Quién puede mandar pedidos</h2>
