@@ -13,6 +13,8 @@ export default function Mozo() {
   const [pedido, setPedido] = useState(null);
   const [accionMesa, setAccionMesa] = useState(null); // 'mover' | 'unir'
   const [mesaDestino, setMesaDestino] = useState('');
+  const [cobrando, setCobrando] = useState(false);    // muestra el cartel de forma de pago
+  const [recibido, setRecibido] = useState('');        // con cuánto paga (efectivo) para el vuelto
 
   const cargarMesas = () => api.mesas().then(setMesas);
   useEffect(() => {
@@ -57,12 +59,24 @@ export default function Mozo() {
     refrescarPedido();
   };
 
-  const imprimirCuenta = async () => {
-    const r = await api.imprimirCuenta(pedido.id);
-    const m = r.resultado?.modo;
-    toast(m === 'impreso' ? '🧾 Cuenta enviada a la impresora.'
-      : m === 'archivo' ? '🧾 Cuenta generada (guardada como archivo, sin impresora).'
-      : 'No se pudo imprimir la cuenta.', m === 'impreso' ? 'ok' : 'info');
+  // Imprime la cuenta, registra el cobro en la caja (con la forma de pago elegida) y libera la mesa.
+  const cobrarMesa = async (medio) => {
+    const total = pedido.total;
+    let extra = '';
+    if (medio === 'EFECTIVO') {
+      const rec = Number(String(recibido).replace(/[^\d]/g, '')) || 0;
+      if (rec > 0) extra = `\nPaga con ${money(rec)} → vuelto ${money(Math.max(0, rec - total))}`;
+    }
+    if (!(await confirmar(`¿Cobrar ${money(total)} en ${medio}?${extra}\n\nSe imprime la cuenta y la mesa queda libre.`, { ok: 'Cobrar e imprimir' }))) return;
+    try {
+      await api.imprimirCuenta(pedido.id).catch(() => {}); // imprimir es best-effort: no frena el cobro
+      await api.pagar(pedido.id, [{ medio, importe: total }], {}); // registra la venta y libera la mesa
+      setCobrando(false); setRecibido('');
+      setPedido(null); nav('/mozo'); cargarMesas();
+      toast('✅ Cobrado e impreso. Mesa liberada.');
+    } catch (e) {
+      toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
+    }
   };
 
   const cancelarPedido = async () => {
@@ -110,13 +124,38 @@ export default function Mozo() {
           </h1>
           <span className="spacer" />
           {pedido.total > 0 && (
-            <button className="btn-blue" onClick={imprimirCuenta}>🧾 Imprimir cuenta</button>
+            <button className="btn-green" onClick={() => { setCobrando(true); setRecibido(''); }}>🧾 Imprimir y cobrar</button>
           )}
           {pedido.mesa && <button onClick={() => abrirAccion('mover')}>🔀 Mover</button>}
           {pedido.mesa && mesasOcupadas.length > 0 && <button onClick={() => abrirAccion('unir')}>🔗 Unir</button>}
           <button className="btn-red" onClick={cancelarPedido}>✖ Cancelar pedido</button>
           <span className="badge warn">{pedido.estado}</span>
         </div>
+        {cobrando && (() => {
+          const recNum = Number(String(recibido).replace(/[^\d]/g, '')) || 0;
+          const vuelto = recNum > 0 ? Math.max(0, recNum - pedido.total) : null;
+          return (
+            <div className="card" style={{ marginBottom: 12, borderColor: 'var(--green)' }}>
+              <h2 className="h2" style={{ marginTop: 0 }}>💵 Cobrar {money(pedido.total)} — ¿cómo paga?</h2>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                <button className="btn-green" onClick={() => cobrarMesa('EFECTIVO')}>💵 Efectivo</button>
+                <button className="btn-blue" onClick={() => cobrarMesa('TARJETA DÉBITO')}>💳 Débito</button>
+                <button className="btn-blue" onClick={() => cobrarMesa('TARJETA CRÉDITO')}>💳 Crédito</button>
+                <button className="btn-blue" onClick={() => cobrarMesa('QR / TRANSFERENCIA')}>📱 QR / Transf.</button>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <label style={{ color: 'var(--muted)', fontSize: 13 }}>Efectivo — ¿con cuánto paga? (para el vuelto):</label>
+                <input inputMode="numeric" value={recibido} onChange={(e) => setRecibido(e.target.value)} placeholder="$" style={{ width: 130 }} />
+                {vuelto != null && <b style={{ color: 'var(--green)' }}>Vuelto: {money(vuelto)}</b>}
+              </div>
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => { setCobrando(false); setRecibido(''); nav('/caja'); }}>📒 Fiado / cobro detallado (ir a Caja)</button>
+                <span className="spacer" />
+                <button onClick={() => { setCobrando(false); setRecibido(''); }}>Cancelar</button>
+              </div>
+            </div>
+          );
+        })()}
         {accionMesa && (
           <div className="card" style={{ marginBottom: 12, borderColor: 'var(--accent)' }}>
             <h2 className="h2" style={{ marginTop: 0 }}>{accionMesa === 'mover' ? '🔀 Mover a otra mesa' : '🔗 Unir con otra mesa'}</h2>
