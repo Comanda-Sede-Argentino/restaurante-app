@@ -3,7 +3,6 @@ import { api, money, socket } from '../api';
 import { toast } from '../ui.jsx';
 
 // Observaciones rápidas (se tocan para agregar/quitar). Editable a futuro.
-const OBS_RAPIDAS = ['Sin sal', 'Sin cebolla', 'Sin hielo', 'Para compartir'];
 // Puntos de cocción (para platos marcados "pide punto", se elige por unidad)
 const PUNTOS = ['Jugoso', 'A punto', 'Bien cocido', 'Vuelta y vuelta'];
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -92,12 +91,6 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const dec = (id) =>
     setCart((c) => c.flatMap((x) => (x.plato_id !== id ? [x] : x.cantidad > 1 ? [{ ...x, cantidad: x.cantidad - 1 }] : [])));
 
-  const toggleObs = (id, txt) => setObsItem((o) => {
-    const cur = (o[id] || '').split(',').map((s) => s.trim()).filter(Boolean);
-    const i = cur.indexOf(txt);
-    if (i >= 0) cur.splice(i, 1); else cur.push(txt);
-    return { ...o, [id]: cur.join(', ') };
-  });
 
   const total = cart.reduce((s, x) => s + x.cantidad * x.precio_unit, 0);
   const totalCount = cart.reduce((s, x) => s + x.cantidad, 0);
@@ -241,16 +234,8 @@ export default function OrderTaker({ pedido, onEnviado }) {
                 ))}
               </div>
             ) : null}
-            <div className="obs-chips">
-              {OBS_RAPIDAS.map((o) => {
-                const active = (obsItem[x.plato_id] || '').split(',').map((s) => s.trim()).includes(o);
-                return (
-                  <span key={o} className={'obs-chip' + (active ? ' active' : '')} onClick={() => toggleObs(x.plato_id, o)}>{o}</span>
-                );
-              })}
-            </div>
             <input
-              placeholder="Otra observación..."
+              placeholder="Observación (ej. sin sal, para compartir)..."
               value={obsItem[x.plato_id] || ''}
               onChange={(e) => setObsItem((o) => ({ ...o, [x.plato_id]: e.target.value }))}
               style={{ width: '100%', marginTop: 6, fontSize: 13 }}
