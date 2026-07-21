@@ -59,6 +59,8 @@ const defaultConfig = {
   cocina: {
     // Guarniciones que aparecen como botones rápidos al cargar platos con guarnición
     guarniciones: ['Papas fritas', 'Puré', 'Ensalada mixta', 'Rúcula con queso', 'Puré mixto'],
+    // Salsas (para pastas): botones rápidos al cargar un plato de una categoría marcada "lleva salsa"
+    salsas: ['Salsa roja', 'Salsa mixta', 'Bolognesa', 'Crema y queso'],
   },
   backup: {
     // Carpeta EXTERNA donde copiar los respaldos (pendrive o carpeta de Google Drive/OneDrive).

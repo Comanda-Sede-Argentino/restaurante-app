@@ -26,6 +26,7 @@ export default function Admin() {
 
   const [verCats, setVerCats] = useState(false);
   const [verComanda, setVerComanda] = useState(false);
+  const [verSalsa, setVerSalsa] = useState(false);
 
   // Abrir edición cargando la receta completa (insumos que descuenta del stock)
   const abrirEdit = async (p) => {
@@ -83,6 +84,17 @@ export default function Admin() {
       // Si falla (ej. esta PC tiene una versión vieja del sistema), revertimos y avisamos.
       setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, guarnicion: c.guarnicion } : x)));
       toast('No se pudo guardar la guarnición. Revisá que esta PC tenga la última actualización.', 'error');
+    }
+  };
+
+  const toggleSalsa = async (c) => {
+    const nuevo = c.salsa ? 0 : 1;
+    setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, salsa: nuevo } : x)));
+    try {
+      await api.editarCategoria(c.id, { salsa: nuevo });
+    } catch (e) {
+      setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, salsa: c.salsa } : x)));
+      toast('No se pudo guardar la salsa. Revisá que esta PC tenga la última actualización.', 'error');
     }
   };
 
@@ -206,6 +218,31 @@ export default function Admin() {
               {cats.map((c) => (
                 <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                   <input type="checkbox" checked={!!c.guarnicion} onChange={() => toggleGuarnicion(c)} />
+                  {c.nombre}
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h2 className="h2" style={{ margin: 0 }}>🍝 Categorías que se completan con salsa (pastas)</h2>
+          <span className="spacer" />
+          <button onClick={() => setVerSalsa((v) => !v)}>{verSalsa ? 'Ocultar' : 'Configurar'}</button>
+        </div>
+        {verSalsa && (
+          <>
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>
+              Marcá las categorías cuyos platos se completan con una salsa (ravioles, ñoquis, tallarines, etc.).
+              Al cargarlos, el mozo elige la salsa por unidad (roja, mixta, bolognesa, crema y queso).
+              Las salsas se editan en <b>Ajustes → Salsas</b>.
+            </p>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 6 }}>
+              {cats.map((c) => (
+                <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                  <input type="checkbox" checked={!!c.salsa} onChange={() => toggleSalsa(c)} />
                   {c.nombre}
                 </label>
               ))}

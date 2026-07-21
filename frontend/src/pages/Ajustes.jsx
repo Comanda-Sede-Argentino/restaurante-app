@@ -267,6 +267,19 @@ export default function Ajustes() {
           placeholder="Papas fritas, Puré, Ensalada mixta, Rúcula con queso, Puré mixto" />
       </div>
 
+      <h1 className="h1" style={{ marginTop: 24 }}>Ajustes · Salsas (pastas)</h1>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
+          Estas son las salsas que aparecen como <b>botones rápidos</b> al cargar un plato de una categoría
+          marcada como "lleva salsa" (Catálogo → Categorías que se completan con salsa). Separá con comas.
+        </p>
+        <textarea
+          value={(cocina.salsas || []).join(', ')}
+          onChange={(e) => setCocina('salsas', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+          rows={2} style={{ width: '100%' }}
+          placeholder="Salsa roja, Salsa mixta, Bolognesa, Crema y queso" />
+      </div>
+
       <h1 className="h1" style={{ marginTop: 24 }}>Ajustes · WhatsApp</h1>
       <div className="card" style={{ marginBottom: 14, borderColor: wa.habilitado === false ? '' : 'var(--orange)' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>

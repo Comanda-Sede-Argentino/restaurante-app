@@ -18,19 +18,24 @@ export default function OrderTaker({ pedido, onEnviado }) {
   });
   const [obsItem, setObsItem] = useState({});
   const [guarnItem, setGuarnItem] = useState({}); // plato_id -> [guarnición por unidad]
+  const [salsaItem, setSalsaItem] = useState({}); // plato_id -> [salsa por unidad] (pastas)
   const [puntoItem, setPuntoItem] = useState({}); // plato_id -> [punto de cocción por unidad]
   const [enviando, setEnviando] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
   const [frecuentes, setFrecuentes] = useState([]);
   const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Ensalada mixta', 'Rúcula con queso', 'Puré mixto']);
+  const [salsas, setSalsas] = useState(['Salsa roja', 'Salsa mixta', 'Bolognesa', 'Crema y queso']);
   const cargarMenu = () => {
     api.platos({}).then(setTodos);
     api.platosFrecuentes().then(setFrecuentes).catch(() => {});
   };
   useEffect(() => {
     cargarMenu();
-    api.config().then((c) => { if (c?.cocina?.guarniciones?.length) setGuarniciones(c.cocina.guarniciones); }).catch(() => {});
+    api.config().then((c) => {
+      if (c?.cocina?.guarniciones?.length) setGuarniciones(c.cocina.guarniciones);
+      if (c?.cocina?.salsas?.length) setSalsas(c.cocina.salsas);
+    }).catch(() => {});
     socket.on('plato:disponibilidad', cargarMenu); // la cocina marcó/quitó "sin stock"
     return () => socket.off('plato:disponibilidad', cargarMenu);
   }, []);
@@ -38,6 +43,9 @@ export default function OrderTaker({ pedido, onEnviado }) {
   // Qué platos llevan guarnición (por categoría) y cuáles piden punto de cocción (por plato)
   const catGuarnDe = useMemo(() => {
     const m = {}; for (const p of todos) m[p.id] = p.cat_guarnicion; return m;
+  }, [todos]);
+  const catSalsaDe = useMemo(() => {
+    const m = {}; for (const p of todos) m[p.id] = p.cat_salsa; return m;
   }, [todos]);
   const puntoDe = useMemo(() => {
     const m = {}; for (const p of todos) m[p.id] = p.punto; return m;
@@ -48,6 +56,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
     return { ...o, [id]: arr };
   });
   const setGuarnicion = setUnidad(setGuarnItem);
+  const setSalsa = setUnidad(setSalsaItem);
   const setPunto = setUnidad(setPuntoItem);
 
   // Guardar el borrador del carrito por pedido (sobrevive a recargas de la tablet)
@@ -94,10 +103,14 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const totalCount = cart.reduce((s, x) => s + x.cantidad, 0);
 
   const guarnTexto = (g) => (g === 'SIN' ? 'SIN guarnición' : (g ? 'con ' + g : ''));
-  // ¿Este plato necesita elegir algo por unidad? (guarnición o punto de cocción)
-  const porUnidad = (id) => catGuarnDe[id] || puntoDe[id];
+  const salsaTexto = (s) => (s ? 'con ' + s.toLowerCase() : '');
+  // ¿Este plato necesita elegir algo por unidad? (guarnición, salsa o punto de cocción)
+  const porUnidad = (id) => catGuarnDe[id] || catSalsaDe[id] || puntoDe[id];
   const obsUnidad = (id, u, baseObs) =>
-    [puntoDe[id] ? (puntoItem[id] || [])[u] : '', catGuarnDe[id] ? guarnTexto((guarnItem[id] || [])[u]) : '', baseObs]
+    [puntoDe[id] ? (puntoItem[id] || [])[u] : '',
+     catGuarnDe[id] ? guarnTexto((guarnItem[id] || [])[u]) : '',
+     catSalsaDe[id] ? salsaTexto((salsaItem[id] || [])[u]) : '',
+     baseObs]
       .filter(Boolean).join(' - ') || null;
 
   const enviar = async () => {
@@ -117,7 +130,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
         }
       }
       await api.agregarItems(pedido.id, items);
-      setCart([]); setObsItem({}); setGuarnItem({}); setPuntoItem({}); setCartOpen(false);
+      setCart([]); setObsItem({}); setGuarnItem({}); setSalsaItem({}); setPuntoItem({}); setCartOpen(false);
       if (draftKey) localStorage.removeItem(draftKey);
       toast('✅ Comanda enviada a cocina.');
       onEnviado && onEnviado();
@@ -214,6 +227,14 @@ export default function OrderTaker({ pedido, onEnviado }) {
                           <span key={g} className={'obs-chip' + ((guarnItem[x.plato_id]?.[u]) === g ? ' active' : '')} onClick={() => setGuarnicion(x.plato_id, u, g)}>{g}</span>
                         ))}
                         <span className={'obs-chip' + ((guarnItem[x.plato_id]?.[u]) === 'SIN' ? ' active' : '')} onClick={() => setGuarnicion(x.plato_id, u, 'SIN')}>Sin</span>
+                      </div>
+                    ) : null}
+                    {catSalsaDe[x.plato_id] ? (
+                      <div className="obs-chips">
+                        <span style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍝 Salsa:</span>
+                        {salsas.map((s) => (
+                          <span key={s} className={'obs-chip' + ((salsaItem[x.plato_id]?.[u]) === s ? ' active' : '')} onClick={() => setSalsa(x.plato_id, u, s)}>{s}</span>
+                        ))}
                       </div>
                     ) : null}
                   </div>
