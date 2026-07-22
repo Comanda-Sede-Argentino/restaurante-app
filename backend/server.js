@@ -693,8 +693,6 @@ app.post('/api/cuentas/:id/imprimir', async (req, res) => {
   }
   lineas.push('----------------------------------------');
   lineas.push('SALDO (DEBE): ' + moneyTxt(saldo));
-  lineas.push('');
-  lineas.push('Firma: .................................');
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let r;
   try { r = await imprimirTextoPlano('ESTADO DE CUENTA', lineas, impresora); }
