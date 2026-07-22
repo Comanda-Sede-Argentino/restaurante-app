@@ -436,7 +436,7 @@ app.post('/api/pedidos/:id/cuenta', async (req, res) => {
   if (!p) return res.status(404).json({ error: 'No existe' });
   const items = (p.items || []).filter((i) => i.estado !== 'anulado');
   if (!items.length) return res.status(400).json({ error: 'El pedido no tiene platos' });
-  const r = await imprimirCuenta(p, items);
+  const r = await imprimirCuenta(p, items, undefined, !!req.body.firma); // firma: bloque para firmar (fiado)
   res.json({ ok: true, resultado: r });
 });
 

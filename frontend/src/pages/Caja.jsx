@@ -108,8 +108,8 @@ export default function Caja() {
         detalle: hayFiado ? (detalleFiado || null) : undefined,
         descuento: numAR(descuento), propina: numAR(propina),
       });
-      // Fiado: imprimir el ticket como comprobante de la deuda (impresión best-effort, no traba el cobro).
-      if (hayFiado) { try { await api.imprimirCuenta(sel.id); } catch { /* ignorar */ } }
+      // Fiado: imprimir el ticket con espacio de FIRMA como comprobante de la deuda (best-effort).
+      if (hayFiado) { try { await api.imprimirCuenta(sel.id, { firma: true }); } catch { /* ignorar */ } }
       setSel(null); cargar(); cargarCuentas();
       toast(hayFiado ? '✅ Cargado al fiado. Ticket impreso.' : '✅ Cobrado.');
     } catch (e) {

@@ -183,7 +183,7 @@ function origenDe(pedido) {
 function llevaPrecios(pedido, cuenta) { return cuenta || pedido.tipo !== 'salon'; }
 
 // ---------- Ticket en texto (respaldo en archivo y modo 'texto') ----------
-export function construirTicketTexto(pedido, items, w = 42, cuenta = false) {
+export function construirTicketTexto(pedido, items, w = 42, cuenta = false, firma = false) {
   const L = [];
   const origen = origenDe(pedido);
   const precios = llevaPrecios(pedido, cuenta);
@@ -216,6 +216,11 @@ export function construirTicketTexto(pedido, items, w = 42, cuenta = false) {
     const tot = 'TOTAL: ' + money(total);
     L.push(' '.repeat(Math.max(0, w - tot.length)) + tot);
   }
+  if (firma) {
+    L.push(''); L.push(''); L.push('');
+    L.push('.'.repeat(w));
+    L.push('Firma');
+  }
   L.push(linea(w));
   L.push(''); L.push('');
   return L.join('\r\n');
@@ -223,7 +228,7 @@ export function construirTicketTexto(pedido, items, w = 42, cuenta = false) {
 
 // ---------- Ticket en ESC/POS (térmica, con texto destacado) ----------
 const ESC = 0x1b, GS = 0x1d;
-function construirTicketEscpos(pedido, items, cuenta = false, ancho = 32, titulo = '', sonido = false) {
+function construirTicketEscpos(pedido, items, cuenta = false, ancho = 32, titulo = '', sonido = false, firma = false) {
   const b = [];
   const W = ancho > 0 ? ancho : 32; // ancho en caracteres (58mm=32, 80mm=48)
   const raw = (...x) => b.push(...x);
@@ -284,6 +289,11 @@ function construirTicketEscpos(pedido, items, cuenta = false, ancho = 32, titulo
     align(2); GRANDE(); txt('TOTAL ' + money(total)); nl(); NORMAL(); align(0);
   }
   NORMAL();
+  // Bloque de FIRMA (solo en tickets de fiado): espacio para firmar + línea de puntos + "Firma".
+  if (firma) {
+    raw(0x0a, 0x0a, 0x0a); // aire para firmar
+    align(1); txt('.'.repeat(W)); nl(); BOLD(); txt('Firma'); NORMAL(); nl(); align(0);
+  }
   if (sonido) raw(ESC, 0x42, 0x05, 0x09); // chicharra (ESC B): avisa a la cocina que salió una comanda
   raw(0x0a, 0x0a, 0x0a);
   raw(GS, 0x56, 66, 0); // corte parcial
@@ -374,13 +384,13 @@ function impresoraComanda(impresion, override) {
 }
 
 // Imprime un ticket (comanda o cuenta). Respaldo siempre en archivo .txt
-async function imprimirTicket(pedido, items, { cuenta = false, impresoraOverride } = {}) {
+async function imprimirTicket(pedido, items, { cuenta = false, impresoraOverride, firma = false } = {}) {
   const { impresion } = getConfig();
   // La CUENTA puede salir por otra impresora (ej. la de caja) y con otro ancho de papel.
   const ancho = (cuenta && Number(impresion.anchoCuenta) > 0) ? Number(impresion.anchoCuenta) : (impresion.anchoColumnas || 42);
   // Chicharra: solo en COMANDAS (no en la cuenta del cliente), para avisar en la cocina.
   const sonido = !cuenta && !!impresion.sonidoComanda;
-  const texto = construirTicketTexto(pedido, items, ancho, cuenta);
+  const texto = construirTicketTexto(pedido, items, ancho, cuenta, firma);
   const prefijo = cuenta ? 'cuenta' : 'comanda';
   const archivo = path.join(OUT_DIR, `${prefijo}_pedido${pedido.id}_${Date.now()}.txt`);
   try { fs.writeFileSync(archivo, texto, 'latin1'); }
@@ -390,7 +400,7 @@ async function imprimirTicket(pedido, items, { cuenta = false, impresoraOverride
 
   // Conexión por puerto serial (COM): se manda ESC/POS directo al puerto.
   if (impresion.conexion === 'serial' && impresion.puertoCom && !impresoraOverride) {
-    const ok = await imprimirSerial(construirTicketEscpos(pedido, items, cuenta, ancho, '', sonido), impresion.puertoCom, impresion.baud);
+    const ok = await imprimirSerial(construirTicketEscpos(pedido, items, cuenta, ancho, '', sonido, firma), impresion.puertoCom, impresion.baud);
     return { ok, modo: ok ? 'impreso' : 'error-impresion', destino: impresion.puertoCom, archivo };
   }
 
@@ -401,7 +411,7 @@ async function imprimirTicket(pedido, items, { cuenta = false, impresoraOverride
 
   let ok;
   if (impresion.modo === 'texto') ok = await imprimirTextoGDI(texto, impresora);
-  else ok = await imprimirRaw(construirTicketEscpos(pedido, items, cuenta, ancho, '', sonido), impresora);
+  else ok = await imprimirRaw(construirTicketEscpos(pedido, items, cuenta, ancho, '', sonido, firma), impresora);
   return { ok, modo: ok ? 'impreso' : 'error-impresion', impresora, archivo };
 }
 
@@ -411,8 +421,8 @@ export async function imprimirComandaUnica(pedido, items, impresoraOverride) {
 }
 
 // Cuenta para el cliente (siempre con precios y TOTAL). NO cierra la mesa.
-export async function imprimirCuenta(pedido, items, impresoraOverride) {
-  return imprimirTicket(pedido, items, { cuenta: true, impresoraOverride });
+export async function imprimirCuenta(pedido, items, impresoraOverride, firma = false) {
+  return imprimirTicket(pedido, items, { cuenta: true, impresoraOverride, firma });
 }
 
 // Ticket aparte de BEBIDAS para la barra (solo si está activado en Ajustes).
