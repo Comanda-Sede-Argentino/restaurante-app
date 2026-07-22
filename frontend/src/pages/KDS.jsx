@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { api, socket } from '../api';
+import { toast, confirmar } from '../ui.jsx';
 
 function minutosDesde(desde) {
   if (!desde) return null;
@@ -112,6 +113,19 @@ export default function KDS() {
     cargar();
   };
 
+  // Marca TODOS los platos en espera como listos (vacía el tablero). Con confirmación.
+  const listoTodo = async () => {
+    const n = items.length;
+    if (!n) return;
+    const scope = sector === 'Todos' ? '' : ` de ${sector}`;
+    if (!(await confirmar(`¿Marcar como LISTOS los ${n} platos en espera${scope}? Se vacía el tablero de cocina.\n\nUsalo cuando ya se cocinó todo.`, { ok: 'Sí, todo listo' }))) return;
+    try {
+      const r = await api.kdsListoTodo(sector);
+      cargar();
+      toast(`✅ ${r.n} plato(s) marcados como listos.`);
+    } catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+
   const origen = (i) => {
     if (i.tipo === 'delivery') return '🛵 DELIVERY';
     if (i.tipo === 'salon') return `Mesa ${i.mesa_numero ?? '?'}`;
@@ -133,6 +147,11 @@ export default function KDS() {
         <button className={sinStock.length ? 'btn-red' : ''} onClick={() => setVerStock((v) => !v)}>
           🚫 Sin stock{sinStock.length ? ` (${sinStock.length})` : ''}
         </button>
+        {items.length > 0 && (
+          <button className="btn-green" onClick={listoTodo} title="Marcar todos los platos en espera como listos (vaciar cocina)">
+            ✅ Todo listo ({items.length})
+          </button>
+        )}
         <span className="spacer" />
         {sectores.map((s) => (
           <div key={s.nombre} className={'chip' + (sector === s.nombre ? ' active' : '')} onClick={() => setSector(s.nombre)}>

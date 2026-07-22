@@ -72,6 +72,7 @@ export const api = {
   dashboard: () => req('/dashboard'),
   reportes: (desde, hasta, group) => req(`/reportes/general?desde=${desde}&hasta=${hasta}&group=${group}`),
   reimprimir: (id) => req('/pedidos/' + id + '/reimprimir', { method: 'POST' }),
+  kdsListoTodo: (sector) => req('/kds/listo-todo', { method: 'POST', body: { sector } }),
   imprimirCuenta: (id, opts = {}) => req('/pedidos/' + id + '/cuenta', { method: 'POST', body: opts }),
   impresoras: () => req('/impresoras'),
   puertosCom: () => req('/puertos-com'),

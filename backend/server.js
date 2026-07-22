@@ -475,6 +475,34 @@ app.put('/api/items/:id/estado', (req, res) => {
   res.json(it);
 });
 
+// Marcar TODOS los platos en espera (pendiente/en_preparacion) como LISTOS de una vez.
+// Se usa en la cocina cuando ya se cocinó todo. Opcionalmente filtra por sector.
+app.post('/api/kds/listo-todo', (req, res) => {
+  const sector = req.body.sector && req.body.sector !== 'Todos' ? req.body.sector : null;
+  let sql = "SELECT id, pedido_id FROM pedido_item WHERE estado IN ('pendiente','en_preparacion')";
+  const args = [];
+  if (sector) { sql += ' AND sector_nombre=?'; args.push(sector); }
+  const items = db.prepare(sql).all(...args);
+  if (!items.length) return res.json({ ok: true, n: 0 });
+  const pedidoIds = [...new Set(items.map((i) => i.pedido_id))];
+  const tx = db.transaction(() => {
+    const upd = db.prepare("UPDATE pedido_item SET estado='listo', listo_en=datetime('now','localtime') WHERE id=?");
+    for (const it of items) upd.run(it.id);
+    // Pedidos que ya no tienen nada en cocina -> servido
+    for (const pid of pedidoIds) {
+      const pend = db.prepare(
+        "SELECT COUNT(*) c FROM pedido_item WHERE pedido_id=? AND estado IN ('pendiente','en_preparacion')"
+      ).get(pid).c;
+      if (pend === 0) db.prepare("UPDATE pedido SET estado='servido' WHERE id=? AND estado='en_cocina'").run(pid);
+    }
+  });
+  tx();
+  for (const pid of pedidoIds) io.emit('pedido:actualizado', pedidoCompleto(pid));
+  io.emit('item:estado', { bulk: true }); // que las pantallas de cocina recarguen
+  emitDashboard();
+  res.json({ ok: true, n: items.length });
+});
+
 // Cobrar / cerrar pedido
 app.post('/api/pedidos/:id/pagar', (req, res) => {
   const pedidoId = req.params.id;
