@@ -15,10 +15,15 @@ export default function Mozo() {
   const [mesaDestino, setMesaDestino] = useState('');
   const [cobrando, setCobrando] = useState(false);    // muestra el cartel de forma de pago
   const [recibido, setRecibido] = useState('');        // con cuánto paga (efectivo) para el vuelto
+  const [modoFiado, setModoFiado] = useState(false);   // sub-pantalla para elegir empresa (fiado)
+  const [cuentas, setCuentas] = useState([]);          // empresas / cuentas corrientes
+  const [cuentaId, setCuentaId] = useState('');        // empresa elegida para el fiado
 
   const cargarMesas = () => api.mesas().then(setMesas);
+  const cargarCuentas = () => api.cuentas().then(setCuentas).catch(() => {});
   useEffect(() => {
     cargarMesas();
+    cargarCuentas();
     api.usuarios().then((u) => setMozos(u.filter((x) => x.rol === 'mozo' || x.rol === 'admin')));
   }, []);
 
@@ -79,6 +84,35 @@ export default function Mozo() {
     }
   };
 
+  // Crear una empresa al vuelo desde la mesa (para el fiado)
+  const nuevaEmpresaMesa = async () => {
+    const nombre = await preguntar('Nombre de la empresa (o persona) para el fiado:');
+    if (!nombre || !nombre.trim()) return;
+    try {
+      const c = await api.crearCuenta({ nombre: nombre.trim() });
+      await cargarCuentas();
+      setCuentaId(String(c.id));
+      toast('Empresa creada.');
+    } catch (e) { toast('No se pudo crear la empresa: ' + e.message, 'error'); }
+  };
+
+  // Cargar el pedido de la mesa al fiado de una empresa: imprime el ticket con firma y libera la mesa.
+  const cobrarFiadoMesa = async () => {
+    if (!cuentaId) { toast('Elegí la empresa (o creá una nueva).', 'error'); return; }
+    const total = pedido.total;
+    const emp = cuentas.find((c) => String(c.id) === String(cuentaId));
+    if (!(await confirmar(`¿Cargar ${money(total)} al fiado de ${emp?.nombre || 'la empresa'}?\n\nSe imprime el ticket para firmar y la mesa queda libre.`, { ok: 'Cargar e imprimir' }))) return;
+    try {
+      await api.pagar(pedido.id, [{ medio: 'FIADO', importe: total }], { cuenta_id: Number(cuentaId) });
+      try { await api.imprimirCuenta(pedido.id, { firma: true }); } catch { /* impresión best-effort */ }
+      setCobrando(false); setModoFiado(false); setCuentaId('');
+      setPedido(null); nav('/mozo'); cargarMesas();
+      toast('✅ Cargado al fiado. Ticket impreso. Mesa liberada.');
+    } catch (e) {
+      toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cargar: ' + e.message, 'error');
+    }
+  };
+
   const cancelarPedido = async () => {
     if (!(await confirmar('¿Cancelar TODO el pedido? La mesa queda libre y se devuelve el stock. No se cobra nada.', { peligro: true, ok: 'Cancelar pedido', cancelar: 'Volver' }))) return;
     const motivo = (await preguntar('Motivo de la cancelación (opcional):')) || '';
@@ -124,7 +158,7 @@ export default function Mozo() {
           </h1>
           <span className="spacer" />
           {pedido.total > 0 && (
-            <button className="btn-green" onClick={() => { setCobrando(true); setRecibido(''); }}>🧾 Imprimir y cobrar</button>
+            <button className="btn-green" onClick={() => { setCobrando(true); setRecibido(''); setModoFiado(false); setCuentaId(''); cargarCuentas(); }}>🧾 Imprimir y cobrar</button>
           )}
           {pedido.mesa && <button onClick={() => abrirAccion('mover')}>🔀 Mover</button>}
           {pedido.mesa && mesasOcupadas.length > 0 && <button onClick={() => abrirAccion('unir')}>🔗 Unir</button>}
@@ -136,22 +170,38 @@ export default function Mozo() {
           const vuelto = recNum > 0 ? Math.max(0, recNum - pedido.total) : null;
           return (
             <div className="card" style={{ marginBottom: 12, borderColor: 'var(--green)' }}>
-              <h2 className="h2" style={{ marginTop: 0 }}>💵 Cobrar {money(pedido.total)} — ¿cómo paga?</h2>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                <button className="btn-green" onClick={() => cobrarMesa('EFECTIVO')}>💵 Efectivo</button>
-                <button className="btn-blue" onClick={() => cobrarMesa('TARJETA DÉBITO')}>💳 Débito</button>
-                <button className="btn-blue" onClick={() => cobrarMesa('TARJETA CRÉDITO')}>💳 Crédito</button>
-                <button className="btn-blue" onClick={() => cobrarMesa('QR / TRANSFERENCIA')}>📱 QR / Transf.</button>
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <label style={{ color: 'var(--muted)', fontSize: 13 }}>Efectivo — ¿con cuánto paga? (para el vuelto):</label>
-                <input inputMode="numeric" value={recibido} onChange={(e) => setRecibido(e.target.value)} placeholder="$" style={{ width: 130 }} />
-                {vuelto != null && <b style={{ color: 'var(--green)' }}>Vuelto: {money(vuelto)}</b>}
-              </div>
+              <h2 className="h2" style={{ marginTop: 0 }}>💵 Cobrar {money(pedido.total)} — {modoFiado ? '¿a qué empresa?' : '¿cómo paga?'}</h2>
+              {!modoFiado ? (
+                <>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <button className="btn-green" onClick={() => cobrarMesa('EFECTIVO')}>💵 Efectivo</button>
+                    <button className="btn-blue" onClick={() => cobrarMesa('TARJETA DÉBITO')}>💳 Débito</button>
+                    <button className="btn-blue" onClick={() => cobrarMesa('TARJETA CRÉDITO')}>💳 Crédito</button>
+                    <button className="btn-blue" onClick={() => cobrarMesa('QR / TRANSFERENCIA')}>📱 QR / Transf.</button>
+                    <button className="btn-blue" onClick={() => setModoFiado(true)}>📒 Fiado (empresa)</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <label style={{ color: 'var(--muted)', fontSize: 13 }}>Efectivo — ¿con cuánto paga? (para el vuelto):</label>
+                    <input inputMode="numeric" value={recibido} onChange={(e) => setRecibido(e.target.value)} placeholder="$" style={{ width: 130 }} />
+                    {vuelto != null && <b style={{ color: 'var(--green)' }}>Vuelto: {money(vuelto)}</b>}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                    <select value={cuentaId} onChange={(e) => setCuentaId(e.target.value)} style={{ flex: 1, minWidth: 180 }}>
+                      <option value="">— elegir empresa —</option>
+                      {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre} (debe {money(c.saldo)})</option>)}
+                    </select>
+                    <button onClick={nuevaEmpresaMesa}>+ Nueva empresa</button>
+                  </div>
+                  <button className="btn-green" style={{ width: '100%', padding: 12 }} onClick={cobrarFiadoMesa}>📒 Cargar al fiado e imprimir (con firma)</button>
+                  <button style={{ marginTop: 8 }} onClick={() => setModoFiado(false)}>← Volver a las formas de pago</button>
+                </>
+              )}
               <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <button onClick={() => { setCobrando(false); setRecibido(''); nav('/caja'); }}>📒 Fiado / cobro detallado (ir a Caja)</button>
                 <span className="spacer" />
-                <button onClick={() => { setCobrando(false); setRecibido(''); }}>Cancelar</button>
+                <button onClick={() => { setCobrando(false); setModoFiado(false); setRecibido(''); }}>Cancelar</button>
               </div>
             </div>
           );

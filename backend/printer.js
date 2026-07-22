@@ -444,7 +444,7 @@ export async function imprimirBebidas(pedido, bebidas) {
 }
 
 // Imprime texto libre (ej. arqueo / cierre de caja). Título centrado y líneas tal cual.
-export async function imprimirTextoPlano(titulo, lineas) {
+export async function imprimirTextoPlano(titulo, lineas, impresoraOverride) {
   const { impresion } = getConfig();
   const w = impresion.anchoColumnas || 42;
   const cuerpo = [linea(w), centrar(titulo, w), linea(w), ...lineas, linea(w)].join('\r\n');
@@ -462,7 +462,7 @@ export async function imprimirTextoPlano(titulo, lineas) {
     const ok = await imprimirSerial(bytes, impresion.puertoCom, impresion.baud);
     return { ok, modo: ok ? 'impreso' : 'error-impresion', destino: impresion.puertoCom, archivo };
   }
-  const impresora = impresoraComanda(impresion);
+  const impresora = impresoraOverride || impresoraComanda(impresion);
   if (!impresora) return { ok: true, modo: 'archivo', archivo };
   const ok = impresion.modo === 'texto'
     ? await imprimirTextoGDI(cuerpo, impresora)

@@ -638,6 +638,42 @@ app.get('/api/cuentas/:id', (req, res) => {
   res.json(c);
 });
 
+// Imprime el ESTADO DE CUENTA de una empresa (movimientos + saldo), para cobrarle a fin de mes.
+app.post('/api/cuentas/:id/imprimir', async (req, res) => {
+  const c = db.prepare('SELECT * FROM cuenta WHERE id=?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'No existe' });
+  const movs = db.prepare(
+    "SELECT tipo, importe, medio, detalle, pedido_id, fecha FROM cuenta_mov WHERE cuenta_id=? ORDER BY id ASC"
+  ).all(c.id);
+  const saldo = db.prepare(
+    "SELECT COALESCE(SUM(CASE WHEN tipo='cargo' THEN importe ELSE -importe END),0) s FROM cuenta_mov WHERE cuenta_id=?"
+  ).get(c.id).s;
+  const fecha = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const lineas = [];
+  lineas.push('Empresa: ' + c.nombre);
+  if (c.telefono) lineas.push('Tel: ' + c.telefono);
+  lineas.push('Emitido: ' + fecha);
+  lineas.push('----------------------------------------');
+  if (!movs.length) lineas.push('Sin movimientos.');
+  for (const m of movs) {
+    const f = (m.fecha || '').slice(0, 10).split('-').reverse().join('/'); // aaaa-mm-dd -> dd/mm/aaaa
+    const etiqueta = m.tipo === 'cargo'
+      ? ('Consumo' + (m.pedido_id ? ' #' + m.pedido_id : ''))
+      : ('Pago' + (m.medio ? ' ' + m.medio : ''));
+    const signo = m.tipo === 'cargo' ? '+' : '-';
+    lineas.push(`${f} ${etiqueta}  ${signo}${moneyTxt(m.importe)}`);
+  }
+  lineas.push('----------------------------------------');
+  lineas.push('SALDO (DEBE): ' + moneyTxt(saldo));
+  lineas.push('');
+  lineas.push('Firma: .................................');
+  const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
+  let r;
+  try { r = await imprimirTextoPlano('ESTADO DE CUENTA', lineas, impresora); }
+  catch (e) { r = { ok: false, error: e.message }; }
+  res.json({ ok: true, resultado: r });
+});
+
 // Registrar un pago de la empresa/cliente (baja el saldo)
 app.post('/api/cuentas/:id/pago', (req, res) => {
   const importe = Number(req.body.importe);

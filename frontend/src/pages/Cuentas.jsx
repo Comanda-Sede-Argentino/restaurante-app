@@ -34,6 +34,16 @@ export default function Cuentas() {
     abrir(sel.id); cargar();
   };
 
+  const imprimirEstado = async () => {
+    try {
+      const r = await api.imprimirEstadoCuenta(sel.id);
+      const m = r.resultado?.modo;
+      toast(m === 'impreso' ? '🖨 Estado de cuenta enviado a la impresora.'
+        : m === 'archivo' ? '🖨 Estado de cuenta generado (sin impresora, guardado en archivo).'
+        : 'No se pudo imprimir el estado de cuenta.', m === 'impreso' ? 'ok' : 'info');
+    } catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
+  };
+
   const totalDeuda = cuentas.reduce((a, c) => a + (c.saldo > 0 ? c.saldo : 0), 0);
 
   return (
@@ -66,7 +76,11 @@ export default function Cuentas() {
           {!sel && <p style={{ color: 'var(--muted)' }}>Elegí una cuenta para ver el detalle y registrar pagos.</p>}
           {sel && (
             <>
-              <h2 className="h2" style={{ marginTop: 0 }}>{sel.nombre}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <h2 className="h2" style={{ marginTop: 0, marginBottom: 0 }}>{sel.nombre}</h2>
+                <span className="spacer" />
+                <button onClick={imprimirEstado}>🖨 Imprimir estado de cuenta</button>
+              </div>
               <div className="total-row"><span>Saldo (debe)</span><span style={{ color: sel.saldo > 0 ? 'var(--orange)' : 'var(--green)' }}>{money(sel.saldo)}</span></div>
 
               <h2 className="h2" style={{ marginTop: 14 }}>Registrar pago de la empresa</h2>

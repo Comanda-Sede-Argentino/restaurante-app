@@ -147,6 +147,18 @@ export default function Caja() {
 
   const setPagoRow = (i, campo, val) => setPagos((ps) => ps.map((x, j) => (j === i ? { ...x, [campo]: val } : x)));
 
+  // Crear una empresa/cuenta corriente al vuelo, sin ir a la pantalla de Cuentas
+  const nuevaEmpresa = async () => {
+    const nombre = await preguntar('Nombre de la empresa (o persona) para el fiado:');
+    if (!nombre || !nombre.trim()) return;
+    try {
+      const c = await api.crearCuenta({ nombre: nombre.trim() });
+      await cargarCuentas();
+      setCuentaId(String(c.id));
+      toast('Empresa creada.');
+    } catch (e) { toast('No se pudo crear la empresa: ' + e.message, 'error'); }
+  };
+
   const cancelarPedido = async (p, e) => {
     e.stopPropagation();
     if (!(await confirmar(`¿Cancelar ${nombrePedido(p)} (${money(p.total)})? Se devuelve el stock. NO se cobra.`, { peligro: true, ok: 'Cancelar' }))) return;
@@ -350,11 +362,14 @@ export default function Caja() {
 
               {hayFiado && (
                 <div style={{ marginBottom: 10 }}>
-                  <label className="h2">Cuenta corriente del fiado</label>
-                  <select value={cuentaId} onChange={(e) => setCuentaId(e.target.value)} style={{ width: '100%' }}>
-                    <option value="">— elegir —</option>
-                    {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre} (debe {money(c.saldo)})</option>)}
-                  </select>
+                  <label className="h2">Empresa / cuenta corriente del fiado</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select value={cuentaId} onChange={(e) => setCuentaId(e.target.value)} style={{ flex: 1 }}>
+                      <option value="">— elegir empresa —</option>
+                      {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre} (debe {money(c.saldo)})</option>)}
+                    </select>
+                    <button onClick={nuevaEmpresa}>+ Nueva</button>
+                  </div>
                   <input placeholder="A nombre de (opcional)" value={detalleFiado} onChange={(e) => setDetalleFiado(e.target.value)} style={{ width: '100%', marginTop: 8 }} />
                 </div>
               )}
