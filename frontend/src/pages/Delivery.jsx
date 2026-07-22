@@ -92,11 +92,13 @@ export default function Delivery() {
     try {
       await api.pagar(p.id, [{ medio: esFiado ? 'FIADO' : medio, importe: p.total }],
         esFiado ? { cuenta_id: Number(cuentaId), detalle: detalleFiado || null } : {});
+      // Fiado: imprimir el ticket como comprobante de la deuda (best-effort, no traba el cobro).
+      if (esFiado) { try { await api.imprimirCuenta(p.id); } catch { /* ignorar */ } }
       setPedido(null);
       setCli({ cliente_nombre: '', cliente_telefono: '', cliente_direccion: '', hora_entrega: '' });
       setMedio('EFECTIVO'); setCuentaId(''); setDetalleFiado('');
       cargarActivos(); cargarCuentas();
-      toast('✅ Cobrado.');
+      toast(esFiado ? '✅ Cargado al fiado. Ticket impreso.' : '✅ Cobrado.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
       cargarActivos();

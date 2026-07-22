@@ -108,8 +108,10 @@ export default function Caja() {
         detalle: hayFiado ? (detalleFiado || null) : undefined,
         descuento: numAR(descuento), propina: numAR(propina),
       });
+      // Fiado: imprimir el ticket como comprobante de la deuda (impresión best-effort, no traba el cobro).
+      if (hayFiado) { try { await api.imprimirCuenta(sel.id); } catch { /* ignorar */ } }
       setSel(null); cargar(); cargarCuentas();
-      toast('✅ Cobrado.');
+      toast(hayFiado ? '✅ Cargado al fiado. Ticket impreso.' : '✅ Cobrado.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
       cargar();
