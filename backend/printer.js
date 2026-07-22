@@ -219,7 +219,7 @@ export function construirTicketTexto(pedido, items, w = 42, cuenta = false, firm
   if (firma) {
     L.push(''); L.push(''); L.push('');
     L.push('.'.repeat(w));
-    L.push('Firma');
+    L.push('Firma y aclaración');
   }
   L.push(linea(w));
   L.push(''); L.push('');
@@ -292,7 +292,7 @@ function construirTicketEscpos(pedido, items, cuenta = false, ancho = 32, titulo
   // Bloque de FIRMA (solo en tickets de fiado): espacio para firmar + línea de puntos + "Firma".
   if (firma) {
     raw(0x0a, 0x0a, 0x0a); // aire para firmar
-    align(1); txt('.'.repeat(W)); nl(); BOLD(); txt('Firma'); NORMAL(); nl(); align(0);
+    align(1); txt('.'.repeat(W)); nl(); BOLD(); txt('Firma y aclaración'); NORMAL(); nl(); align(0);
   }
   if (sonido) raw(ESC, 0x42, 0x05, 0x09); // chicharra (ESC B): avisa a la cocina que salió una comanda
   raw(0x0a, 0x0a, 0x0a);
