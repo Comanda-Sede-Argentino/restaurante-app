@@ -16,6 +16,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
     try { return draftKey ? JSON.parse(localStorage.getItem(draftKey)) || [] : []; } catch { return []; }
   });
   const [obsItem, setObsItem] = useState({});
+  const [varios, setVarios] = useState(null);      // formulario de pedido especial (VARIOS / fuera de carta)
   const [guarnItem, setGuarnItem] = useState({}); // plato_id -> [guarnición por unidad]
   const [salsaItem, setSalsaItem] = useState({}); // plato_id -> [salsa por unidad] (pastas)
   const [puntoItem, setPuntoItem] = useState({}); // plato_id -> [punto de cocción por unidad]
@@ -91,6 +92,17 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const dec = (id) =>
     setCart((c) => c.flatMap((x) => (x.plato_id !== id ? [x] : x.cantidad > 1 ? [{ ...x, cantidad: x.cantidad - 1 }] : [])));
 
+  // Agregar un pedido ESPECIAL / fuera de carta (VARIOS): nombre + precio libres. Va a la comanda de cocina.
+  const agregarVarios = () => {
+    const nombre = (varios?.nombre || '').trim();
+    if (!nombre) { toast('Escribí qué pidió el cliente (ej. milanesa con fideos).', 'error'); return; }
+    const precio = Math.round(Number(String(varios.precio).replace(/[^\d]/g, '')) || 0);
+    const id = -Date.now(); // id negativo único: solo identifica la línea en el carrito (va como fuera de carta)
+    setCart((c) => [...c, { plato_id: id, libre: true, nombre, precio_unit: precio, cantidad: 1 }]);
+    setVarios(null);
+    setCartOpen(true);
+  };
+
 
   const total = cart.reduce((s, x) => s + x.cantidad * x.precio_unit, 0);
   const totalCount = cart.reduce((s, x) => s + x.cantidad, 0);
@@ -116,10 +128,10 @@ export default function OrderTaker({ pedido, onEnviado }) {
         // Plato con guarnición o punto y cantidad > 1: lo separamos en unidades
         if (porUnidad(x.plato_id) && x.cantidad > 1) {
           for (let u = 0; u < x.cantidad; u++) {
-            items.push({ plato_id: x.plato_id, nombre: x.nombre, precio_unit: x.precio_unit, cantidad: 1, observacion: obsUnidad(x.plato_id, u, baseObs) });
+            items.push({ plato_id: x.libre ? null : x.plato_id, nombre: x.nombre, precio_unit: x.precio_unit, cantidad: 1, observacion: obsUnidad(x.plato_id, u, baseObs) });
           }
         } else {
-          items.push({ plato_id: x.plato_id, nombre: x.nombre, precio_unit: x.precio_unit, cantidad: x.cantidad, observacion: obsUnidad(x.plato_id, 0, baseObs) });
+          items.push({ plato_id: x.libre ? null : x.plato_id, nombre: x.nombre, precio_unit: x.precio_unit, cantidad: x.cantidad, observacion: obsUnidad(x.plato_id, 0, baseObs) });
         }
       }
       await api.agregarItems(pedido.id, items);
@@ -142,6 +154,29 @@ export default function OrderTaker({ pedido, onEnviado }) {
           onChange={(e) => setQ(e.target.value)}
           style={{ width: '100%', marginBottom: 8 }}
         />
+        <button className="btn-accent" style={{ width: '100%', marginBottom: 8 }}
+          onClick={() => setVarios(varios ? null : { nombre: '', precio: '' })}>
+          ➕ VARIOS (pedido especial fuera de carta)
+        </button>
+        {varios && (
+          <div className="card" style={{ marginBottom: 8, borderColor: 'var(--accent)' }}>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>
+              Pedido fuera de carta (ej. <i>milanesa con fideos</i>, <i>calabaza rellena</i>). Sale en la comanda a la cocina.
+            </div>
+            <input autoFocus placeholder="¿Qué pidió el cliente?" value={varios.nombre}
+              onChange={(e) => setVarios((v) => ({ ...v, nombre: e.target.value }))}
+              onKeyDown={(e) => { if (e.key === 'Enter') agregarVarios(); }}
+              style={{ width: '100%', marginBottom: 6 }} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input inputMode="numeric" placeholder="Precio $" value={varios.precio}
+                onChange={(e) => setVarios((v) => ({ ...v, precio: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') agregarVarios(); }}
+                style={{ width: 120 }} />
+              <button className="btn-green" onClick={agregarVarios}>Agregar</button>
+              <button onClick={() => setVarios(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 2px 8px', color: 'var(--muted)', fontSize: 13 }}>
           {buscando ? (
             <span>Resultados de "{q}"</span>
