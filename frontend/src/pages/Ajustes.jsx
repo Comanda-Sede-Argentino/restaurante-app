@@ -316,9 +316,17 @@ export default function Ajustes() {
           placeholder="pedido, encargar, quiero, mandame, delivery..." />
         <p style={{ color: 'var(--muted)', fontSize: 12 }}>Separadas por comas. No distingue mayúsculas ni acentos.</p>
 
-        <h2 className="h2" style={{ marginTop: 12 }}>Mensaje cuando ES un pedido</h2>
+        <h2 className="h2" style={{ marginTop: 12 }}>🔗 Link de la página de pedidos</h2>
+        <input value={wa.linkPedidos || ''} onChange={(e) => setWa('linkPedidos', e.target.value)}
+          placeholder="https://pedidos.tu-sede.com" style={{ width: '100%', fontFamily: 'monospace' }} />
+        <p style={{ color: 'var(--muted)', fontSize: 12 }}>
+          Cuando el cliente quiere pedir, el bot le manda <b>este link</b> para que arme el pedido en la web.
+          Dejalo vacío para no enviar ningún link.
+        </p>
+
+        <h2 className="h2" style={{ marginTop: 12 }}>Mensaje cuando ES un pedido <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13 }}>(se le agrega el link abajo)</span></h2>
         <textarea value={wa.textoRecepcion || ''} onChange={(e) => setWa('textoRecepcion', e.target.value)}
-          rows={3} style={{ width: '100%' }} />
+          rows={2} style={{ width: '100%' }} />
 
         <h2 className="h2" style={{ marginTop: 12 }}>Mensaje cuando es otra consulta</h2>
         <textarea value={wa.textoConsulta || ''} onChange={(e) => setWa('textoConsulta', e.target.value)}

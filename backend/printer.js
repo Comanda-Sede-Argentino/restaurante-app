@@ -35,15 +35,16 @@ const defaultConfig = {
     habilitado: true,
     autoRespuesta: true,
     cooldownMin: 180, // no repetir la auto-respuesta al mismo número dentro de este lapso
+    linkPedidos: '', // link de la web de pedidos; se agrega a la respuesta cuando el mensaje es un pedido
     palabrasPedido: [
       'pedido', 'pedir', 'encargar', 'encargo', 'quiero', 'quisiera', 'querria',
       'mandame', 'manda', 'enviar', 'envien', 'envienme', 'delivery', 'para llevar',
       'llevar', 'necesito', 'me traes', 'traeme', 'comprar', 'ordenar', 'anotar', 'agregar',
     ],
     textoRecepcion:
-      '¡Hola! 👋 Recibimos tu pedido en Sede Social. En unos minutos te lo confirmamos. ¡Gracias!',
+      '¡Hola! 👋 Para hacer tu pedido entrá a nuestra página y elegí todo del menú. 🍽️',
     textoConsulta:
-      '¡Hola! 👋 Gracias por escribir a Sede Social. En breve te respondemos. Si querés hacer un pedido, escribinos con la palabra "pedido" junto con lo que querés encargar. 🍽️',
+      '¡Hola! 👋 Gracias por escribir a Sede Social. En breve te respondemos. 🙌',
   },
   telegram: {
     habilitado: false,

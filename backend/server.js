@@ -869,9 +869,15 @@ wa.setHandlers({
     const upgradeAPedido = prev && prev.tipo === 'consulta' && tipo === 'pedido';
     if (enCooldown && !upgradeAPedido) return;
 
-    const txt = tipo === 'pedido'
-      ? (w.textoRecepcion || '¡Hola! Recibimos tu pedido. En breve te confirmamos. ¡Gracias!')
-      : (w.textoConsulta || '¡Hola! Gracias por escribir. En breve te respondemos.');
+    let txt;
+    if (tipo === 'pedido') {
+      // Cliente quiere pedir -> le mandamos el mensaje + el LINK de la web de pedidos
+      txt = w.textoRecepcion || '¡Hola! 👋 Para hacer tu pedido entrá a nuestra página y elegí del menú. 🍽️';
+      if (w.linkPedidos && w.linkPedidos.trim()) txt += '\n👉 ' + w.linkPedidos.trim();
+    } else {
+      // Consulta -> mensaje programado (horarios, info, etc.)
+      txt = w.textoConsulta || '¡Hola! 👋 Gracias por escribir. En breve te respondemos.';
+    }
     wa.enviarMensaje(jid, txt);
     ultimaRespuestaWa.set(jid, { tipo, ts: ahora });
   },
