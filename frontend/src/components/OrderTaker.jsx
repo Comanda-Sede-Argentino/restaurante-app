@@ -154,10 +154,21 @@ export default function OrderTaker({ pedido, onEnviado }) {
           onChange={(e) => setQ(e.target.value)}
           style={{ width: '100%', marginBottom: 8 }}
         />
-        <button className="btn-accent" style={{ width: '100%', marginBottom: 8 }}
-          onClick={() => setVarios(varios ? null : { nombre: '', precio: '' })}>
-          ➕ VARIOS (pedido especial fuera de carta)
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 2px 8px', color: 'var(--muted)', fontSize: 13 }}>
+          {buscando ? (
+            <span>Resultados de "{q}"</span>
+          ) : (
+            <>
+              <b style={{ color: 'var(--accent)' }}>⭐ LOS MÁS PEDIDOS</b>
+              <span>· bebidas y el resto, buscalos arriba 🔎</span>
+            </>
+          )}
+          <span className="spacer" />
+          <button style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }} title="Pedido especial fuera de carta"
+            onClick={() => setVarios(varios ? null : { nombre: '', precio: '' })}>
+            ➕ Varios
+          </button>
+        </div>
         {varios && (
           <div className="card" style={{ marginBottom: 8, borderColor: 'var(--accent)' }}>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>
@@ -177,16 +188,6 @@ export default function OrderTaker({ pedido, onEnviado }) {
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 2px 8px', color: 'var(--muted)', fontSize: 13 }}>
-          {buscando ? (
-            <span>Resultados de "{q}"</span>
-          ) : (
-            <>
-              <b style={{ color: 'var(--accent)' }}>⭐ LOS MÁS PEDIDOS</b>
-              <span>· bebidas y el resto, buscalos arriba 🔎</span>
-            </>
-          )}
-        </div>
         <div className="cards">
           {platosFiltrados.map((p) => {
             const qty = cart.find((x) => x.plato_id === p.id)?.cantidad || 0;
