@@ -248,6 +248,7 @@ export default function Mozo() {
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <h1 className="h1" style={{ margin: 0 }}>Elegí una mesa</h1>
+        <span className="badge warn">{mesas.filter((m) => m.pedido).length} ocupadas / {mesas.length}</span>
         <span className="spacer" />
         <label style={{ fontWeight: 700 }}>👤 Tu nombre:</label>
         <select value={mozo} onChange={(e) => { setMozo(e.target.value); localStorage.setItem('mozo', e.target.value); }}
@@ -267,7 +268,9 @@ export default function Mozo() {
           <div key={m.id} className={'mesa ' + (m.pedido ? 'ocupada' : 'libre')} onClick={() => abrirMesa(m.id)}>
             <div className="num">{m.numero}</div>
             <div className="est">{m.sala}</div>
-            {m.pedido ? <div className="tot">{money(m.pedido.total)}</div> : <div className="est">libre</div>}
+            {m.pedido
+              ? <><div className="tot">{money(m.pedido.total)}</div><div className="est">{m.pedido.mozo_nombre || ''}</div></>
+              : <div className="est">libre</div>}
           </div>
         ))}
       </div>

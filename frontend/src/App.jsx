@@ -1,11 +1,10 @@
-import { Routes, Route, NavLink } from 'react-router-dom';
+import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { socket, api } from './api';
 import Home from './pages/Home.jsx';
 import Mozo from './pages/Mozo.jsx';
 import Delivery from './pages/Delivery.jsx';
 import KDS from './pages/KDS.jsx';
-import Salon from './pages/Salon.jsx';
 import Caja from './pages/Caja.jsx';
 import Cuentas from './pages/Cuentas.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -48,7 +47,6 @@ export default function App() {
       <div className="topbar">
         <NavLink to="/" className="brand">🍽 Sede Social</NavLink>
         <nav className="nav">
-          <NavLink to="/salon" className={link}>Salón</NavLink>
           <NavLink to="/mozo" className={link}>Mozo</NavLink>
           <NavLink to="/delivery" className={link}>Delivery</NavLink>
           <NavLink to="/whatsapp" className={link}>WhatsApp</NavLink>
@@ -78,7 +76,7 @@ export default function App() {
       <div className="content">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/salon" element={<Salon />} />
+          <Route path="/salon" element={<Navigate to="/mozo" replace />} />
           <Route path="/mozo" element={<Mozo />} />
           <Route path="/mozo/:mesaId" element={<Mozo />} />
           <Route path="/delivery" element={<Delivery />} />
