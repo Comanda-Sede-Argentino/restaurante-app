@@ -27,6 +27,7 @@ export default function Admin() {
   const [verCats, setVerCats] = useState(false);
   const [verComanda, setVerComanda] = useState(false);
   const [verSalsa, setVerSalsa] = useState(false);
+  const [verCafe, setVerCafe] = useState(false);
 
   // Abrir edición cargando la receta completa (insumos que descuenta del stock)
   const abrirEdit = async (p) => {
@@ -95,6 +96,17 @@ export default function Admin() {
     } catch (e) {
       setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, salsa: c.salsa } : x)));
       toast('No se pudo guardar la salsa. Revisá que esta PC tenga la última actualización.', 'error');
+    }
+  };
+
+  const toggleCafeteria = async (c) => {
+    const nuevo = c.cafeteria ? 0 : 1;
+    setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, cafeteria: nuevo } : x)));
+    try {
+      await api.editarCategoria(c.id, { cafeteria: nuevo });
+    } catch (e) {
+      setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, cafeteria: c.cafeteria } : x)));
+      toast('No se pudo guardar. Revisá que esta PC tenga la última actualización.', 'error');
     }
   };
 
@@ -243,6 +255,30 @@ export default function Admin() {
               {cats.map((c) => (
                 <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                   <input type="checkbox" checked={!!c.salsa} onChange={() => toggleSalsa(c)} />
+                  {c.nombre}
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h2 className="h2" style={{ margin: 0 }}>☕ Categorías de Cafetería</h2>
+          <span className="spacer" />
+          <button onClick={() => setVerCafe((v) => !v)}>{verCafe ? 'Ocultar' : 'Configurar'}</button>
+        </div>
+        {verCafe && (
+          <>
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>
+              Marcá las categorías cuyos productos son de <b>cafetería</b> (café, medialunas, criollos, tostadas...).
+              Esos productos aparecen como botones grandes en el módulo <b>Cafetería</b>.
+            </p>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 6 }}>
+              {cats.map((c) => (
+                <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                  <input type="checkbox" checked={!!c.cafeteria} onChange={() => toggleCafeteria(c)} />
                   {c.nombre}
                 </label>
               ))}

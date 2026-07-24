@@ -67,7 +67,7 @@ app.get('/api/categorias', (req, res) =>
 app.get('/api/platos', (req, res) => {
   const { categoria, q, todos } = req.query;
   let sql = `SELECT p.*, c.nombre categoria, COALESCE(c.guarnicion,0) cat_guarnicion,
-                    COALESCE(c.salsa,0) cat_salsa, COALESCE(c.en_comanda,1) cat_en_comanda, s.nombre sector
+                    COALESCE(c.salsa,0) cat_salsa, COALESCE(c.cafeteria,0) cat_cafeteria, COALESCE(c.en_comanda,1) cat_en_comanda, s.nombre sector
              FROM plato p
              LEFT JOIN categoria c ON c.id=p.categoria_id
              LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE 1=1`;
@@ -147,14 +147,15 @@ app.post('/api/categorias', (req, res) => {
 });
 
 app.put('/api/categorias/:id', (req, res) => {
-  const { nombre, orden, guarnicion, en_comanda, salsa } = req.body;
+  const { nombre, orden, guarnicion, en_comanda, salsa, cafeteria } = req.body;
   db.prepare(
     `UPDATE categoria SET nombre=COALESCE(?,nombre), orden=COALESCE(?,orden),
-       guarnicion=COALESCE(?,guarnicion), en_comanda=COALESCE(?,en_comanda), salsa=COALESCE(?,salsa) WHERE id=?`
+       guarnicion=COALESCE(?,guarnicion), en_comanda=COALESCE(?,en_comanda), salsa=COALESCE(?,salsa), cafeteria=COALESCE(?,cafeteria) WHERE id=?`
   ).run(nombre ?? null, orden ?? null,
         guarnicion == null ? null : (guarnicion ? 1 : 0),
         en_comanda == null ? null : (en_comanda ? 1 : 0),
         salsa == null ? null : (salsa ? 1 : 0),
+        cafeteria == null ? null : (cafeteria ? 1 : 0),
         req.params.id);
   res.json(db.prepare('SELECT * FROM categoria WHERE id=?').get(req.params.id));
 });
@@ -501,6 +502,57 @@ app.post('/api/kds/listo-todo', (req, res) => {
   io.emit('item:estado', { bulk: true }); // que las pantallas de cocina recarguen
   emitDashboard();
   res.json({ ok: true, n: items.length });
+});
+
+// ================= CAFETERÍA (mostrador, carga rápida) =================
+// Abrir una nueva "mesa de café" (pedido tipo cafeteria; no lleva comanda ni impresión).
+app.post('/api/cafeteria/nueva', (req, res) => {
+  const r = db.prepare("INSERT INTO pedido (tipo, mozo_nombre) VALUES ('cafeteria', ?)")
+    .run(req.body.mozo_nombre || 'Cafetería');
+  const p = pedidoCompleto(r.lastInsertRowid);
+  io.emit('pedido:nuevo', p);
+  emitDashboard();
+  res.json(p);
+});
+
+// Mesas de café abiertas (todavía sin cobrar)
+app.get('/api/cafeteria/mesas', (req, res) => {
+  const rows = db.prepare(
+    "SELECT id FROM pedido WHERE tipo='cafeteria' AND estado NOT IN ('cobrado','anulado') ORDER BY id ASC"
+  ).all();
+  res.json(rows.map((r) => pedidoCompleto(r.id)));
+});
+
+// Sumar / restar un producto en una mesa de café (junta cantidades en una sola línea). NO imprime.
+app.post('/api/cafeteria/:id/item', (req, res) => {
+  const pedidoId = req.params.id;
+  const platoId = Number(req.body.plato_id);
+  const delta = Math.trunc(Number(req.body.delta) || 1);
+  const ped = db.prepare('SELECT id FROM pedido WHERE id=?').get(pedidoId);
+  if (!ped) return res.status(404).json({ error: 'No existe' });
+  const plato = db.prepare(
+    'SELECT p.*, s.nombre sector FROM plato p LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE p.id=?'
+  ).get(platoId);
+  if (!plato) return res.status(404).json({ error: 'Plato inexistente' });
+  const ex = db.prepare(
+    "SELECT * FROM pedido_item WHERE pedido_id=? AND plato_id=? AND estado<>'anulado' ORDER BY id DESC LIMIT 1"
+  ).get(pedidoId, platoId);
+  if (ex) {
+    const nueva = ex.cantidad + delta;
+    if (nueva <= 0) db.prepare("UPDATE pedido_item SET estado='anulado' WHERE id=?").run(ex.id);
+    else db.prepare('UPDATE pedido_item SET cantidad=? WHERE id=?').run(nueva, ex.id);
+  } else if (delta > 0) {
+    // estado 'listo': se registra y se cobra, pero NO aparece en la pantalla de cocina (KDS)
+    db.prepare(
+      `INSERT INTO pedido_item (pedido_id, plato_id, nombre, cantidad, precio_unit, sector_id, sector_nombre, estado)
+       VALUES (?,?,?,?,?,?,?,'listo')`
+    ).run(pedidoId, plato.id, plato.nombre, delta, plato.precio, plato.sector_id, plato.sector);
+  }
+  recalcTotal(pedidoId);
+  const p = pedidoCompleto(pedidoId);
+  io.emit('pedido:actualizado', p);
+  emitDashboard();
+  res.json(p);
 });
 
 // Cobrar / cerrar pedido
