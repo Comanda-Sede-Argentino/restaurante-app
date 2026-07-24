@@ -515,12 +515,15 @@ app.post('/api/cafeteria/nueva', (req, res) => {
   res.json(p);
 });
 
-// Mesas de café abiertas (todavía sin cobrar)
+// Mesas de café abiertas (sin cobrar) + total vendido en cafetería en el turno actual (desde el último cierre)
 app.get('/api/cafeteria/mesas', (req, res) => {
   const rows = db.prepare(
     "SELECT id FROM pedido WHERE tipo='cafeteria' AND estado NOT IN ('cobrado','anulado') ORDER BY id ASC"
   ).all();
-  res.json(rows.map((r) => pedidoCompleto(r.id)));
+  const totalTurno = db.prepare(
+    "SELECT COALESCE(SUM(total),0) t FROM pedido WHERE tipo='cafeteria' AND estado='cobrado' AND cerrado_en > ?"
+  ).get(inicioPeriodoCaja()).t;
+  res.json({ mesas: rows.map((r) => pedidoCompleto(r.id)), totalTurno });
 });
 
 // Sumar / restar un producto en una mesa de café (junta cantidades en una sola línea). NO imprime.
