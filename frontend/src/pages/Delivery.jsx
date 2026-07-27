@@ -75,6 +75,20 @@ export default function Delivery() {
     catch (err) { toast('No se pudo marcar entregado: ' + err.message, 'error'); }
   };
 
+  // Cobro rápido en EFECTIVO desde la lista (1 toque). Para tarjeta/transferencia/fiado, abrir el pedido.
+  const cobrarRapido = async (e, p) => {
+    if (e) e.stopPropagation();
+    if (!(await confirmar(`¿Cobrar ${money(p.total)} de ${p.cliente_nombre || 'delivery'} en EFECTIVO?`, { ok: 'Cobrar efectivo' }))) return;
+    try {
+      await api.pagar(p.id, [{ medio: 'EFECTIVO', importe: p.total }], {});
+      cargarActivos(); cargarCuentas();
+      toast('✅ Cobrado en efectivo.');
+    } catch (err) {
+      toast(err.message.includes('409') ? 'Ese pedido ya estaba cobrado.' : 'No se pudo cobrar: ' + err.message, 'error');
+      cargarActivos();
+    }
+  };
+
   const nuevaCuentaRapida = async () => {
     const nombre = await preguntar('Nombre de la cuenta (empresa o persona) para el fiado:', pedido?.cliente_nombre || '');
     if (!nombre || !nombre.trim()) return;
@@ -200,7 +214,20 @@ export default function Delivery() {
         </div>
         <div>
           <h2 className="h2">Pedidos de delivery activos</h2>
-          <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0 }}>Un pedido se va de acá recién cuando está <b>pagado Y entregado</b>.</p>
+          <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0 }}>
+            Cuando el cadete vuelve con la plata, tocá <b>💵 Cobrar</b> (efectivo). Para tarjeta/transferencia/fiado, tocá la tarjeta y abrí el detalle.
+            Un pedido se va de acá recién cuando está <b>pagado Y entregado</b>.
+          </p>
+          {(() => {
+            const sinCobrar = activos.filter((p) => p.estado !== 'cobrado');
+            const totalPend = sinCobrar.reduce((a, p) => a + (p.total || 0), 0);
+            return sinCobrar.length > 0 ? (
+              <div className="card" style={{ marginBottom: 10, borderColor: 'var(--orange)' }}>
+                <b style={{ color: 'var(--orange)' }}>🕒 Sin cobrar: {sinCobrar.length} pedido(s) · {money(totalPend)}</b>
+                <div style={{ color: 'var(--muted)', fontSize: 12 }}>Estos NO están en la caja ni en las estadísticas hasta que los cobres.</div>
+              </div>
+            ) : null;
+          })()}
           {!activos.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de delivery abiertos.</p>}
           <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))' }}>
             {activos.map((p) => {
@@ -218,8 +245,11 @@ export default function Delivery() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: pagado ? 'var(--green)' : 'var(--orange)' }}>{pagado ? '✅ Pagado' : '🕒 A cobrar'}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: entregado ? 'var(--green)' : 'var(--muted)' }}>{entregado ? '📦 Entregado' : '🛵 Sin entregar'}</span>
                   <span className="spacer" />
+                  {!pagado && (
+                    <button className="btn-green" style={{ padding: '6px 10px' }} onClick={(e) => cobrarRapido(e, p)}>💵 Cobrar</button>
+                  )}
                   {!entregado && (
-                    <button className="btn-green" style={{ padding: '6px 10px' }} onClick={(e) => marcarEntregado(e, p.id)}>📦 Entregado</button>
+                    <button style={{ padding: '6px 10px' }} onClick={(e) => marcarEntregado(e, p.id)}>📦 Entregado</button>
                   )}
                 </div>
               </div>
