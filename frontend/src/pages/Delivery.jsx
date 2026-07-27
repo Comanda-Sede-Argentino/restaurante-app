@@ -9,6 +9,8 @@ const esFiadoMedio = (m) => /FIADO/i.test(m);
 export default function Delivery() {
   const [pedido, setPedido] = useState(null);
   const [cli, setCli] = useState({ cliente_nombre: '', cliente_telefono: '', cliente_direccion: '', hora_entrega: '' });
+  const [buscarCli, setBuscarCli] = useState('');   // buscador de clientes anteriores
+  const [clientesSug, setClientesSug] = useState([]); // sugerencias
   const [activos, setActivos] = useState([]);
   const [medio, setMedio] = useState('EFECTIVO');
   const [cuentas, setCuentas] = useState([]);
@@ -33,6 +35,18 @@ export default function Delivery() {
       socket.off('connect', reload);
     };
   }, []);
+
+  // Buscar clientes anteriores mientras se escribe (nombre o teléfono)
+  const onBuscarCli = (v) => {
+    setBuscarCli(v);
+    if (v.trim().length >= 2) api.buscarClientes(v).then(setClientesSug).catch(() => {});
+    else setClientesSug([]);
+  };
+  // Elegir un cliente anterior -> autocompleta nombre, teléfono y dirección
+  const elegirCliente = (c) => {
+    setCli((x) => ({ ...x, cliente_nombre: c.nombre || '', cliente_telefono: c.telefono || '', cliente_direccion: c.direccion || '' }));
+    setClientesSug([]); setBuscarCli('');
+  };
 
   const crear = async () => {
     if (!cli.cliente_nombre.trim()) return toast('Ingresá al menos el nombre del cliente.', 'error');
@@ -228,6 +242,20 @@ export default function Delivery() {
         <div className="card">
           <h2 className="h2">Nuevo pedido de delivery</h2>
           <div className="grid" style={{ gap: 10 }}>
+            <div style={{ position: 'relative' }}>
+              <input placeholder="🔎 Buscar cliente que ya pidió (nombre o teléfono)" value={buscarCli}
+                onChange={(e) => onBuscarCli(e.target.value)} style={{ width: '100%' }} />
+              {clientesSug.length > 0 && (
+                <div className="card" style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, marginTop: 2, maxHeight: 240, overflowY: 'auto' }}>
+                  {clientesSug.map((c, i) => (
+                    <div key={i} className="cart-item" style={{ cursor: 'pointer', display: 'block' }} onClick={() => elegirCliente(c)}>
+                      <b>{c.nombre || 'Cliente'}</b> · {c.telefono}
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>📍 {c.direccion || '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <input placeholder="Nombre del cliente *" value={cli.cliente_nombre}
               onChange={(e) => setCli({ ...cli, cliente_nombre: e.target.value })} />
             <input placeholder="Teléfono" value={cli.cliente_telefono}

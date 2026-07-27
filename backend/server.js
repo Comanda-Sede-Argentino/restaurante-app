@@ -239,6 +239,20 @@ app.get('/api/pedidos', (req, res) => {
   res.json(db.prepare(sql).all(...args).map((p) => pedidoCompleto(p.id)));
 });
 
+// Buscar clientes de delivery anteriores (por teléfono o nombre) para autocompletar el pedido
+app.get('/api/clientes', (req, res) => {
+  const q = '%' + (req.query.q || '').trim() + '%';
+  const rows = db.prepare(
+    `SELECT cliente_telefono telefono, cliente_nombre nombre, cliente_direccion direccion, MAX(id) mid
+     FROM pedido
+     WHERE tipo='delivery' AND cliente_telefono IS NOT NULL AND TRIM(cliente_telefono)<>''
+       AND (cliente_telefono LIKE ? OR cliente_nombre LIKE ?)
+     GROUP BY cliente_telefono
+     ORDER BY mid DESC LIMIT 8`
+  ).all(q, q);
+  res.json(rows);
+});
+
 // Marcar un pedido de delivery como ENTREGADO (independiente del cobro)
 app.post('/api/pedidos/:id/entregar', (req, res) => {
   const p = db.prepare('SELECT * FROM pedido WHERE id=?').get(req.params.id);

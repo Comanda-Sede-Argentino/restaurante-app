@@ -36,6 +36,7 @@ export const api = {
   deliveryEntregarTodos: (soloDomicilio) => req('/delivery/entregar-todos', { method: 'POST', body: { soloDomicilio: !!soloDomicilio } }),
   deliveryCobrarEntregados: (soloDomicilio) => req('/delivery/cobrar-entregados', { method: 'POST', body: { soloDomicilio: !!soloDomicilio } }),
   deliveryCierreImprimir: () => req('/delivery/cierre-imprimir', { method: 'POST', body: {} }),
+  buscarClientes: (q) => req('/clientes?q=' + encodeURIComponent(q || '')),
   pedido: (id) => req('/pedidos/' + id),
   crearPedido: (data) => req('/pedidos', { method: 'POST', body: data }),
   actualizarPedido: (id, data) => req('/pedidos/' + id, { method: 'PUT', body: data }),
