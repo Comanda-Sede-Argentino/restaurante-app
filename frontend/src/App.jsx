@@ -5,6 +5,7 @@ import Home from './pages/Home.jsx';
 import Mozo from './pages/Mozo.jsx';
 import Cafeteria from './pages/Cafeteria.jsx';
 import Delivery from './pages/Delivery.jsx';
+import Reparto from './pages/Reparto.jsx';
 import KDS from './pages/KDS.jsx';
 import Caja from './pages/Caja.jsx';
 import Cuentas from './pages/Cuentas.jsx';
@@ -51,6 +52,7 @@ export default function App() {
           <NavLink to="/mozo" className={link}>Mozo</NavLink>
           <NavLink to="/cafeteria" className={link}>Cafetería</NavLink>
           <NavLink to="/delivery" className={link}>Delivery</NavLink>
+          <NavLink to="/reparto" className={link}>🛵 Reparto</NavLink>
           <NavLink to="/whatsapp" className={link}>WhatsApp</NavLink>
           <NavLink to="/kds" className={link}>Cocina (KDS)</NavLink>
           <NavLink to="/caja" className={link}>Caja</NavLink>
@@ -83,6 +85,7 @@ export default function App() {
           <Route path="/mozo/:mesaId" element={<Mozo />} />
           <Route path="/cafeteria" element={<Cafeteria />} />
           <Route path="/delivery" element={<Delivery />} />
+          <Route path="/reparto" element={<Reparto />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
           <Route path="/kds" element={<KDS />} />
           <Route path="/caja" element={<PinGate area="la Caja"><Caja /></PinGate>} />
