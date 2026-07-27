@@ -252,6 +252,33 @@ app.post('/api/pedidos/:id/entregar', (req, res) => {
   res.json(full);
 });
 
+// Marcar como ENTREGADOS todos los delivery activos que faltan (pasada rápida de cierre)
+app.post('/api/delivery/entregar-todos', (req, res) => {
+  const r = db.prepare(
+    "UPDATE pedido SET entregado_en=datetime('now','localtime') WHERE tipo='delivery' AND estado<>'anulado' AND entregado_en IS NULL"
+  ).run();
+  io.emit('pedido:actualizado', {});
+  emitDashboard();
+  res.json({ ok: true, n: r.changes });
+});
+
+// Cobrar en EFECTIVO todos los delivery ENTREGADOS que todavía no se cobraron (cierre de delivery)
+app.post('/api/delivery/cobrar-entregados', (req, res) => {
+  const rows = db.prepare(
+    "SELECT id, total FROM pedido WHERE tipo='delivery' AND estado<>'anulado' AND estado<>'cobrado' AND entregado_en IS NOT NULL AND total > 0"
+  ).all();
+  const insPago = db.prepare('INSERT INTO pago (pedido_id, medio, importe) VALUES (?,?,?)');
+  const upd = db.prepare("UPDATE pedido SET estado='cobrado', cerrado_en=datetime('now','localtime') WHERE id=?");
+  const tx = db.transaction(() => {
+    for (const p of rows) { insPago.run(p.id, 'EFECTIVO', Math.round(p.total)); upd.run(p.id); }
+  });
+  tx();
+  const total = rows.reduce((a, p) => a + Math.round(p.total), 0);
+  io.emit('pedido:cobrado', {});
+  emitDashboard();
+  res.json({ ok: true, n: rows.length, total });
+});
+
 // El facturador AFIP avisa que este pedido fue facturado (guarda la referencia para Caja/Reportes)
 app.post('/api/pedidos/:id/facturado', (req, res) => {
   const p = db.prepare('SELECT id FROM pedido WHERE id=?').get(req.params.id);

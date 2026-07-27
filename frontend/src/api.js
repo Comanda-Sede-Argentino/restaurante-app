@@ -33,6 +33,8 @@ export const api = {
   pedidos: (estado) => req('/pedidos' + (estado ? '?estado=' + estado : '')),
   deliveryPendientes: () => req('/pedidos?pendienteEntrega=1'),
   entregar: (id, entregado = true) => req('/pedidos/' + id + '/entregar', { method: 'POST', body: { entregado } }),
+  deliveryEntregarTodos: () => req('/delivery/entregar-todos', { method: 'POST', body: {} }),
+  deliveryCobrarEntregados: () => req('/delivery/cobrar-entregados', { method: 'POST', body: {} }),
   pedido: (id) => req('/pedidos/' + id),
   crearPedido: (data) => req('/pedidos', { method: 'POST', body: data }),
   actualizarPedido: (id, data) => req('/pedidos/' + id, { method: 'PUT', body: data }),

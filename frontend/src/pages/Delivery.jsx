@@ -75,6 +75,25 @@ export default function Delivery() {
     catch (err) { toast('No se pudo marcar entregado: ' + err.message, 'error'); }
   };
 
+  // Cierre de delivery: marcar TODOS los que faltan como entregados
+  const entregarTodos = async () => {
+    const faltan = activos.filter((p) => !p.entregado_en);
+    if (!faltan.length) { toast('No hay pedidos sin entregar.'); return; }
+    if (!(await confirmar(`¿Marcar como ENTREGADOS los ${faltan.length} pedido(s) que faltan?`, { ok: 'Marcar entregados' }))) return;
+    try { const r = await api.deliveryEntregarTodos(); cargarActivos(); toast(`📦 ${r.n} marcado(s) como entregado(s).`); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+
+  // Cierre de delivery: cobrar en EFECTIVO todos los ENTREGADOS que faltan cobrar
+  const cobrarTodosEntregados = async () => {
+    const cobrables = activos.filter((p) => p.estado !== 'cobrado' && p.entregado_en);
+    if (!cobrables.length) { toast('No hay pedidos entregados sin cobrar. (Marcá "entregados" primero.)'); return; }
+    const total = cobrables.reduce((a, p) => a + (p.total || 0), 0);
+    if (!(await confirmar(`¿Cobrar en EFECTIVO los ${cobrables.length} pedido(s) ENTREGADO(s) sin cobrar?\n\nTotal: ${money(total)}\n\nOJO: los que se pagaron con tarjeta/transferencia/fiado, cobralos aparte ANTES.`, { ok: 'Cobrar todos (efectivo)' }))) return;
+    try { const r = await api.deliveryCobrarEntregados(); cargarActivos(); cargarCuentas(); toast(`✅ ${r.n} cobrado(s) en efectivo (${money(r.total)}).`); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+
   // Cobro rápido en EFECTIVO desde la lista (1 toque). Para tarjeta/transferencia/fiado, abrir el pedido.
   const cobrarRapido = async (e, p) => {
     if (e) e.stopPropagation();
@@ -228,6 +247,12 @@ export default function Delivery() {
               </div>
             ) : null;
           })()}
+          {activos.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <button onClick={entregarTodos}>📦 Marcar todos entregados</button>
+              <button className="btn-green" onClick={cobrarTodosEntregados}>💵 Cobrar todos los entregados (efectivo)</button>
+            </div>
+          )}
           {!activos.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de delivery abiertos.</p>}
           <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))' }}>
             {activos.map((p) => {
