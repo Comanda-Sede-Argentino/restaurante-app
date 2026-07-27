@@ -64,7 +64,40 @@ export default function Mozo() {
     refrescarPedido();
   };
 
-  // Imprime la cuenta, registra el cobro en la caja (con la forma de pago elegida) y libera la mesa.
+  // Ítems cargados en el carrito que TODAVÍA no se enviaron a cocina (borrador local del OrderTaker)
+  const itemsSinEnviar = () => {
+    try {
+      const d = JSON.parse(localStorage.getItem('cart_draft_' + pedido.id) || '[]');
+      return Array.isArray(d) ? d.reduce((s, x) => s + (Number(x.cantidad) || 0), 0) : 0;
+    } catch { return 0; }
+  };
+  // Aviso si va a imprimir/cobrar con cosas cargadas pero SIN enviar a cocina (no entrarían en la cuenta)
+  const confirmarSinEnviar = async () => {
+    const n = itemsSinEnviar();
+    if (!n) return true;
+    return await confirmar(
+      `⚠ Tenés ${n} ítem(s) cargado(s) SIN enviar a cocina. Si seguís, NO entran en la cuenta.\n\nVolvé al carrito y tocá "Enviar a cocina" primero.`,
+      { peligro: true, ok: 'Seguir igual', cancelar: 'Volver y enviar' }
+    );
+  };
+
+  // Solo IMPRIMIR la cuenta (no cobra; la mesa queda abierta). Para llevar el ticket a la mesa antes de saber cómo paga.
+  const imprimirCuentaMesa = async () => {
+    if (!(await confirmarSinEnviar())) return;
+    try {
+      const r = await api.imprimirCuenta(pedido.id);
+      const m = r.resultado?.modo;
+      toast(m === 'impreso' ? '🧾 Cuenta impresa.' : m === 'archivo' ? '🧾 Cuenta generada (sin impresora, guardada en archivo).' : 'No se pudo imprimir la cuenta.', m === 'impreso' ? 'ok' : 'info');
+    } catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
+  };
+
+  // Abrir el cobro (antes chequea que no queden ítems sin enviar)
+  const abrirCobro = async () => {
+    if (!(await confirmarSinEnviar())) return;
+    setCobrando(true); setRecibido(''); setModoFiado(false); setCuentaId(''); cargarCuentas();
+  };
+
+  // Registra el cobro en la caja con la forma de pago elegida y libera la mesa. NO imprime (la cuenta se imprime aparte).
   const cobrarMesa = async (medio) => {
     const total = pedido.total;
     let extra = '';
@@ -72,13 +105,12 @@ export default function Mozo() {
       const rec = Number(String(recibido).replace(/[^\d]/g, '')) || 0;
       if (rec > 0) extra = `\nPaga con ${money(rec)} → vuelto ${money(Math.max(0, rec - total))}`;
     }
-    if (!(await confirmar(`¿Cobrar ${money(total)} en ${medio}?${extra}\n\nSe imprime la cuenta y la mesa queda libre.`, { ok: 'Cobrar e imprimir' }))) return;
+    if (!(await confirmar(`¿Cobrar ${money(total)} en ${medio}?${extra}\n\nLa mesa queda libre.`, { ok: 'Cobrar' }))) return;
     try {
-      await api.imprimirCuenta(pedido.id).catch(() => {}); // imprimir es best-effort: no frena el cobro
       await api.pagar(pedido.id, [{ medio, importe: total }], {}); // registra la venta y libera la mesa
       setCobrando(false); setRecibido('');
       setPedido(null); nav('/mozo'); cargarMesas();
-      toast('✅ Cobrado e impreso. Mesa liberada.');
+      toast('✅ Cobrado. Mesa liberada.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
     }
@@ -158,7 +190,10 @@ export default function Mozo() {
           </h1>
           <span className="spacer" />
           {pedido.total > 0 && (
-            <button className="btn-green" onClick={() => { setCobrando(true); setRecibido(''); setModoFiado(false); setCuentaId(''); cargarCuentas(); }}>🧾 Imprimir y cobrar</button>
+            <>
+              <button className="btn-blue" onClick={imprimirCuentaMesa}>🧾 Imprimir cuenta</button>
+              <button className="btn-green" onClick={abrirCobro}>💵 Cobrar</button>
+            </>
           )}
           {pedido.mesa && <button onClick={() => abrirAccion('mover')}>🔀 Mover</button>}
           {pedido.mesa && mesasOcupadas.length > 0 && <button onClick={() => abrirAccion('unir')}>🔗 Unir</button>}
