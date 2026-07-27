@@ -254,8 +254,9 @@ app.post('/api/pedidos/:id/entregar', (req, res) => {
 
 // Marcar como ENTREGADOS todos los delivery activos que faltan (pasada rápida de cierre)
 app.post('/api/delivery/entregar-todos', (req, res) => {
+  const dom = req.body.soloDomicilio ? "AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=pedido.id AND i.nombre='Envío' AND i.estado<>'anulado')" : '';
   const r = db.prepare(
-    "UPDATE pedido SET entregado_en=datetime('now','localtime') WHERE tipo='delivery' AND estado<>'anulado' AND entregado_en IS NULL"
+    "UPDATE pedido SET entregado_en=datetime('now','localtime') WHERE tipo='delivery' AND estado<>'anulado' AND entregado_en IS NULL " + dom
   ).run();
   io.emit('pedido:actualizado', {});
   emitDashboard();
@@ -264,8 +265,9 @@ app.post('/api/delivery/entregar-todos', (req, res) => {
 
 // Cobrar en EFECTIVO todos los delivery ENTREGADOS que todavía no se cobraron (cierre de delivery)
 app.post('/api/delivery/cobrar-entregados', (req, res) => {
+  const dom = req.body.soloDomicilio ? "AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')" : '';
   const rows = db.prepare(
-    "SELECT id, total FROM pedido WHERE tipo='delivery' AND estado<>'anulado' AND estado<>'cobrado' AND entregado_en IS NOT NULL AND total > 0"
+    "SELECT o.id, o.total FROM pedido o WHERE o.tipo='delivery' AND o.estado<>'anulado' AND o.estado<>'cobrado' AND o.entregado_en IS NOT NULL AND o.total > 0 " + dom
   ).all();
   const insPago = db.prepare('INSERT INTO pago (pedido_id, medio, importe) VALUES (?,?,?)');
   const upd = db.prepare("UPDATE pedido SET estado='cobrado', cerrado_en=datetime('now','localtime') WHERE id=?");
@@ -277,6 +279,48 @@ app.post('/api/delivery/cobrar-entregados', (req, res) => {
   io.emit('pedido:cobrado', {});
   emitDashboard();
   res.json({ ok: true, n: rows.length, total });
+});
+
+// Imprime el CIERRE DE DELIVERY del turno: pedidos de delivery cobrados desde el último cierre de caja,
+// con el total y cuánto es en efectivo (lo que el cadete tiene que entregar).
+app.post('/api/delivery/cierre-imprimir', async (req, res) => {
+  const desde = inicioPeriodoCaja();
+  // Solo A DOMICILIO (con envío) — los retiros van en la caja del salón, no acá.
+  const dom = "AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')";
+  const pedidos = db.prepare(
+    `SELECT o.cliente_nombre, o.total, o.cerrado_en FROM pedido o
+     WHERE o.tipo='delivery' AND o.estado='cobrado' AND o.cerrado_en > ? ${dom} ORDER BY o.cerrado_en ASC`
+  ).all(desde);
+  const medios = db.prepare(
+    `SELECT pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
+     FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+     WHERE o.tipo='delivery' AND o.estado='cobrado' AND o.cerrado_en > ? ${dom}
+     GROUP BY pg.medio ORDER BY total DESC`
+  ).all(desde);
+  const totalVendido = pedidos.reduce((a, p) => a + Math.round(p.total || 0), 0);
+  const efectivo = medios.filter((m) => /EFECTIVO/i.test(m.medio)).reduce((a, m) => a + m.total, 0);
+  const fecha = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const L = [];
+  L.push('(Solo pedidos a domicilio - caja del cadete)');
+  L.push('Emitido: ' + fecha);
+  L.push('----------------------------------------');
+  if (!pedidos.length) L.push('Sin domicilios cobrados en el turno.');
+  for (const p of pedidos) {
+    const h = (p.cerrado_en || '').slice(11, 16);
+    const nom = (p.cliente_nombre || 'Cliente').slice(0, 16);
+    L.push(h + ' ' + nom + '  ' + moneyTxt(p.total));
+  }
+  L.push('----------------------------------------');
+  L.push('Pedidos: ' + pedidos.length);
+  for (const m of medios) L.push('  ' + m.medio + ': ' + moneyTxt(m.total) + ' (' + m.n + ')');
+  L.push('----------------------------------------');
+  L.push('TOTAL A DOMICILIO: ' + moneyTxt(totalVendido));
+  L.push('EN EFECTIVO (entrega cadete): ' + moneyTxt(efectivo));
+  const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
+  let r;
+  try { r = await imprimirTextoPlano('CIERRE DELIVERY DOMICILIO', L, impresora); }
+  catch (e) { r = { ok: false, error: e.message }; }
+  res.json({ ok: true, resultado: r, totalVendido, efectivo, n: pedidos.length });
 });
 
 // El facturador AFIP avisa que este pedido fue facturado (guarda la referencia para Caja/Reportes)
@@ -826,10 +870,24 @@ function resumenCaja() {
   const ventaEfectivo = sum(ventas, esEfectivo);
   const ventaFiado = sum(ventas, esFiado);
   const fiadoCobradoEfectivo = sum(cobrosFiado, esEfectivo);
-  const esperado = fondo + ventaEfectivo + fiadoCobradoEfectivo + ingresos - egresos;
+  // Delivery A DOMICILIO (con envío): esa plata la maneja el cadete, es una CAJA APARTE.
+  // Se saca del efectivo esperado del salón (el cajón no la tiene).
+  const domicilioEfectivo = db.prepare(
+    `SELECT COALESCE(SUM(pg.importe),0) t FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+     WHERE pg.fecha > ? AND UPPER(pg.medio) LIKE '%EFECTIVO%'
+       AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')`
+  ).get(desde).t;
+  const domicilioTotal = db.prepare(
+    `SELECT COALESCE(SUM(pg.importe),0) t FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+     WHERE pg.fecha > ?
+       AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')`
+  ).get(desde).t;
+  const ventaEfectivoSalon = ventaEfectivo - domicilioEfectivo;
+  const esperado = fondo + ventaEfectivoSalon + fiadoCobradoEfectivo + ingresos - egresos;
   return {
     desde, ventas, totalVentas: tot.total, tickets: tot.tickets,
-    ventaEfectivo, ventaFiado, ventaOtros: tot.total - ventaEfectivo - ventaFiado,
+    ventaEfectivo, ventaEfectivoSalon, domicilioEfectivo, domicilioTotal,
+    ventaFiado, ventaOtros: tot.total - ventaEfectivo - ventaFiado,
     cobrosFiado, fiadoCobradoTotal: sum(cobrosFiado), fiadoCobradoEfectivo,
     fondo, egresos, ingresos, propinas, descuentos, movimientos,
     esperado, efectivoEnCaja: esperado,
@@ -858,6 +916,7 @@ async function imprimirCierre(cierre, r) {
   L.push('ARQUEO DE EFECTIVO');
   L.push(' Fondo inicial: ' + moneyTxt(r.fondo));
   L.push(' Ventas efectivo: ' + moneyTxt(r.ventaEfectivo));
+  if (r.domicilioEfectivo > 0) L.push(' (-) Delivery domicilio (cadete): ' + moneyTxt(r.domicilioEfectivo));
   if (r.fiadoCobradoEfectivo > 0) L.push(' Fiado cobrado efvo: ' + moneyTxt(r.fiadoCobradoEfectivo));
   if (r.ingresos > 0) L.push(' Ingresos: ' + moneyTxt(r.ingresos));
   if (r.egresos > 0) L.push(' Egresos: -' + moneyTxt(r.egresos));

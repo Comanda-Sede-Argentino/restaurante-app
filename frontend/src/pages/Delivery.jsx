@@ -84,6 +84,17 @@ export default function Delivery() {
     catch (e) { toast('No se pudo: ' + e.message, 'error'); }
   };
 
+  // Imprime el ticket de cierre del turno de delivery (total vendido + cuánto en efectivo)
+  const imprimirCierreDelivery = async () => {
+    try {
+      const r = await api.deliveryCierreImprimir();
+      const m = r.resultado?.modo;
+      toast(m === 'impreso'
+        ? `🖨 Cierre impreso. Total ${money(r.totalVendido)} · efectivo ${money(r.efectivo)}`
+        : `Cierre: ${r.n} pedido(s), total ${money(r.totalVendido)}.`);
+    } catch (e) { toast('No se pudo imprimir el cierre: ' + e.message, 'error'); }
+  };
+
   // Cierre de delivery: cobrar en EFECTIVO todos los ENTREGADOS que faltan cobrar
   const cobrarTodosEntregados = async () => {
     const cobrables = activos.filter((p) => p.estado !== 'cobrado' && p.entregado_en);
@@ -251,6 +262,7 @@ export default function Delivery() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               <button onClick={entregarTodos}>📦 Marcar todos entregados</button>
               <button className="btn-green" onClick={cobrarTodosEntregados}>💵 Cobrar todos los entregados (efectivo)</button>
+              <button onClick={imprimirCierreDelivery}>🖨 Cierre de delivery</button>
             </div>
           )}
           {!activos.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de delivery abiertos.</p>}

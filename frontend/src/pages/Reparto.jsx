@@ -22,6 +22,9 @@ export default function Reparto() {
     return () => ['pedido:nuevo', 'pedido:actualizado', 'pedido:cobrado', 'connect'].forEach((e) => socket.off(e, reload));
   }, []);
 
+  // El cadete solo maneja los pedidos A DOMICILIO (con envío). Los retiros los cobra el salón.
+  const domicilios = activos.filter((p) => (p.items || []).some((i) => i.nombre === 'Envío' && i.estado !== 'anulado'));
+
   const entregar = async (p) => {
     try { await api.entregar(p.id, true); cargar(); toast('📦 Entregado.'); }
     catch (e) { toast('No se pudo marcar entregado: ' + e.message, 'error'); }
@@ -40,19 +43,30 @@ export default function Reparto() {
   };
 
   const entregarTodos = async () => {
-    const faltan = activos.filter((p) => !p.entregado_en);
+    const faltan = domicilios.filter((p) => !p.entregado_en);
     if (!faltan.length) { toast('No hay pedidos sin entregar.'); return; }
     if (!(await confirmar(`¿Marcar como ENTREGADOS los ${faltan.length} pedido(s) que faltan?`, { ok: 'Marcar entregados' }))) return;
-    try { const r = await api.deliveryEntregarTodos(); cargar(); toast(`📦 ${r.n} marcado(s) como entregado(s).`); }
+    try { const r = await api.deliveryEntregarTodos(true); cargar(); toast(`📦 ${r.n} marcado(s) como entregado(s).`); }
     catch (e) { toast('No se pudo: ' + e.message, 'error'); }
   };
 
+  // Imprime el ticket de cierre del turno de delivery (total vendido + cuánto en efectivo)
+  const imprimirCierre = async () => {
+    try {
+      const r = await api.deliveryCierreImprimir();
+      const m = r.resultado?.modo;
+      toast(m === 'impreso'
+        ? `🖨 Cierre impreso. Total ${money(r.totalVendido)} · efectivo ${money(r.efectivo)}`
+        : `Cierre: ${r.n} pedido(s), total ${money(r.totalVendido)}.`);
+    } catch (e) { toast('No se pudo imprimir el cierre: ' + e.message, 'error'); }
+  };
+
   const cobrarTodos = async () => {
-    const cobrables = activos.filter((p) => p.estado !== 'cobrado' && p.entregado_en);
+    const cobrables = domicilios.filter((p) => p.estado !== 'cobrado' && p.entregado_en);
     if (!cobrables.length) { toast('No hay entregados sin cobrar. (Marcá "entregados" primero.)'); return; }
     const total = cobrables.reduce((a, p) => a + (p.total || 0), 0);
     if (!(await confirmar(`¿Cobrar en EFECTIVO los ${cobrables.length} entregado(s) sin cobrar?\n\nTotal: ${money(total)}\n\nOJO: los de tarjeta/transferencia cobralos aparte ANTES.`, { ok: 'Cobrar todos (efectivo)' }))) return;
-    try { const r = await api.deliveryCobrarEntregados(); cargar(); toast(`✅ ${r.n} cobrado(s) en efectivo (${money(r.total)}).`); }
+    try { const r = await api.deliveryCobrarEntregados(true); cargar(); toast(`✅ ${r.n} cobrado(s) en efectivo (${money(r.total)}).`); }
     catch (e) { toast('No se pudo: ' + e.message, 'error'); }
   };
 
@@ -60,20 +74,26 @@ export default function Reparto() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <h1 className="h1" style={{ margin: 0 }}>🛵 Reparto</h1>
-        <span className="badge warn">{activos.length} activo(s)</span>
+        <span className="badge warn">{domicilios.length} a domicilio</span>
       </div>
 
-      {activos.length > 0 && (
+      {domicilios.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           <button onClick={entregarTodos}>📦 Marcar todos entregados</button>
           <button className="btn-green" onClick={cobrarTodos}>💵 Cobrar todos (efectivo)</button>
+          <button onClick={imprimirCierre}>🖨 Cierre de delivery</button>
+        </div>
+      )}
+      {!domicilios.length && (
+        <div style={{ marginBottom: 12 }}>
+          <button onClick={imprimirCierre}>🖨 Cierre de delivery</button>
         </div>
       )}
 
-      {!activos.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de delivery para repartir. 🎉</p>}
+      {!domicilios.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de delivery para repartir. 🎉</p>}
 
       <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))' }}>
-        {activos.map((p) => {
+        {domicilios.map((p) => {
           const pagado = p.estado === 'cobrado';
           const entregado = !!p.entregado_en;
           const items = (p.items || []).filter((i) => i.estado !== 'anulado' && i.nombre !== 'Envío');
