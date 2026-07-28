@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, socket, money } from '../api';
-import { toast, confirmar } from '../ui.jsx';
+import { toast, confirmar, preguntar } from '../ui.jsx';
 
 // Panel del cadete (delivery): lista de pedidos a repartir/cobrar, pensado para el celular.
 const MEDIOS = [
@@ -13,10 +13,15 @@ const MEDIOS = [
 export default function Reparto() {
   const [activos, setActivos] = useState([]);
   const [cobrarId, setCobrarId] = useState(null); // pedido que está eligiendo forma de pago
+  const [fiadoId, setFiadoId] = useState(null);    // pedido que está eligiendo la empresa (fiado)
+  const [cuentas, setCuentas] = useState([]);      // empresas / cuentas corrientes
+  const [cuentaId, setCuentaId] = useState('');    // empresa elegida
 
   const cargar = () => api.deliveryPendientes().then(setActivos).catch(() => {});
+  const cargarCuentas = () => api.cuentas().then(setCuentas).catch(() => {});
   useEffect(() => {
     cargar();
+    cargarCuentas();
     const reload = () => cargar();
     ['pedido:nuevo', 'pedido:actualizado', 'pedido:cobrado', 'connect'].forEach((e) => socket.on(e, reload));
     return () => ['pedido:nuevo', 'pedido:actualizado', 'pedido:cobrado', 'connect'].forEach((e) => socket.off(e, reload));
@@ -48,6 +53,33 @@ export default function Reparto() {
     if (!(await confirmar(`¿Marcar como ENTREGADOS los ${faltan.length} pedido(s) que faltan?`, { ok: 'Marcar entregados' }))) return;
     try { const r = await api.deliveryEntregarTodos(true); cargar(); toast(`📦 ${r.n} marcado(s) como entregado(s).`); }
     catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+
+  // Crear una empresa al vuelo (fiado) desde el reparto
+  const nuevaCuenta = async () => {
+    const nombre = await preguntar('Nombre de la empresa o persona para el fiado:');
+    if (!nombre || !nombre.trim()) return;
+    try {
+      const c = await api.crearCuenta({ nombre: nombre.trim() });
+      await cargarCuentas();
+      setCuentaId(String(c.id));
+      toast('Cuenta creada.');
+    } catch (e) { toast('No se pudo crear: ' + e.message, 'error'); }
+  };
+  // Cargar el pedido al fiado de una empresa (cuenta corriente) e imprimir el ticket con firma
+  const cobrarFiado = async (p) => {
+    if (!cuentaId) { toast('Elegí la empresa (o creá una nueva).', 'error'); return; }
+    const emp = cuentas.find((c) => String(c.id) === String(cuentaId));
+    if (!(await confirmar(`¿Cargar ${money(p.total)} al fiado de ${emp?.nombre || 'la empresa'}?`, { ok: 'Cargar' }))) return;
+    try {
+      await api.pagar(p.id, [{ medio: 'FIADO', importe: p.total }], { cuenta_id: Number(cuentaId) });
+      try { await api.imprimirCuenta(p.id, { firma: true }); } catch { /* impresión best-effort */ }
+      setFiadoId(null); setCuentaId(''); cargar(); cargarCuentas();
+      toast('✅ Cargado al fiado. Ticket impreso.');
+    } catch (e) {
+      toast(e.message.includes('409') ? 'Ese pedido ya estaba cobrado.' : 'No se pudo cargar: ' + e.message, 'error');
+      cargar();
+    }
   };
 
   // Imprime el ticket de cierre del turno de delivery (total vendido + cuánto en efectivo)
@@ -123,14 +155,31 @@ export default function Reparto() {
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {!entregado && <button style={{ flex: 1, padding: 10 }} onClick={() => entregar(p)}>📦 Entregado</button>}
-                {!pagado && cobrarId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 10 }} onClick={() => setCobrarId(p.id)}>💵 Cobrar</button>}
+                {!pagado && cobrarId !== p.id && fiadoId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 10 }} onClick={() => { setCobrarId(p.id); setFiadoId(null); }}>💵 Cobrar</button>}
               </div>
               {!pagado && cobrarId === p.id && (
                 <div style={{ marginTop: 8 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>¿Cómo paga?</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {MEDIOS.map((m) => <button key={m.k} className={m.cls} onClick={() => cobrar(p, m.k)}>{m.label}</button>)}
+                    <button className="btn-blue" onClick={() => { setFiadoId(p.id); setCobrarId(null); setCuentaId(''); }}>📒 Fiado</button>
                     <button onClick={() => setCobrarId(null)}>✕</button>
+                  </div>
+                </div>
+              )}
+              {!pagado && fiadoId === p.id && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>📒 Fiado — ¿a qué empresa?</div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+                    <select value={cuentaId} onChange={(e) => setCuentaId(e.target.value)} style={{ flex: 1, minWidth: 150 }}>
+                      <option value="">— elegir empresa —</option>
+                      {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre} (debe {money(c.saldo)})</option>)}
+                    </select>
+                    <button onClick={nuevaCuenta}>+ Nueva</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn-green" style={{ flex: 1 }} onClick={() => cobrarFiado(p)}>Cargar al fiado</button>
+                    <button onClick={() => { setFiadoId(null); setCobrarId(p.id); }}>←</button>
                   </div>
                 </div>
               )}
