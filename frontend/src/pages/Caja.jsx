@@ -246,6 +246,12 @@ export default function Caja() {
               <b>−{money(resumen.domicilioEfectivo)}</b>
             </div>
           )}
+          {resumen.propinaEfectivo > 0 && (
+            <div className="cart-item" style={{ color: 'var(--green)' }}>
+              <span style={{ flex: 1 }}>(+) Propinas en efectivo (quedan en el cajón)</span>
+              <b>{money(resumen.propinaEfectivo)}</b>
+            </div>
+          )}
           {resumen.fiadoCobradoEfectivo > 0 && <div className="cart-item"><span style={{ flex: 1 }}>Fiado cobrado en efectivo</span><b>{money(resumen.fiadoCobradoEfectivo)}</b></div>}
           {resumen.ingresos > 0 && <div className="cart-item"><span style={{ flex: 1 }}>Ingresos</span><b>{money(resumen.ingresos)}</b></div>}
           {resumen.egresos > 0 && <div className="cart-item" style={{ color: 'var(--orange)' }}><span style={{ flex: 1 }}>Egresos / retiros</span><b>−{money(resumen.egresos)}</b></div>}

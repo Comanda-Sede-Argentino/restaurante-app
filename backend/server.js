@@ -897,13 +897,20 @@ function resumenCaja() {
        AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')`
   ).get(desde).t;
   const ventaEfectivoSalon = ventaEfectivo - domicilioEfectivo;
-  const esperado = fondo + ventaEfectivoSalon + fiadoCobradoEfectivo + ingresos - egresos;
+  // Propina en EFECTIVO: el cliente la deja en el cajón, así que es plata que ESTÁ en la caja.
+  // (Solo la de pedidos cobrados en efectivo; la de tarjeta va en el lote del posnet, no en el cajón.)
+  const propinaEfectivo = db.prepare(
+    `SELECT COALESCE(SUM(o.propina),0) t FROM pedido o
+     WHERE o.estado='cobrado' AND o.cerrado_en > ? AND o.propina > 0
+       AND EXISTS (SELECT 1 FROM pago pg WHERE pg.pedido_id=o.id AND UPPER(pg.medio) LIKE '%EFECTIVO%')`
+  ).get(desde).t;
+  const esperado = fondo + ventaEfectivoSalon + propinaEfectivo + fiadoCobradoEfectivo + ingresos - egresos;
   return {
     desde, ventas, totalVentas: tot.total, tickets: tot.tickets,
     ventaEfectivo, ventaEfectivoSalon, domicilioEfectivo, domicilioTotal,
     ventaFiado, ventaOtros: tot.total - ventaEfectivo - ventaFiado,
     cobrosFiado, fiadoCobradoTotal: sum(cobrosFiado), fiadoCobradoEfectivo,
-    fondo, egresos, ingresos, propinas, descuentos, movimientos,
+    fondo, egresos, ingresos, propinas, propinaEfectivo, descuentos, movimientos,
     esperado, efectivoEnCaja: esperado,
   };
 }
@@ -931,6 +938,7 @@ async function imprimirCierre(cierre, r) {
   L.push(' Fondo inicial: ' + moneyTxt(r.fondo));
   L.push(' Ventas efectivo: ' + moneyTxt(r.ventaEfectivo));
   if (r.domicilioEfectivo > 0) L.push(' (-) Delivery domicilio (cadete): ' + moneyTxt(r.domicilioEfectivo));
+  if (r.propinaEfectivo > 0) L.push(' (+) Propinas efectivo: ' + moneyTxt(r.propinaEfectivo));
   if (r.fiadoCobradoEfectivo > 0) L.push(' Fiado cobrado efvo: ' + moneyTxt(r.fiadoCobradoEfectivo));
   if (r.ingresos > 0) L.push(' Ingresos: ' + moneyTxt(r.ingresos));
   if (r.egresos > 0) L.push(' Egresos: -' + moneyTxt(r.egresos));
