@@ -189,7 +189,7 @@ function NuevoPedido({ menus, onCreado }) {
       if (!(await confirmar('El pedido es a domicilio pero no cargaste dirección ni teléfono. ¿Guardar igual?', { ok: 'Guardar' }))) return;
     }
     const items = cart.map((x) => x.tipo === 'menu'
-      ? { menu_dia_id: x.menu_dia_id, cantidad: x.cantidad }
+      ? { menu_dia_id: x.menu_dia_id, nombre: x.nombre, precio_unit: x.precio, cantidad: x.cantidad }
       : { plato_id: x.plato_id, cantidad: x.cantidad, precio_unit: x.precio });
     try {
       await api.crearVianda({
@@ -337,12 +337,26 @@ function DelDia({ pedidos, porMenu, totalDia, recargar }) {
     try { await api.imprimirCuenta(p.id); toast('🖨 Ticket enviado.'); }
     catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
   };
+  // Resumen acumulado para la cocina (12x Menú 1, 6x Menú 2...). Se puede imprimir varias veces.
+  const pasarCocina = async () => {
+    try {
+      const r = await api.viandasCocinaImprimir();
+      const m = r.resultado?.modo;
+      toast(m === 'impreso'
+        ? `🍳 Resumen enviado a cocina · ${r.totalViandas} vianda(s)`
+        : `🍳 Resumen generado (${r.totalViandas} vianda(s)).`);
+    } catch (e) { toast('No se pudo imprimir el resumen: ' + e.message, 'error'); }
+  };
 
   return (
     <div>
       {porMenu.length > 0 && (
         <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Resumen del día {money(totalDia)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700 }}>Resumen del día {money(totalDia)}</span>
+            <button className="btn-accent" style={{ marginLeft: 'auto' }} onClick={pasarCocina}
+              title="Imprime el acumulado para la cocina (cuántas de cada menú van hasta ahora)">🍳 Pasar a cocina</button>
+          </div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {porMenu.map((m, i) => (
               <div key={m.id}><b>Menú {i + 1}</b> ({m.nombre}): <b>{m.cantidad}</b> · {money(m.importe)}</div>

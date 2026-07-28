@@ -763,6 +763,39 @@ app.get('/api/viandas', (req, res) => {
   res.json({ fecha, pedidos, menus, porMenu, totalDia, sinCobrar });
 });
 
+// Resumen ACUMULADO para pasar a la cocina: cuántas de cada menú van hasta ahora (12x Menú 1, 6x Menú 2...)
+// Sale por la impresora de comandas. Se puede imprimir varias veces a medida que entran pedidos.
+app.post('/api/viandas/cocina-imprimir', async (req, res) => {
+  const fecha = req.body.fecha || fechaHoy();
+  const porMenu = db.prepare(
+    `SELECT md.opcion, md.nombre, COALESCE(SUM(i.cantidad),0) cantidad
+     FROM menu_dia md LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
+     WHERE md.fecha=? AND md.activo=1 GROUP BY md.id ORDER BY md.opcion ASC`
+  ).all(fecha);
+  // Ítems de carta pedidos junto con las viandas (agrupados)
+  const cartaItems = db.prepare(
+    `SELECT i.nombre, SUM(i.cantidad) cantidad
+     FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+     WHERE o.tipo='vianda' AND date(o.abierto_en)=? AND o.estado<>'anulado'
+       AND i.estado<>'anulado' AND i.menu_dia_id IS NULL
+     GROUP BY i.nombre ORDER BY cantidad DESC`
+  ).all(fecha);
+  const totalPedidos = db.prepare(
+    "SELECT COUNT(*) c FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado<>'anulado'"
+  ).get(fecha).c;
+  const totalViandas = porMenu.reduce((a, m) => a + m.cantidad, 0);
+  const hora = db.prepare("SELECT time('now','localtime') t").get().t;
+  const L = ['  Actualizado: ' + hora, ''];
+  porMenu.forEach((m, i) => L.push('  ' + String(m.cantidad).padStart(3) + ' x  Menu ' + (i + 1) + ': ' + m.nombre));
+  if (cartaItems.length) {
+    L.push('', '  --- De la carta ---');
+    cartaItems.forEach((c) => L.push('  ' + String(c.cantidad).padStart(3) + ' x  ' + c.nombre));
+  }
+  L.push('', '  Viandas: ' + totalViandas + '    Pedidos: ' + totalPedidos);
+  const resultado = await imprimirTextoPlano('COCINA - VIANDAS ' + fecha, L);
+  res.json({ resultado, porMenu, cartaItems, totalViandas, totalPedidos });
+});
+
 // Cobrar / cerrar pedido
 app.post('/api/pedidos/:id/pagar', (req, res) => {
   const pedidoId = req.params.id;

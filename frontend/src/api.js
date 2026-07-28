@@ -87,6 +87,7 @@ export const api = {
   viandasMensaje: (fecha) => req('/viandas/mensaje' + (fecha ? '?fecha=' + fecha : '')),
   viandas: (fecha) => req('/viandas' + (fecha ? '?fecha=' + fecha : '')),
   crearVianda: (data) => req('/viandas', { method: 'POST', body: data }),
+  viandasCocinaImprimir: (fecha) => req('/viandas/cocina-imprimir', { method: 'POST', body: { fecha: fecha || null } }),
   imprimirCuenta: (id, opts = {}) => req('/pedidos/' + id + '/cuenta', { method: 'POST', body: opts }),
   impresoras: () => req('/impresoras'),
   puertosCom: () => req('/puertos-com'),
