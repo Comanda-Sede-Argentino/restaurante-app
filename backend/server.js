@@ -10,7 +10,7 @@ import {
 } from './printer.js';
 import * as wa from './whatsapp.js';
 import * as tg from './telegram.js';
-import { parsearPedidoIA } from './ia.js';
+import { parsearPedidoIA, parsearViandaIA } from './ia.js';
 import { transcribirAudio } from './voz.js';
 import os from 'os';
 import QRCode from 'qrcode';
@@ -695,16 +695,13 @@ app.get('/api/viandas/mensaje', (req, res) => {
   res.json({ fecha, texto: L.join('\n'), menus });
 });
 
-// Crear un pedido de vianda con sus ítems (menús del día y/o platos de la carta)
-app.post('/api/viandas', (req, res) => {
-  const { cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega } = req.body;
-  const entrega = req.body.entrega === 'retiro' ? 'retiro' : 'domicilio';
-  const items = Array.isArray(req.body.items) ? req.body.items : [];
-  if (!items.length) return res.status(400).json({ error: 'El pedido no tiene ítems' });
+// Crea un pedido de vianda con sus ítems (menús del día y/o platos de la carta). Devuelve el pedido.
+function crearViandaPedido({ cliente_nombre, cliente_telefono, cliente_direccion, entrega, hora_entrega, items }) {
+  const ent = entrega === 'retiro' ? 'retiro' : 'domicilio';
   const r = db.prepare(
     `INSERT INTO pedido (tipo, entrega, cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega, estado)
      VALUES ('vianda', ?,?,?,?,?, 'en_cocina')`
-  ).run(entrega, cliente_nombre || null, cliente_telefono || null, cliente_direccion || null, hora_entrega || null);
+  ).run(ent, cliente_nombre || null, cliente_telefono || null, cliente_direccion || null, hora_entrega || null);
   const pedidoId = r.lastInsertRowid;
   // estado 'listo': se registra y se cobra, pero NO satura la pantalla de cocina (se cocina en tanda con el resumen del día)
   const ins = db.prepare(
@@ -735,6 +732,17 @@ app.post('/api/viandas', (req, res) => {
   const p = pedidoCompleto(pedidoId);
   io.emit('pedido:nuevo', p);
   emitDashboard();
+  return p;
+}
+
+app.post('/api/viandas', (req, res) => {
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  if (!items.length) return res.status(400).json({ error: 'El pedido no tiene ítems' });
+  const p = crearViandaPedido({
+    cliente_nombre: req.body.cliente_nombre, cliente_telefono: req.body.cliente_telefono,
+    cliente_direccion: req.body.cliente_direccion, entrega: req.body.entrega,
+    hora_entrega: req.body.hora_entrega, items,
+  });
   res.json(p);
 });
 
@@ -794,6 +802,47 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   L.push('', '  Viandas: ' + totalViandas + '    Pedidos: ' + totalPedidos);
   const resultado = await imprimirTextoPlano('COCINA - VIANDAS ' + fecha, L);
   res.json({ resultado, porMenu, cartaItems, totalViandas, totalPedidos });
+});
+
+// Bandeja del BOT de viandas: mensajes de WhatsApp que la IA interpretó como pedido de vianda,
+// esperando que el local los confirme.
+app.get('/api/viandas/inbox', (req, res) => {
+  const rows = db.prepare("SELECT * FROM wa_inbox WHERE clase='vianda' AND estado='pendiente' ORDER BY id DESC LIMIT 100").all();
+  res.json(rows.map((r) => { let p = null; try { p = JSON.parse(r.propuesta || 'null'); } catch { p = null; } return { ...r, propuesta: p }; }));
+});
+
+// Confirmar una propuesta -> crea el pedido de vianda y recién ahí le avisa al cliente por WhatsApp.
+// El body puede traer la versión EDITADA por el cajero (items/cliente/entrega).
+app.post('/api/viandas/inbox/:id/confirmar', (req, res) => {
+  const msg = db.prepare("SELECT * FROM wa_inbox WHERE id=?").get(req.params.id);
+  if (!msg) return res.status(404).json({ error: 'No existe' });
+  let prop = {}; try { prop = JSON.parse(msg.propuesta || '{}') || {}; } catch { prop = {}; }
+  const data = (req.body && Array.isArray(req.body.items)) ? req.body : prop;
+  const items = (data.items || []).map((x) => x.menu_dia_id
+    ? { menu_dia_id: x.menu_dia_id, nombre: x.nombre, precio_unit: x.precio ?? x.precio_unit, cantidad: x.cantidad }
+    : { plato_id: x.plato_id, nombre: x.nombre, precio_unit: x.precio ?? x.precio_unit, cantidad: x.cantidad });
+  if (!items.length) return res.status(400).json({ error: 'La propuesta no tiene ítems' });
+  const p = crearViandaPedido({
+    cliente_nombre: data.cliente_nombre, cliente_telefono: data.cliente_telefono || msg.telefono,
+    cliente_direccion: data.cliente_direccion, entrega: data.entrega, hora_entrega: data.hora_entrega, items,
+  });
+  db.prepare("UPDATE wa_inbox SET estado='convertido', pedido_id=? WHERE id=?").run(p.id, msg.id);
+  io.emit('wa:actualizado', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(msg.id));
+  io.emit('vianda:inbox', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(msg.id));
+  // Avisar al cliente (recién ahora, ya confirmado por el local)
+  const w = getConfig().whatsapp || {};
+  const money = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  const det = items.map((i) => `${i.cantidad}× ${i.nombre}`).join(', ');
+  let txt = (w.textoViandaOK || '¡Anotado! 🍱 {detalle}. Total {total}.').replace('{detalle}', det).replace('{total}', money(p.total));
+  if ((data.entrega || 'domicilio') !== 'retiro') txt += ' Te lo llevamos al mediodía 🛵';
+  if (msg.wa_jid) wa.enviarMensaje(msg.wa_jid, txt);
+  res.json(p);
+});
+
+app.post('/api/viandas/inbox/:id/descartar', (req, res) => {
+  db.prepare("UPDATE wa_inbox SET estado='descartado' WHERE id=?").run(req.params.id);
+  io.emit('vianda:inbox', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(req.params.id));
+  res.json({ ok: true });
 });
 
 // Cobrar / cerrar pedido
@@ -1162,18 +1211,76 @@ function clasificarMensaje(texto, palabras) {
 // Memoria de la última auto-respuesta enviada a cada número (para no repetir)
 const ultimaRespuestaWa = new Map(); // jid -> { tipo, ts }
 
+// Pre-filtro barato: ¿vale la pena gastar la IA para ver si es un pedido de vianda?
+// (evita llamar a la IA con saludos sueltos o mensajes largos que no tienen pinta de pedido)
+function pareceVianda(texto, menus) {
+  const t = (texto || '').toLowerCase();
+  if (!t || t.length > 240) return false;
+  if (/\d/.test(t)) return true;
+  if (/\b(menu|men[uú]|vianda|viandas|opci[oó]n|opcion|uno|dos|tres|primer|segund)\b/.test(t)) return true;
+  for (const m of menus) {
+    for (const w of (m.nombre || '').toLowerCase().split(/\s+/)) {
+      if (w.length >= 4 && t.includes(w)) return true;
+    }
+  }
+  return false;
+}
+
 wa.setHandlers({
   emitEstado: (st) => io.emit('wa:estado', st),
-  onMensaje: ({ jid, telefono, nombre, texto }) => {
+  onMensaje: async ({ jid, telefono, nombre, texto }) => {
     const r = db.prepare(
       'INSERT INTO wa_inbox (wa_jid, telefono, nombre, texto) VALUES (?,?,?,?)'
     ).run(jid, telefono, nombre, texto);
     const row = db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(r.lastInsertRowid);
     io.emit('wa:nuevo', row);
 
-    // Auto-respuesta inteligente: distinta según tipo de mensaje y sin repetir
     const cfg = getConfig();
     const w = cfg.whatsapp || {};
+
+    // --- BOT DE VIANDAS: si hay menús del día cargados y el mensaje parece un pedido de vianda,
+    // lo interpretamos con la IA y lo dejamos como PROPUESTA en la bandeja de viandas (NO se le
+    // responde al cliente todavía: se le avisa recién cuando el local confirma). ---
+    try {
+      if (w.viandasBot !== false) {
+        const fecha = fechaHoy();
+        const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
+        const claveIA = (cfg.telegram || {}).claveIA;
+        if (menus.length && claveIA && pareceVianda(texto, menus)) {
+          const ahora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+          const v = await parsearViandaIA(texto, menus, claveIA, 'claude-haiku-4-5', ahora);
+          if (v && v.es_vianda && Array.isArray(v.items) && v.items.length) {
+            // Completar nombre/dirección con lo guardado del cliente si el mensaje no los trae
+            const prev = db.prepare(
+              `SELECT cliente_nombre nombre, cliente_direccion direccion FROM pedido
+               WHERE tipo IN ('delivery','vianda') AND cliente_telefono=? AND cliente_nombre IS NOT NULL
+               ORDER BY id DESC LIMIT 1`
+            ).get(telefono);
+            const items = v.items.map((it) => {
+              const op = Number(it.opcion) || 1;
+              const m = menus.find((x) => x.opcion === op) || menus[op - 1];
+              return m ? { menu_dia_id: m.id, opcion: m.opcion, nombre: m.nombre, precio: m.precio, cantidad: Math.max(1, Math.trunc(Number(it.cantidad) || 1)) } : null;
+            }).filter(Boolean);
+            if (items.length) {
+              const propuesta = {
+                cliente_nombre: (v.cliente_nombre || '').trim() || (prev?.nombre || nombre || ''),
+                cliente_telefono: telefono,
+                cliente_direccion: (v.direccion || '').trim() || (prev?.direccion || ''),
+                entrega: v.entrega === 'retiro' ? 'retiro' : 'domicilio',
+                hora_entrega: (v.hora_entrega || '').trim(),
+                nota: (v.nota || '').trim(),
+                items,
+              };
+              db.prepare("UPDATE wa_inbox SET clase='vianda', propuesta=? WHERE id=?").run(JSON.stringify(propuesta), row.id);
+              io.emit('vianda:inbox', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(row.id));
+              return; // no seguimos con el triage normal ni auto-respondemos
+            }
+          }
+        }
+      }
+    } catch (e) { console.error('Bot viandas:', e.message); /* si falla, seguimos con el triage normal */ }
+
+    // Auto-respuesta inteligente: distinta según tipo de mensaje y sin repetir
     if (w.autoRespuesta === false) return;
 
     const tipo = clasificarMensaje(texto, w.palabrasPedido);
@@ -1207,7 +1314,8 @@ app.post('/api/whatsapp/desconectar', async (req, res) => { await wa.desconectar
 
 app.get('/api/whatsapp/inbox', (req, res) => {
   const estado = req.query.estado || 'pendiente';
-  res.json(db.prepare('SELECT * FROM wa_inbox WHERE estado=? ORDER BY id DESC LIMIT 200').all(estado));
+  // Las propuestas de vianda tienen su propia bandeja (no se mezclan acá)
+  res.json(db.prepare("SELECT * FROM wa_inbox WHERE estado=? AND (clase IS NULL OR clase<>'vianda') ORDER BY id DESC LIMIT 200").all(estado));
 });
 
 // Convierte un mensaje de la bandeja en un pedido de delivery (el cajero luego carga los items)

@@ -141,6 +141,79 @@ OTRAS REGLAS:
   "en una hora"), SUMALO a la HORA ACTUAL y devolvé HH:MM (24hs). Si no la mencionan, dejá vacío.
 - Si no aclara nombre o dirección, dejá esos campos vacíos.`;
 
+// ---------- VIANDAS: interpreta la respuesta del cliente contra los menús del día ----------
+const HERR_VIANDA = {
+  name: 'registrar_vianda',
+  description: 'Interpreta un mensaje de WhatsApp para un pedido de VIANDAS del mediodía, según los menús del día.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      es_vianda: { type: 'boolean', description: 'true SOLO si el mensaje pide al menos uno de los menús del día. false si es un saludo, una consulta, o algo que no corresponde a los menús del día.' },
+      items: {
+        type: 'array',
+        description: 'Menús del día pedidos',
+        items: {
+          type: 'object',
+          properties: {
+            opcion: { type: 'integer', description: 'Número de opción del menú del día (1, 2, ...) que pidió' },
+            cantidad: { type: 'integer', description: 'Cantidad de ese menú (1 si no aclara)' },
+          },
+          required: ['opcion', 'cantidad'],
+        },
+      },
+      cliente_nombre: { type: 'string', description: 'Nombre si lo menciona; si no, vacío' },
+      direccion: { type: 'string', description: 'Dirección de entrega si la menciona; si no, vacío' },
+      entrega: { type: 'string', enum: ['domicilio', 'retiro'], description: 'domicilio si hay que llevarlo o da dirección; retiro si dice que lo pasa a buscar. Por defecto domicilio.' },
+      hora_entrega: { type: 'string', description: 'Hora en HH:MM si la menciona; si no, vacío' },
+      nota: { type: 'string', description: 'Aclaración general si la hay (ej. "sin sal"); si no, vacío' },
+    },
+    required: ['es_vianda', 'items'],
+  },
+};
+
+const SISTEMA_VIANDA = `Sos un asistente que interpreta mensajes de WhatsApp de clientes que responden a la difusión de las VIANDAS del mediodía de un restaurante argentino.
+Te paso los MENÚS DEL DÍA (numerados) y el MENSAJE del cliente. Devolvé el pedido con la herramienta registrar_vianda.
+
+REGLAS:
+- Cada MENÚ es: "Opción N: nombre ($precio)". El cliente puede pedir por número ("el 1", "quiero 2 del menú 1", "dos del primero") o por nombre ("una milanesa", "la tarta").
+- Mapeá cada cosa pedida a la OPCIÓN (número) que corresponda. Match por nombre ignorando acentos y mayúsculas y por parecido razonable ("milanga" = "Milanesa con puré" si ese es un menú del día).
+- Interpretá cantidades en palabras ("dos" = 2, "una" = 1). Si no aclara cantidad, es 1.
+- es_vianda = true SOLO si pide al menos uno de los menús del día. Si es un saludo suelto ("hola"), una consulta ("hasta qué hora entregan?"), o algo que claramente NO es uno de los menús del día, poné es_vianda = false y items vacío.
+- entrega: "domicilio" por defecto, o si da una dirección o dice "llevar/mandar/enviar a...". "retiro" SOLO si dice que lo pasa a buscar o lo retira.
+- Si no aclara nombre o dirección, dejá esos campos vacíos (el sistema los completa con los datos guardados del cliente).`;
+
+// Devuelve { es_vianda, items:[{opcion,cantidad}], cliente_nombre, direccion, entrega, hora_entrega, nota }
+export async function parsearViandaIA(texto, menus, apiKey, modelo = 'claude-haiku-4-5', ahora = '') {
+  if (!apiKey) throw new Error('Falta la clave de IA (Claude)');
+  const lista = menus.map((m, i) => `Opción ${m.opcion || i + 1}: ${m.nombre} ($${Math.round(m.precio)})`).join('\n');
+  const body = {
+    model: modelo,
+    max_tokens: 512,
+    system: SISTEMA_VIANDA,
+    tools: [HERR_VIANDA],
+    tool_choice: { type: 'tool', name: 'registrar_vianda' },
+    messages: [{ role: 'user', content: [{ type: 'text', text: `MENÚS DEL DÍA:\n${lista}\n\nHORA ACTUAL: ${ahora || '(no informada)'}\n\nMENSAJE DEL CLIENTE:\n${texto}` }] }],
+  };
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 15000);
+  let r;
+  try {
+    r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    throw new Error(e.name === 'AbortError' ? 'La IA tardó demasiado' : 'Error de red: ' + e.message);
+  } finally { clearTimeout(to); }
+  if (!r.ok) { const t = await r.text(); throw new Error('IA error ' + r.status + ': ' + t.slice(0, 160)); }
+  const data = await r.json();
+  const tu = (data.content || []).find((b) => b.type === 'tool_use');
+  if (!tu || !tu.input) throw new Error('La IA no devolvió nada');
+  return tu.input;
+}
+
 export async function parsearPedidoIA(texto, platos, apiKey, modelo = 'claude-haiku-4-5', ahora = '', guarnicionDefault = 'papas fritas', imagen = null) {
   if (!apiKey) throw new Error('Falta la clave de IA (Claude)');
   const menu = platos.map((p) => {

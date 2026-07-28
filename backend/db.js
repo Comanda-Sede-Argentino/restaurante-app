@@ -246,5 +246,8 @@ addCol("CREATE INDEX IF NOT EXISTS idx_menudia_fecha ON menu_dia(fecha)");
 addCol("ALTER TABLE pedido_item ADD COLUMN menu_dia_id INTEGER");
 // Viandas: cómo se entrega ('domicilio' | 'retiro'). Vacío en el resto de los pedidos.
 addCol("ALTER TABLE pedido ADD COLUMN entrega TEXT");
+// Bot de viandas: mensajes de WhatsApp interpretados como pedido de vianda (para el inbox de viandas)
+addCol("ALTER TABLE wa_inbox ADD COLUMN clase TEXT");       // 'vianda' si es una propuesta de vianda
+addCol("ALTER TABLE wa_inbox ADD COLUMN propuesta TEXT");   // JSON con el pedido interpretado
 
 export default db;

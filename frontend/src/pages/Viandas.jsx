@@ -17,19 +17,26 @@ export default function Viandas() {
   const [pedidos, setPedidos] = useState([]);
   const [porMenu, setPorMenu] = useState([]);
   const [totalDia, setTotalDia] = useState(0);
+  const [inbox, setInbox] = useState([]);
 
   const cargarMenus = () => api.menuDia().then((r) => { setFecha(r.fecha); setMenus(r.menus || []); }).catch(() => {});
   const cargarDia = () => api.viandas().then((r) => {
     setPedidos(r.pedidos || []); setPorMenu(r.porMenu || []); setTotalDia(r.totalDia || 0);
     if (r.menus) setMenus(r.menus);
   }).catch(() => {});
+  const cargarInbox = () => api.viandasInbox().then(setInbox).catch(() => {});
 
   useEffect(() => {
     cargarMenus();
     cargarDia();
+    cargarInbox();
     const reload = () => cargarDia();
     ['pedido:nuevo', 'pedido:actualizado', 'pedido:cobrado', 'connect'].forEach((e) => socket.on(e, reload));
-    return () => ['pedido:nuevo', 'pedido:actualizado', 'pedido:cobrado', 'connect'].forEach((e) => socket.off(e, reload));
+    socket.on('vianda:inbox', cargarInbox);
+    return () => {
+      ['pedido:nuevo', 'pedido:actualizado', 'pedido:cobrado', 'connect'].forEach((e) => socket.off(e, reload));
+      socket.off('vianda:inbox', cargarInbox);
+    };
   }, []);
 
   const sinCobrar = pedidos.filter((p) => p.estado !== 'cobrado').length;
@@ -40,6 +47,7 @@ export default function Viandas() {
         <h1 className="h1" style={{ margin: 0 }}>🍱 Viandas</h1>
         <span className="badge" style={{ background: 'var(--green)', color: '#fff' }} title="Cobrado en viandas hoy">Hoy: {money(totalDia)}</span>
         {sinCobrar > 0 && <span className="badge warn">{sinCobrar} sin cobrar</span>}
+        {inbox.length > 0 && <span className="badge" style={{ background: 'var(--blue)', color: '#fff' }}>📥 {inbox.length} de WhatsApp</span>}
         <span className="spacer" />
         <div style={{ display: 'flex', gap: 6 }}>
           <button className={'chip' + (tab === 'pedido' ? ' active' : '')} onClick={() => setTab('pedido')}>➕ Nuevo pedido</button>
@@ -47,6 +55,8 @@ export default function Viandas() {
           <button className={'chip' + (tab === 'menus' ? ' active' : '')} onClick={() => setTab('menus')}>📋 Menús</button>
         </div>
       </div>
+
+      {inbox.length > 0 && <InboxViandas inbox={inbox} recargar={() => { cargarInbox(); cargarDia(); }} />}
 
       {tab === 'menus' && <Menus fecha={fecha} menus={menus} onSaved={() => { cargarMenus(); cargarDia(); }} />}
       {tab === 'pedido' && <NuevoPedido menus={menus} onCreado={() => { cargarDia(); setTab('dia'); }} irAMenus={() => setTab('menus')} />}
@@ -285,6 +295,79 @@ function NuevoPedido({ menus, onCreado }) {
         </div>
 
         <button className="btn-green" style={{ width: '100%', padding: 13 }} disabled={!cart.length} onClick={guardar}>💾 Cargar pedido</button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Bandeja del BOT: propuestas de vianda leídas de WhatsApp ----------
+function InboxViandas({ inbox, recargar }) {
+  return (
+    <div className="card" style={{ marginBottom: 14, borderColor: 'var(--blue)' }}>
+      <div style={{ fontWeight: 700, marginBottom: 8 }}>📥 Pedidos de WhatsApp por confirmar</div>
+      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))' }}>
+        {inbox.map((m) => <PropuestaCard key={m.id} msg={m} onDone={recargar} />)}
+      </div>
+    </div>
+  );
+}
+
+function PropuestaCard({ msg, onDone }) {
+  const p = msg.propuesta || {};
+  const [nombre, setNombre] = useState(p.cliente_nombre || msg.nombre || '');
+  const [direccion, setDireccion] = useState(p.cliente_direccion || '');
+  const [entrega, setEntrega] = useState(p.entrega === 'retiro' ? 'retiro' : 'domicilio');
+  const [items, setItems] = useState((p.items || []).map((x) => ({ ...x })));
+  const [ocupado, setOcupado] = useState(false);
+
+  const cambiar = (i, delta) => setItems((its) => its.map((x, k) => (k === i ? { ...x, cantidad: x.cantidad + delta } : x)).filter((x) => x.cantidad > 0));
+  const total = items.reduce((a, x) => a + (x.precio || 0) * x.cantidad, 0);
+
+  const aceptar = async () => {
+    if (!items.length) { toast('La propuesta quedó sin ítems.', 'error'); return; }
+    setOcupado(true);
+    try {
+      await api.viandasInboxConfirmar(msg.id, {
+        cliente_nombre: nombre.trim() || null, cliente_telefono: p.cliente_telefono || msg.telefono,
+        cliente_direccion: direccion.trim() || null, entrega, hora_entrega: p.hora_entrega || null, items,
+      });
+      toast('✅ Pedido confirmado. Se le avisó al cliente.');
+      onDone();
+    } catch (e) { toast('No se pudo confirmar: ' + e.message, 'error'); setOcupado(false); }
+  };
+  const descartar = async () => {
+    if (!(await confirmar('¿Descartar este pedido de WhatsApp?', { peligro: true, ok: 'Descartar', cancelar: 'Volver' }))) return;
+    try { await api.viandasInboxDescartar(msg.id); onDone(); }
+    catch (e) { toast('No se pudo descartar: ' + e.message, 'error'); }
+  };
+
+  return (
+    <div className="card" style={{ background: 'var(--panel2)' }}>
+      <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', marginBottom: 6 }}>💬 "{msg.texto}"</div>
+      <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre" style={{ width: '100%', marginBottom: 6, fontWeight: 700 }} />
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>📞 {p.cliente_telefono || msg.telefono}</div>
+      {items.map((x, i) => (
+        <div key={i} className="cart-item">
+          <span style={{ flex: 1 }}>{x.nombre}</span>
+          <div className="qty">
+            <button onClick={() => cambiar(i, -1)}>−</button>
+            <b>{x.cantidad}</b>
+            <button onClick={() => cambiar(i, 1)}>+</button>
+          </div>
+          <span style={{ minWidth: 60, textAlign: 'right' }}>{money(x.cantidad * (x.precio || 0))}</span>
+        </div>
+      ))}
+      <div className="total-row"><span>Total</span><span>{money(total)}</span></div>
+      <div style={{ display: 'flex', gap: 6, margin: '8px 0 6px' }}>
+        <button className={entrega === 'domicilio' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => setEntrega('domicilio')}>🛵 Domicilio</button>
+        <button className={entrega === 'retiro' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => setEntrega('retiro')}>🏪 Retira</button>
+      </div>
+      {entrega === 'domicilio' && (
+        <input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección" style={{ width: '100%', marginBottom: 8 }} />
+      )}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button className="btn-green" style={{ flex: 1, padding: 10 }} disabled={ocupado} onClick={aceptar}>✔ Confirmar</button>
+        <button className="btn-red" style={{ padding: 10 }} disabled={ocupado} onClick={descartar}>✗</button>
       </div>
     </div>
   );
