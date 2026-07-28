@@ -246,10 +246,10 @@ export default function Caja() {
               <b>−{money(resumen.domicilioEfectivo)}</b>
             </div>
           )}
-          {resumen.propinaEfectivo > 0 && (
-            <div className="cart-item" style={{ color: 'var(--green)' }}>
-              <span style={{ flex: 1 }}>(+) Propinas en efectivo (quedan en el cajón)</span>
-              <b>{money(resumen.propinaEfectivo)}</b>
+          {resumen.propinaRetiradaEfectivo > 0 && (
+            <div className="cart-item" style={{ color: 'var(--orange)' }}>
+              <span style={{ flex: 1 }}>(−) Propinas por tarjeta/transf. (el mozo retira ese efvo. del cajón)</span>
+              <b>−{money(resumen.propinaRetiradaEfectivo)}</b>
             </div>
           )}
           {resumen.fiadoCobradoEfectivo > 0 && <div className="cart-item"><span style={{ flex: 1 }}>Fiado cobrado en efectivo</span><b>{money(resumen.fiadoCobradoEfectivo)}</b></div>}
