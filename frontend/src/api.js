@@ -80,6 +80,13 @@ export const api = {
   cafeteriaMesas: () => req('/cafeteria/mesas'),
   cafeteriaNueva: () => req('/cafeteria/nueva', { method: 'POST', body: {} }),
   cafeteriaItem: (id, plato_id, delta) => req('/cafeteria/' + id + '/item', { method: 'POST', body: { plato_id, delta } }),
+  // Viandas (mediodía)
+  menuDia: (fecha) => req('/menu-dia' + (fecha ? '?fecha=' + fecha : '')),
+  guardarMenuDia: (fecha, menus) => req('/menu-dia', { method: 'PUT', body: { fecha, menus } }),
+  menuDiaHistorial: () => req('/menu-dia/historial'),
+  viandasMensaje: (fecha) => req('/viandas/mensaje' + (fecha ? '?fecha=' + fecha : '')),
+  viandas: (fecha) => req('/viandas' + (fecha ? '?fecha=' + fecha : '')),
+  crearVianda: (data) => req('/viandas', { method: 'POST', body: data }),
   imprimirCuenta: (id, opts = {}) => req('/pedidos/' + id + '/cuenta', { method: 'POST', body: opts }),
   impresoras: () => req('/impresoras'),
   puertosCom: () => req('/puertos-com'),

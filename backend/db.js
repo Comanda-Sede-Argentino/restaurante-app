@@ -229,4 +229,22 @@ addCol("ALTER TABLE cierre_caja ADD COLUMN diferencia REAL");
 addCol("CREATE INDEX IF NOT EXISTS idx_receta_plato ON receta(plato_id)");
 addCol("CREATE INDEX IF NOT EXISTS idx_stockmov_insumo ON stock_mov(insumo_id)");
 
+// ---------- VIANDAS (mediodía) ----------
+// Los 2 (o más) menús del día. Se cargan cada mañana y quedan guardados para el histórico/análisis.
+addCol(`CREATE TABLE IF NOT EXISTS menu_dia (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fecha TEXT NOT NULL,                  -- YYYY-MM-DD
+  opcion INTEGER NOT NULL DEFAULT 1,    -- 1 | 2 (orden en que se muestra)
+  nombre TEXT NOT NULL,
+  descripcion TEXT,
+  precio REAL NOT NULL DEFAULT 0,
+  activo INTEGER DEFAULT 1,
+  creado_en TEXT DEFAULT (datetime('now','localtime'))
+)`);
+addCol("CREATE INDEX IF NOT EXISTS idx_menudia_fecha ON menu_dia(fecha)");
+// Ítem vendido que corresponde a un menú del día (para reportes de viandas por fecha/opción)
+addCol("ALTER TABLE pedido_item ADD COLUMN menu_dia_id INTEGER");
+// Viandas: cómo se entrega ('domicilio' | 'retiro'). Vacío en el resto de los pedidos.
+addCol("ALTER TABLE pedido ADD COLUMN entrega TEXT");
+
 export default db;

@@ -245,7 +245,7 @@ app.get('/api/clientes', (req, res) => {
   const rows = db.prepare(
     `SELECT cliente_telefono telefono, cliente_nombre nombre, cliente_direccion direccion, MAX(id) mid
      FROM pedido
-     WHERE tipo='delivery' AND cliente_telefono IS NOT NULL AND TRIM(cliente_telefono)<>''
+     WHERE tipo IN ('delivery','vianda') AND cliente_telefono IS NOT NULL AND TRIM(cliente_telefono)<>''
        AND (cliente_telefono LIKE ? OR cliente_nombre LIKE ?)
      GROUP BY cliente_telefono
      ORDER BY mid DESC LIMIT 8`
@@ -641,6 +641,126 @@ app.post('/api/cafeteria/:id/item', (req, res) => {
   io.emit('pedido:actualizado', p);
   emitDashboard();
   res.json(p);
+});
+
+// ================= VIANDAS (mediodía) =================
+const fechaHoy = () => db.prepare("SELECT date('now','localtime') d").get().d;
+
+// Menús de un día (por defecto hoy)
+app.get('/api/menu-dia', (req, res) => {
+  const fecha = req.query.fecha || fechaHoy();
+  const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
+  res.json({ fecha, menus });
+});
+
+// Guardar/reemplazar los menús de un día (se cargan cada mañana)
+app.put('/api/menu-dia', (req, res) => {
+  const fecha = req.body.fecha || fechaHoy();
+  const menus = Array.isArray(req.body.menus) ? req.body.menus : [];
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM menu_dia WHERE fecha=?").run(fecha);
+    const ins = db.prepare("INSERT INTO menu_dia (fecha, opcion, nombre, descripcion, precio) VALUES (?,?,?,?,?)");
+    menus.forEach((m, i) => {
+      if (!m || !String(m.nombre || '').trim()) return;
+      ins.run(fecha, m.opcion || (i + 1), String(m.nombre).trim(), m.descripcion || null, Math.max(0, Number(m.precio) || 0));
+    });
+  });
+  tx();
+  const guardados = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
+  res.json({ fecha, menus: guardados });
+});
+
+// Sugerencias de menús anteriores (para reusar los que se repiten)
+app.get('/api/menu-dia/historial', (req, res) => {
+  const rows = db.prepare(
+    "SELECT nombre, MAX(precio) precio, MAX(fecha) ultima FROM menu_dia GROUP BY nombre ORDER BY ultima DESC LIMIT 40"
+  ).all();
+  res.json(rows);
+});
+
+// Texto listo para pegar en la lista de difusión de WhatsApp
+app.get('/api/viandas/mensaje', (req, res) => {
+  const fecha = req.query.fecha || fechaHoy();
+  const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
+  const cfg = getConfig();
+  const link = (cfg.whatsapp && cfg.whatsapp.linkPedidos) || '';
+  const money = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  const L = ['🍽 *Viandas de hoy* 🍽', ''];
+  menus.forEach((m, i) => {
+    L.push(`*${i + 1}) ${m.nombre}* — ${money(m.precio)}`);
+    if (m.descripcion) L.push(`   ${m.descripcion}`);
+  });
+  L.push('', 'Respondé con el número de menú, cantidad y tu dirección 🛵');
+  if (link) L.push('', 'También podés pedir por acá 👉 ' + link);
+  res.json({ fecha, texto: L.join('\n'), menus });
+});
+
+// Crear un pedido de vianda con sus ítems (menús del día y/o platos de la carta)
+app.post('/api/viandas', (req, res) => {
+  const { cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega } = req.body;
+  const entrega = req.body.entrega === 'retiro' ? 'retiro' : 'domicilio';
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  if (!items.length) return res.status(400).json({ error: 'El pedido no tiene ítems' });
+  const r = db.prepare(
+    `INSERT INTO pedido (tipo, entrega, cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega, estado)
+     VALUES ('vianda', ?,?,?,?,?, 'en_cocina')`
+  ).run(entrega, cliente_nombre || null, cliente_telefono || null, cliente_direccion || null, hora_entrega || null);
+  const pedidoId = r.lastInsertRowid;
+  // estado 'listo': se registra y se cobra, pero NO satura la pantalla de cocina (se cocina en tanda con el resumen del día)
+  const ins = db.prepare(
+    `INSERT INTO pedido_item (pedido_id, plato_id, menu_dia_id, nombre, cantidad, precio_unit, sector_id, sector_nombre, estado)
+     VALUES (?,?,?,?,?,?,?,?, 'listo')`
+  );
+  const platos = [];
+  const tx = db.transaction(() => {
+    for (const it of items) {
+      let nombre = it.nombre || 'Ítem', precio = Number(it.precio_unit) || 0;
+      let sector_id = null, sector = null, plato_id = null, menu_dia_id = null;
+      if (it.menu_dia_id) {
+        const m = db.prepare("SELECT * FROM menu_dia WHERE id=?").get(it.menu_dia_id);
+        if (m) { nombre = m.nombre; precio = m.precio; menu_dia_id = m.id; }
+      } else if (it.plato_id) {
+        const p = db.prepare('SELECT p.*, s.nombre sector FROM plato p LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE p.id=?').get(it.plato_id);
+        if (p) { nombre = p.nombre; precio = it.precio_unit ?? p.precio; sector_id = p.sector_id; sector = p.sector; plato_id = p.id; }
+      }
+      const cant = Math.max(1, Math.trunc(Number(it.cantidad) || 1));
+      ins.run(pedidoId, plato_id, menu_dia_id, nombre, cant, precio, sector_id, sector);
+      if (plato_id) platos.push({ plato_id, cantidad: cant });
+    }
+    recalcTotal(pedidoId);
+  });
+  tx();
+  // Descontar stock solo de los ítems de carta (los menús del día no llevan receta)
+  for (const it of platos) { try { consumirStockVenta(pedidoId, it.plato_id, it.cantidad); } catch { /* sin receta */ } }
+  const p = pedidoCompleto(pedidoId);
+  io.emit('pedido:nuevo', p);
+  emitDashboard();
+  res.json(p);
+});
+
+// Pedidos de vianda de un día + resumen por menú (para la vista del mediodía)
+app.get('/api/viandas', (req, res) => {
+  const fecha = req.query.fecha || fechaHoy();
+  const rows = db.prepare(
+    "SELECT id FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado<>'anulado' ORDER BY id ASC"
+  ).all(fecha);
+  const pedidos = rows.map((row) => pedidoCompleto(row.id));
+  const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
+  // Cantidad e importe vendidos por cada menú del día
+  const porMenu = db.prepare(
+    `SELECT md.id, md.opcion, md.nombre, md.precio,
+            COALESCE(SUM(i.cantidad),0) cantidad,
+            COALESCE(SUM(i.cantidad*i.precio_unit),0) importe
+     FROM menu_dia md
+     LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
+     WHERE md.fecha=? AND md.activo=1
+     GROUP BY md.id ORDER BY md.opcion ASC`
+  ).all(fecha);
+  const totalDia = db.prepare(
+    "SELECT COALESCE(SUM(total),0) t FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado='cobrado'"
+  ).get(fecha).t;
+  const sinCobrar = pedidos.filter((p) => p.estado !== 'cobrado').length;
+  res.json({ fecha, pedidos, menus, porMenu, totalDia, sinCobrar });
 });
 
 // Cobrar / cerrar pedido
