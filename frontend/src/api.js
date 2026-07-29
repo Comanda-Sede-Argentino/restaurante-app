@@ -110,6 +110,7 @@ export const api = {
   waInbox: (estado = 'pendiente') => req('/whatsapp/inbox?estado=' + estado),
   waConvertir: (id) => req('/whatsapp/inbox/' + id + '/convertir', { method: 'POST' }),
   waDescartar: (id) => req('/whatsapp/inbox/' + id + '/descartar', { method: 'POST' }),
+  waDescartarTodos: () => req('/whatsapp/inbox/descartar-todos', { method: 'POST' }),
   waResponder: (destino, texto) => req('/whatsapp/responder', { method: 'POST', body: { destino, texto } }),
   tgEstado: () => req('/telegram/estado'),
   tgConectar: () => req('/telegram/conectar', { method: 'POST' }),

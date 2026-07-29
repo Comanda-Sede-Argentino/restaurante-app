@@ -1521,6 +1521,13 @@ app.post('/api/whatsapp/inbox/:id/descartar', (req, res) => {
   res.json({ ok: true });
 });
 
+// Descartar TODA la bandeja pendiente de una vez (no toca las propuestas de vianda ni los pedidos creados)
+app.post('/api/whatsapp/inbox/descartar-todos', (req, res) => {
+  const r = db.prepare("UPDATE wa_inbox SET estado='descartado' WHERE estado='pendiente' AND (clase IS NULL OR clase<>'vianda')").run();
+  io.emit('wa:actualizado', { bulk: true });
+  res.json({ n: r.changes });
+});
+
 app.post('/api/whatsapp/responder', async (req, res) => {
   const { destino, texto } = req.body;
   const ok = await wa.enviarMensaje(destino, texto);

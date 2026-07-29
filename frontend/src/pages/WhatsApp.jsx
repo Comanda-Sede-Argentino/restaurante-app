@@ -44,6 +44,13 @@ export default function WhatsApp() {
     };
   }, []);
 
+  const descartarTodos = async () => {
+    if (!inbox.length) return;
+    if (!(await confirmar(`¿Descartar los ${inbox.length} mensajes de la bandeja? (no borra los pedidos ya creados)`, { peligro: true, ok: 'Descartar todos', cancelar: 'Volver' }))) return;
+    try { const r = await api.waDescartarTodos(); toast(`🗑 ${r.n} mensaje(s) descartado(s).`); cargarInbox(); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+
   const convertir = async (m) => {
     const p = await api.waConvertir(m.id);
     setMsgRef(m);
@@ -154,9 +161,10 @@ export default function WhatsApp() {
 
         {/* Bandeja */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <h2 className="h2" style={{ margin: 0 }}>Bandeja de entrada</h2>
             <span className="badge warn">{inbox.length} sin procesar</span>
+            {inbox.length > 0 && <button className="btn-red" onClick={descartarTodos}>🗑 Descartar todos</button>}
           </div>
           {!inbox.length && <p style={{ color: 'var(--muted)' }}>No hay mensajes pendientes.</p>}
           <div className="grid" style={{ gap: 10, marginTop: 10 }}>
