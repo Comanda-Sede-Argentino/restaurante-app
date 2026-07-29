@@ -18,6 +18,7 @@ export default function Viandas() {
   const [porMenu, setPorMenu] = useState([]);
   const [totalDia, setTotalDia] = useState(0);
   const [inbox, setInbox] = useState([]);
+  const [editPedido, setEditPedido] = useState(null);
 
   const cargarMenus = () => api.menuDia().then((r) => { setFecha(r.fecha); setMenus(r.menus || []); }).catch(() => {});
   const cargarDia = () => api.viandas().then((r) => {
@@ -59,8 +60,15 @@ export default function Viandas() {
       {inbox.length > 0 && <InboxViandas inbox={inbox} recargar={() => { cargarInbox(); cargarDia(); }} />}
 
       {tab === 'menus' && <Menus fecha={fecha} menus={menus} onSaved={() => { cargarMenus(); cargarDia(); }} />}
-      {tab === 'pedido' && <NuevoPedido menus={menus} onCreado={() => { cargarDia(); setTab('dia'); }} irAMenus={() => setTab('menus')} />}
-      {tab === 'dia' && <DelDia pedidos={pedidos} porMenu={porMenu} totalDia={totalDia} recargar={cargarDia} />}
+      {tab === 'pedido' && (
+        <NuevoPedido menus={menus} pedidos={pedidos} editPedido={editPedido}
+          onDone={(fueEdicion) => { setEditPedido(null); cargarDia(); if (fueEdicion) setTab('dia'); }}
+          irAMenus={() => setTab('menus')} />
+      )}
+      {tab === 'dia' && (
+        <DelDia pedidos={pedidos} porMenu={porMenu} totalDia={totalDia} recargar={cargarDia}
+          onEditar={(p) => { setEditPedido(p); setTab('pedido'); }} />
+      )}
     </div>
   );
 }
@@ -156,35 +164,78 @@ function Menus({ fecha, menus, onSaved }) {
   );
 }
 
-// ---------- Pestaña NUEVO PEDIDO (carga rápida) ----------
-function NuevoPedido({ menus, onCreado }) {
-  const [cart, setCart] = useState([]);       // {key,tipo,menu_dia_id?,plato_id?,nombre,precio,cantidad}
+// ---------- Pestaña NUEVO PEDIDO (carga rápida + edición) ----------
+function NuevoPedido({ menus, pedidos, editPedido, onDone, irAMenus }) {
+  const editId = editPedido?.id || null;
+  const [cart, setCart] = useState([]);       // {key,tipo,menu_dia_id?,plato_id?,nombre,precio,cantidad,obs,guarnicion,salsa,catGuarnicion,catSalsa}
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
   const [entrega, setEntrega] = useState('domicilio');
   const [hora, setHora] = useState('');
+  const [obsGeneral, setObsGeneral] = useState('');
   const [sug, setSug] = useState([]);
   const [verCarta, setVerCarta] = useState(false);
   const [platos, setPlatos] = useState([]);
   const [buscar, setBuscar] = useState('');
+  const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Ensalada mixta', 'Rúcula con queso']);
+  const [salsas, setSalsas] = useState(['Salsa roja', 'Salsa mixta', 'Bolognesa', 'Crema y queso']);
   const timer = useRef(null);
+  const seq = useRef(0);
+
+  // Cargar carta y las guarniciones/salsas configuradas (mismas que el módulo principal)
+  useEffect(() => {
+    api.platos({}).then((ps) => setPlatos(ps.filter((p) => p.activo !== 0))).catch(() => {});
+    api.config().then((c) => {
+      if (c?.cocina?.guarniciones?.length) setGuarniciones(c.cocina.guarniciones);
+      if (c?.cocina?.salsas?.length) setSalsas(c.cocina.salsas);
+    }).catch(() => {});
+  }, []);
+
+  const limpiar = () => {
+    setCart([]); setNombre(''); setTelefono(''); setDireccion(''); setHora(''); setObsGeneral(''); setEntrega('domicilio'); setSug([]);
+  };
+
+  // Modo edición: precargar el pedido elegido
+  useEffect(() => {
+    if (!editPedido) return;
+    setCart((editPedido.items || []).filter((i) => i.estado !== 'anulado').map((i) => ({
+      key: 'e' + i.id + '_' + (seq.current++), tipo: i.menu_dia_id ? 'menu' : 'plato',
+      menu_dia_id: i.menu_dia_id || undefined, plato_id: i.plato_id || undefined,
+      nombre: i.nombre, precio: i.precio_unit, cantidad: i.cantidad,
+      obs: i.observacion || '', guarnicion: '', salsa: '', catGuarnicion: 0, catSalsa: 0,
+    })));
+    setNombre(editPedido.cliente_nombre || ''); setTelefono(editPedido.cliente_telefono || '');
+    setDireccion(editPedido.cliente_direccion || ''); setEntrega(editPedido.entrega === 'retiro' ? 'retiro' : 'domicilio');
+    setHora(editPedido.hora_entrega || ''); setObsGeneral(editPedido.observacion || '');
+  }, [editPedido]);
 
   const addMenu = (m) => setCart((c) => {
-    const ex = c.find((x) => x.menu_dia_id === m.id);
-    if (ex) return c.map((x) => (x.menu_dia_id === m.id ? { ...x, cantidad: x.cantidad + 1 } : x));
-    return [...c, { key: 'm' + m.id, tipo: 'menu', menu_dia_id: m.id, nombre: m.nombre, precio: m.precio, cantidad: 1 }];
+    const ex = c.find((x) => x.menu_dia_id === m.id && !x.obs);
+    if (ex) return c.map((x) => (x === ex ? { ...x, cantidad: x.cantidad + 1 } : x));
+    return [...c, { key: 'm' + m.id + '_' + (seq.current++), tipo: 'menu', menu_dia_id: m.id, nombre: m.nombre, precio: m.precio, cantidad: 1, obs: '', guarnicion: '', salsa: '' }];
   });
   const addPlato = (p) => setCart((c) => {
-    const ex = c.find((x) => x.plato_id === p.id);
-    if (ex) return c.map((x) => (x.plato_id === p.id ? { ...x, cantidad: x.cantidad + 1 } : x));
-    return [...c, { key: 'p' + p.id, tipo: 'plato', plato_id: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1 }];
+    const conOpciones = p.cat_guarnicion || p.cat_salsa;
+    if (!conOpciones) {
+      const ex = c.find((x) => x.plato_id === p.id && !x.obs);
+      if (ex) return c.map((x) => (x === ex ? { ...x, cantidad: x.cantidad + 1 } : x));
+    }
+    return [...c, { key: 'p' + p.id + '_' + (seq.current++), tipo: 'plato', plato_id: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1, obs: '', guarnicion: '', salsa: '', catGuarnicion: p.cat_guarnicion, catSalsa: p.cat_salsa }];
   });
   const cambiarCant = (key, delta) => setCart((c) => c
     .map((x) => (x.key === key ? { ...x, cantidad: x.cantidad + delta } : x))
     .filter((x) => x.cantidad > 0));
+  const setItem = (key, campo, val) => setCart((c) => c.map((x) => (x.key === key ? { ...x, [campo]: val } : x)));
 
   const total = cart.reduce((a, x) => a + x.precio * x.cantidad, 0);
+
+  // Arma la observación final del ítem: guarnición + salsa + nota libre
+  const obsDeItem = (x) => [
+    x.guarnicion ? (x.guarnicion === 'SIN' ? 'SIN guarnición' : 'con ' + x.guarnicion) : '',
+    x.salsa ? 'con ' + x.salsa.toLowerCase() : '',
+    (x.obs || '').trim(),
+  ].filter(Boolean).join(' - ') || null;
 
   const onNombre = (v) => { setNombre(v); buscarCli(v); };
   const onTel = (v) => { setTelefono(v); buscarCli(v); };
@@ -195,10 +246,7 @@ function NuevoPedido({ menus, onCreado }) {
   };
   const elegirCliente = (c) => { setNombre(c.nombre || ''); setTelefono(c.telefono || ''); setDireccion(c.direccion || ''); setSug([]); };
 
-  const abrirCarta = () => {
-    setVerCarta((v) => !v);
-    if (!platos.length) api.platos({}).then((ps) => setPlatos(ps.filter((p) => p.activo !== 0))).catch(() => {});
-  };
+  const abrirCarta = () => setVerCarta((v) => !v);
   const platosFiltrados = buscar.trim()
     ? platos.filter((p) => p.nombre.toLowerCase().includes(buscar.toLowerCase())).slice(0, 24)
     : [];
@@ -209,103 +257,159 @@ function NuevoPedido({ menus, onCreado }) {
       if (!(await confirmar('El pedido es a domicilio pero no cargaste dirección ni teléfono. ¿Guardar igual?', { ok: 'Guardar' }))) return;
     }
     const items = cart.map((x) => x.tipo === 'menu'
-      ? { menu_dia_id: x.menu_dia_id, nombre: x.nombre, precio_unit: x.precio, cantidad: x.cantidad }
-      : { plato_id: x.plato_id, cantidad: x.cantidad, precio_unit: x.precio });
+      ? { menu_dia_id: x.menu_dia_id, nombre: x.nombre, precio_unit: x.precio, cantidad: x.cantidad, observacion: obsDeItem(x) }
+      : { plato_id: x.plato_id, nombre: x.nombre, cantidad: x.cantidad, precio_unit: x.precio, observacion: obsDeItem(x) });
+    const payload = {
+      cliente_nombre: nombre.trim() || null, cliente_telefono: telefono.trim() || null,
+      cliente_direccion: direccion.trim() || null, entrega, hora_entrega: hora.trim() || null,
+      observacion: obsGeneral.trim() || null, items,
+    };
     try {
-      await api.crearVianda({
-        cliente_nombre: nombre.trim() || null, cliente_telefono: telefono.trim() || null,
-        cliente_direccion: direccion.trim() || null, entrega, hora_entrega: hora.trim() || null, items,
-      });
-      toast('✅ Pedido de vianda cargado.');
-      setCart([]); setNombre(''); setTelefono(''); setDireccion(''); setHora(''); setEntrega('domicilio'); setSug([]);
-      onCreado();
-    } catch (e) { toast('No se pudo cargar: ' + e.message, 'error'); }
+      if (editId) { await api.editarVianda(editId, payload); toast('✅ Pedido actualizado.'); }
+      else { await api.crearVianda(payload); toast('✅ Pedido cargado.'); }
+      limpiar();
+      onDone(!!editId);
+    } catch (e) { toast('No se pudo guardar: ' + e.message, 'error'); }
   };
+  const cancelar = () => { limpiar(); onDone(true); };
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
-      <div>
-        {!menus.length && (
-          <div className="card" style={{ borderColor: 'var(--orange)', marginBottom: 12 }}>
-            Todavía no cargaste los menús de hoy. Andá a <b>📋 Menús</b> y cargá las 2 opciones del día.
+    <div>
+      {editId && (
+        <div className="card" style={{ marginBottom: 12, borderColor: 'var(--blue)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <b style={{ color: 'var(--blue)' }}>✏ Editando el pedido de {editPedido.cliente_nombre || 'cliente'}</b>
+          <span className="spacer" />
+          <button onClick={cancelar}>✕ Cancelar edición</button>
+        </div>
+      )}
+      <div className="grid" style={{ gridTemplateColumns: '1fr 360px', gap: 16, alignItems: 'start' }}>
+        <div>
+          {!menus.length && (
+            <div className="card" style={{ borderColor: 'var(--orange)', marginBottom: 12 }}>
+              Todavía no cargaste los menús de hoy. Andá a <b>📋 Menús</b> {irAMenus && <button onClick={irAMenus}>Ir a Menús</button>}
+            </div>
+          )}
+          <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))' }}>
+            {menus.map((m, i) => (
+              <div key={m.id} className="plato-btn" role="button" tabIndex={0}
+                onClick={() => addMenu(m)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addMenu(m); } }}
+                style={{ borderColor: 'var(--accent)' }}>
+                <div className="pn"><b>Menú {i + 1}</b> · {m.nombre}</div>
+                <div className="pp">{money(m.precio)}</div>
+              </div>
+            ))}
           </div>
-        )}
-        <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))' }}>
-          {menus.map((m, i) => (
-            <div key={m.id} className="plato-btn" role="button" tabIndex={0}
-              onClick={() => addMenu(m)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addMenu(m); } }}
-              style={{ borderColor: 'var(--accent)' }}>
-              <div className="pn"><b>Menú {i + 1}</b> · {m.nombre}</div>
-              <div className="pp">{money(m.precio)}</div>
+
+          <div style={{ marginTop: 12 }}>
+            <button onClick={abrirCarta}>{verCarta ? '▲ Ocultar carta' : '➕ Agregar de la carta'}</button>
+            {verCarta && (
+              <div className="card" style={{ marginTop: 8 }}>
+                <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar plato de la carta..." style={{ width: '100%', marginBottom: 8 }} />
+                <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))' }}>
+                  {platosFiltrados.map((p) => (
+                    <div key={p.id} className="plato-btn" role="button" tabIndex={0} onClick={() => addPlato(p)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addPlato(p); } }}>
+                      <div className="pn">{p.nombre}{(p.cat_guarnicion || p.cat_salsa) ? ' 🍟' : ''}</div>
+                      <div className="pp">{money(p.precio)}</div>
+                    </div>
+                  ))}
+                  {buscar.trim() && !platosFiltrados.length && <p style={{ color: 'var(--muted)' }}>Sin resultados.</p>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Cuaderno en vivo: los pedidos que ya cargaste hoy */}
+          <CuadernoHoy pedidos={pedidos} />
+        </div>
+
+        {/* Panel del pedido */}
+        <div className="card">
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>{editId ? 'Editando pedido' : 'Pedido'}</div>
+          {!cart.length && <p style={{ color: 'var(--muted)' }}>Tocá un menú (o algo de la carta) para armar el pedido.</p>}
+          {cart.map((x) => (
+            <div key={x.key} style={{ borderBottom: '1px solid var(--panel2)', paddingBottom: 6, marginBottom: 6 }}>
+              <div className="cart-item" style={{ borderBottom: 'none' }}>
+                <span style={{ flex: 1 }}>{x.nombre}</span>
+                <div className="qty">
+                  <button onClick={() => cambiarCant(x.key, -1)}>−</button>
+                  <b>{x.cantidad}</b>
+                  <button onClick={() => cambiarCant(x.key, 1)}>+</button>
+                </div>
+                <span style={{ minWidth: 66, textAlign: 'right' }}>{money(x.cantidad * x.precio)}</span>
+              </div>
+              {x.catGuarnicion ? (
+                <select value={x.guarnicion} onChange={(e) => setItem(x.key, 'guarnicion', e.target.value)} style={{ width: '100%', marginTop: 4, fontSize: 13 }}>
+                  <option value="">— guarnición —</option>
+                  {guarniciones.map((g) => <option key={g} value={g}>{g}</option>)}
+                  <option value="SIN">SIN guarnición</option>
+                </select>
+              ) : null}
+              {x.catSalsa ? (
+                <select value={x.salsa} onChange={(e) => setItem(x.key, 'salsa', e.target.value)} style={{ width: '100%', marginTop: 4, fontSize: 13 }}>
+                  <option value="">— salsa —</option>
+                  {salsas.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) : null}
+              <input value={x.obs} onChange={(e) => setItem(x.key, 'obs', e.target.value)}
+                placeholder="nota del ítem (ej. sin sal)" style={{ width: '100%', marginTop: 4, fontSize: 13 }} />
             </div>
           ))}
-        </div>
+          {cart.length > 0 && <div className="total-row"><span>Total</span><span>{money(total)}</span></div>}
 
-        <div style={{ marginTop: 12 }}>
-          <button onClick={abrirCarta}>{verCarta ? '▲ Ocultar carta' : '➕ Agregar de la carta'}</button>
-          {verCarta && (
-            <div className="card" style={{ marginTop: 8 }}>
-              <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar plato de la carta..." style={{ width: '100%', marginBottom: 8 }} />
-              <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))' }}>
-                {platosFiltrados.map((p) => (
-                  <div key={p.id} className="plato-btn" role="button" tabIndex={0} onClick={() => addPlato(p)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addPlato(p); } }}>
-                    <div className="pn">{p.nombre}</div>
-                    <div className="pp">{money(p.precio)}</div>
+          <div style={{ marginTop: 12, position: 'relative' }}>
+            <input value={nombre} onChange={(e) => onNombre(e.target.value)} placeholder="Nombre del cliente" style={{ width: '100%', marginBottom: 6 }} />
+            <input value={telefono} onChange={(e) => onTel(e.target.value)} placeholder="Teléfono" style={{ width: '100%', marginBottom: 6 }} />
+            {sug.length > 0 && (
+              <div className="card" style={{ position: 'absolute', zIndex: 5, width: '100%', padding: 6 }}>
+                {sug.map((c, k) => (
+                  <div key={k} className="cart-item" role="button" tabIndex={0} style={{ cursor: 'pointer' }}
+                    onClick={() => elegirCliente(c)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') elegirCliente(c); }}>
+                    <span style={{ flex: 1 }}>{c.nombre || '—'} · {c.telefono}</span>
+                    <span style={{ color: 'var(--muted)', fontSize: 12 }}>{c.direccion || ''}</span>
                   </div>
                 ))}
-                {buscar.trim() && !platosFiltrados.length && <p style={{ color: 'var(--muted)' }}>Sin resultados.</p>}
               </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+              <button className={entrega === 'domicilio' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => setEntrega('domicilio')}>🛵 A domicilio</button>
+              <button className={entrega === 'retiro' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => setEntrega('retiro')}>🏪 Retira</button>
             </div>
-          )}
+            {entrega === 'domicilio' && (
+              <input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección" style={{ width: '100%', marginBottom: 6 }} />
+            )}
+            <input value={hora} onChange={(e) => setHora(e.target.value)} placeholder="Hora de entrega (opcional)" style={{ width: '100%', marginBottom: 6 }} />
+            <input value={obsGeneral} onChange={(e) => setObsGeneral(e.target.value)} placeholder="Observación del pedido (ej. tocar timbre)" style={{ width: '100%', marginBottom: 8 }} />
+          </div>
+
+          <button className="btn-green" style={{ width: '100%', padding: 13 }} disabled={!cart.length} onClick={guardar}>
+            {editId ? '💾 Guardar cambios' : '💾 Cargar pedido'}
+          </button>
+          {editId && <button style={{ width: '100%', marginTop: 6 }} onClick={cancelar}>✕ Cancelar</button>}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Panel del pedido */}
-      <div className="card">
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Pedido</div>
-        {!cart.length && <p style={{ color: 'var(--muted)' }}>Tocá un menú (o algo de la carta) para armar el pedido.</p>}
-        {cart.map((x) => (
-          <div key={x.key} className="cart-item">
-            <span style={{ flex: 1 }}>{x.nombre}</span>
-            <div className="qty">
-              <button onClick={() => cambiarCant(x.key, -1)}>−</button>
-              <b>{x.cantidad}</b>
-              <button onClick={() => cambiarCant(x.key, 1)}>+</button>
-            </div>
-            <span style={{ minWidth: 70, textAlign: 'right' }}>{money(x.cantidad * x.precio)}</span>
-          </div>
-        ))}
-        {cart.length > 0 && <div className="total-row"><span>Total</span><span>{money(total)}</span></div>}
-
-        <div style={{ marginTop: 12, position: 'relative' }}>
-          <input value={nombre} onChange={(e) => onNombre(e.target.value)} placeholder="Nombre del cliente" style={{ width: '100%', marginBottom: 6 }} />
-          <input value={telefono} onChange={(e) => onTel(e.target.value)} placeholder="Teléfono" style={{ width: '100%', marginBottom: 6 }} />
-          {sug.length > 0 && (
-            <div className="card" style={{ position: 'absolute', zIndex: 5, width: '100%', padding: 6 }}>
-              {sug.map((c, k) => (
-                <div key={k} className="cart-item" role="button" tabIndex={0} style={{ cursor: 'pointer' }}
-                  onClick={() => elegirCliente(c)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') elegirCliente(c); }}>
-                  <span style={{ flex: 1 }}>{c.nombre || '—'} · {c.telefono}</span>
-                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>{c.direccion || ''}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-            <button className={entrega === 'domicilio' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => setEntrega('domicilio')}>🛵 A domicilio</button>
-            <button className={entrega === 'retiro' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => setEntrega('retiro')}>🏪 Retira</button>
-          </div>
-          {entrega === 'domicilio' && (
-            <input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección" style={{ width: '100%', marginBottom: 6 }} />
-          )}
-          <input value={hora} onChange={(e) => setHora(e.target.value)} placeholder="Hora de entrega (opcional)" style={{ width: '100%', marginBottom: 8 }} />
+// Lista compacta de los pedidos ya cargados hoy (el "cuaderno")
+function CuadernoHoy({ pedidos }) {
+  if (!pedidos?.length) return null;
+  const resumen = (p) => (p.items || []).filter((i) => i.estado !== 'anulado')
+    .map((i) => `${i.cantidad}× ${i.nombre}`).join(', ');
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>🧾 Cargados hoy ({pedidos.length})</div>
+      {pedidos.map((p) => (
+        <div key={p.id} className="cart-item" style={{ fontSize: 13 }}>
+          <span style={{ fontWeight: 700, minWidth: 90 }}>{p.cliente_nombre || 'Cliente'}</span>
+          <span style={{ flex: 1, color: 'var(--muted)' }}>{resumen(p)}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: p.estado === 'cobrado' ? 'var(--green)' : 'var(--orange)', marginRight: 8 }}>{p.estado === 'cobrado' ? '✅' : '🕒'}</span>
+          <b>{money(p.total)}</b>
         </div>
-
-        <button className="btn-green" style={{ width: '100%', padding: 13 }} disabled={!cart.length} onClick={guardar}>💾 Cargar pedido</button>
-      </div>
+      ))}
     </div>
   );
 }
@@ -384,7 +488,7 @@ function PropuestaCard({ msg, onDone }) {
 }
 
 // ---------- Pestaña PEDIDOS DEL DÍA (reparto + cobro) ----------
-function DelDia({ pedidos, porMenu, totalDia, recargar }) {
+function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
   const [cobrarId, setCobrarId] = useState(null);
   const [fiadoId, setFiadoId] = useState(null);
   const [cuentas, setCuentas] = useState([]);
@@ -457,6 +561,91 @@ function DelDia({ pedidos, porMenu, totalDia, recargar }) {
     } catch (e) { toast('No se pudo imprimir el cierre: ' + e.message, 'error'); }
   };
 
+  // Separación visual: por entregar (domicilios sin entregar) / a cobrar / cobrados
+  const orden = (a, b) => (a.hora_entrega || '~').localeCompare(b.hora_entrega || '~') || a.id - b.id;
+  const faltaEntregar = (p) => p.entrega !== 'retiro' && !p.entregado_en;
+  const gPorEntregar = pedidos.filter((p) => faltaEntregar(p)).sort(orden);
+  const gACobrar = pedidos.filter((p) => !faltaEntregar(p) && p.estado !== 'cobrado').sort(orden);
+  const gCobrados = pedidos.filter((p) => !faltaEntregar(p) && p.estado === 'cobrado').sort(orden);
+
+  const tarjeta = (p) => {
+    const pagado = p.estado === 'cobrado';
+    const entregado = !!p.entregado_en;
+    const dom = p.entrega !== 'retiro';
+    const items = (p.items || []).filter((i) => i.estado !== 'anulado');
+    const tel = (p.cliente_telefono || '').replace(/[^\d+]/g, '');
+    return (
+      <div key={p.id} className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <b style={{ fontSize: 17 }}>{p.cliente_nombre || 'Cliente'}</b>
+          <b style={{ color: 'var(--accent)', fontSize: 17 }}>{money(p.total)}</b>
+        </div>
+        <div style={{ margin: '4px 0', fontSize: 13 }}>
+          {dom ? <>🛵 {p.cliente_direccion || 'sin dirección'}</> : <>🏪 Retira</>}
+          {p.hora_entrega && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>⏰ {p.hora_entrega}</span>}
+        </div>
+        {items.length > 0 && (
+          <div style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0', borderTop: '1px solid var(--panel2)', paddingTop: 6 }}>
+            {items.map((i) => (
+              <div key={i.id}>
+                {i.cantidad}× {i.nombre}
+                {i.observacion && <span style={{ color: 'var(--orange)' }}> — {i.observacion}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {p.observacion && <div style={{ fontSize: 12, color: 'var(--orange)', marginBottom: 4 }}>📝 {p.observacion}</div>}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '6px 0', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: pagado ? 'var(--green)' : 'var(--orange)' }}>{pagado ? '✅ Pagado' : '🕒 A cobrar'}</span>
+          {dom && <span style={{ fontSize: 12, fontWeight: 700, color: entregado ? 'var(--green)' : 'var(--muted)' }}>{entregado ? '📦 Entregado' : '🛵 Sin entregar'}</span>}
+          {tel && <a href={'tel:' + tel} className="btn-green" style={{ padding: '3px 10px', textDecoration: 'none', marginLeft: 'auto' }}>📞</a>}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {dom && !entregado && <button style={{ flex: 1, padding: 9 }} onClick={() => entregar(p)}>📦 Entregado</button>}
+          {!pagado && cobrarId !== p.id && fiadoId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 9 }} onClick={() => { setCobrarId(p.id); setFiadoId(null); }}>💵 Cobrar</button>}
+          {!pagado && <button style={{ padding: 9 }} onClick={() => onEditar(p)} title="Editar pedido">✏</button>}
+          <button style={{ padding: 9 }} onClick={() => imprimir(p)} title="Imprimir ticket">🖨</button>
+          {!pagado && <button className="btn-red" style={{ padding: 9 }} onClick={() => anular(p)} title="Anular (cargado por error)">🗑</button>}
+        </div>
+        {!pagado && cobrarId === p.id && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>¿Cómo paga?</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {MEDIOS.map((m) => <button key={m.k} className={m.cls} onClick={() => cobrar(p, m.k)}>{m.label}</button>)}
+              <button className="btn-blue" onClick={() => { setFiadoId(p.id); setCobrarId(null); setCuentaId(''); }}>📒 Fiado</button>
+              <button onClick={() => setCobrarId(null)}>✕</button>
+            </div>
+          </div>
+        )}
+        {!pagado && fiadoId === p.id && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>📒 Fiado — ¿a qué empresa?</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+              <select value={cuentaId} onChange={(e) => setCuentaId(e.target.value)} style={{ flex: 1, minWidth: 150 }}>
+                <option value="">— elegir empresa —</option>
+                {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre} (debe {money(c.saldo)})</option>)}
+              </select>
+              <button onClick={nuevaCuenta}>+ Nueva</button>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn-green" style={{ flex: 1 }} onClick={() => cobrarFiado(p)}>Cargar al fiado</button>
+              <button onClick={() => { setFiadoId(null); setCobrarId(p.id); }}>←</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const grupo = (titulo, arr, color) => arr.length ? (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, margin: '4px 0 8px', color }}>{titulo} ({arr.length})</div>
+      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))' }}>
+        {arr.map(tarjeta)}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div>
       {porMenu.length > 0 && (
@@ -478,69 +667,9 @@ function DelDia({ pedidos, porMenu, totalDia, recargar }) {
 
       {!pedidos.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de viandas cargados hoy.</p>}
 
-      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))' }}>
-        {pedidos.map((p) => {
-          const pagado = p.estado === 'cobrado';
-          const entregado = !!p.entregado_en;
-          const dom = p.entrega !== 'retiro';
-          const items = (p.items || []).filter((i) => i.estado !== 'anulado');
-          const tel = (p.cliente_telefono || '').replace(/[^\d+]/g, '');
-          return (
-            <div key={p.id} className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <b style={{ fontSize: 17 }}>{p.cliente_nombre || 'Cliente'}</b>
-                <b style={{ color: 'var(--accent)', fontSize: 17 }}>{money(p.total)}</b>
-              </div>
-              <div style={{ margin: '4px 0', fontSize: 13 }}>
-                {dom ? <>🛵 {p.cliente_direccion || 'sin dirección'}</> : <>🏪 Retira</>}
-                {p.hora_entrega && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>⏰ {p.hora_entrega}</span>}
-              </div>
-              {items.length > 0 && (
-                <div style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0', borderTop: '1px solid var(--panel2)', paddingTop: 6 }}>
-                  {items.map((i) => <div key={i.id}>{i.cantidad}× {i.nombre}</div>)}
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '6px 0', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: pagado ? 'var(--green)' : 'var(--orange)' }}>{pagado ? '✅ Pagado' : '🕒 A cobrar'}</span>
-                {dom && <span style={{ fontSize: 12, fontWeight: 700, color: entregado ? 'var(--green)' : 'var(--muted)' }}>{entregado ? '📦 Entregado' : '🛵 Sin entregar'}</span>}
-                {tel && <a href={'tel:' + tel} className="btn-green" style={{ padding: '3px 10px', textDecoration: 'none', marginLeft: 'auto' }}>📞</a>}
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {dom && !entregado && <button style={{ flex: 1, padding: 9 }} onClick={() => entregar(p)}>📦 Entregado</button>}
-                {!pagado && cobrarId !== p.id && fiadoId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 9 }} onClick={() => { setCobrarId(p.id); setFiadoId(null); }}>💵 Cobrar</button>}
-                <button style={{ padding: 9 }} onClick={() => imprimir(p)} title="Imprimir ticket">🖨</button>
-                {!pagado && <button className="btn-red" style={{ padding: 9 }} onClick={() => anular(p)} title="Anular (cargado por error)">🗑</button>}
-              </div>
-              {!pagado && cobrarId === p.id && (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>¿Cómo paga?</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {MEDIOS.map((m) => <button key={m.k} className={m.cls} onClick={() => cobrar(p, m.k)}>{m.label}</button>)}
-                    <button className="btn-blue" onClick={() => { setFiadoId(p.id); setCobrarId(null); setCuentaId(''); }}>📒 Fiado</button>
-                    <button onClick={() => setCobrarId(null)}>✕</button>
-                  </div>
-                </div>
-              )}
-              {!pagado && fiadoId === p.id && (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>📒 Fiado — ¿a qué empresa?</div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
-                    <select value={cuentaId} onChange={(e) => setCuentaId(e.target.value)} style={{ flex: 1, minWidth: 150 }}>
-                      <option value="">— elegir empresa —</option>
-                      {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre} (debe {money(c.saldo)})</option>)}
-                    </select>
-                    <button onClick={nuevaCuenta}>+ Nueva</button>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn-green" style={{ flex: 1 }} onClick={() => cobrarFiado(p)}>Cargar al fiado</button>
-                    <button onClick={() => { setFiadoId(null); setCobrarId(p.id); }}>←</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {grupo('🛵 Por entregar', gPorEntregar, 'var(--orange)')}
+      {grupo('🕒 A cobrar', gACobrar, 'var(--orange)')}
+      {grupo('✅ Cobrados', gCobrados, 'var(--green)')}
     </div>
   );
 }

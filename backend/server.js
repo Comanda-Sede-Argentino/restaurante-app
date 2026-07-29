@@ -704,39 +704,49 @@ app.get('/api/viandas/mensaje', (req, res) => {
   res.json({ fecha, texto: L.join('\n'), menus });
 });
 
-// Crea un pedido de vianda con sus ítems (menús del día y/o platos de la carta). Devuelve el pedido.
-function crearViandaPedido({ cliente_nombre, cliente_telefono, cliente_direccion, entrega, hora_entrega, items }) {
-  const ent = entrega === 'retiro' ? 'retiro' : 'domicilio';
-  const r = db.prepare(
-    `INSERT INTO pedido (tipo, entrega, cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega, estado)
-     VALUES ('vianda', ?,?,?,?,?, 'en_cocina')`
-  ).run(ent, cliente_nombre || null, cliente_telefono || null, cliente_direccion || null, hora_entrega || null);
-  const pedidoId = r.lastInsertRowid;
-  // estado 'listo': se registra y se cobra, pero NO satura la pantalla de cocina (se cocina en tanda con el resumen del día)
+// Resuelve un ítem de vianda (menú del día o plato de carta) a los campos que se guardan.
+function resolverItemVianda(it) {
+  let nombre = it.nombre || 'Ítem', precio = Number(it.precio_unit) || 0;
+  let sector_id = null, sector = null, plato_id = null, menu_dia_id = null;
+  if (it.menu_dia_id) {
+    const m = db.prepare("SELECT * FROM menu_dia WHERE id=?").get(it.menu_dia_id);
+    if (m) { nombre = m.nombre; precio = m.precio; menu_dia_id = m.id; }
+  } else if (it.plato_id) {
+    const p = db.prepare('SELECT p.*, s.nombre sector FROM plato p LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE p.id=?').get(it.plato_id);
+    if (p) { nombre = p.nombre; precio = it.precio_unit ?? p.precio; sector_id = p.sector_id; sector = p.sector; plato_id = p.id; }
+  }
+  const cant = Math.max(1, Math.trunc(Number(it.cantidad) || 1));
+  const observacion = (it.observacion || '').trim() || null;
+  return { plato_id, menu_dia_id, nombre, cantidad: cant, precio, observacion, sector_id, sector };
+}
+
+// Inserta la lista de ítems de un pedido de vianda (estado 'listo': se registra y cobra pero
+// no satura la cocina) y descuenta el stock de los platos de carta. Devuelve el total de platos.
+function guardarItemsVianda(pedidoId, items) {
   const ins = db.prepare(
-    `INSERT INTO pedido_item (pedido_id, plato_id, menu_dia_id, nombre, cantidad, precio_unit, sector_id, sector_nombre, estado)
-     VALUES (?,?,?,?,?,?,?,?, 'listo')`
+    `INSERT INTO pedido_item (pedido_id, plato_id, menu_dia_id, nombre, cantidad, precio_unit, observacion, sector_id, sector_nombre, estado)
+     VALUES (?,?,?,?,?,?,?,?,?, 'listo')`
   );
   const platos = [];
-  const tx = db.transaction(() => {
-    for (const it of items) {
-      let nombre = it.nombre || 'Ítem', precio = Number(it.precio_unit) || 0;
-      let sector_id = null, sector = null, plato_id = null, menu_dia_id = null;
-      if (it.menu_dia_id) {
-        const m = db.prepare("SELECT * FROM menu_dia WHERE id=?").get(it.menu_dia_id);
-        if (m) { nombre = m.nombre; precio = m.precio; menu_dia_id = m.id; }
-      } else if (it.plato_id) {
-        const p = db.prepare('SELECT p.*, s.nombre sector FROM plato p LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE p.id=?').get(it.plato_id);
-        if (p) { nombre = p.nombre; precio = it.precio_unit ?? p.precio; sector_id = p.sector_id; sector = p.sector; plato_id = p.id; }
-      }
-      const cant = Math.max(1, Math.trunc(Number(it.cantidad) || 1));
-      ins.run(pedidoId, plato_id, menu_dia_id, nombre, cant, precio, sector_id, sector);
-      if (plato_id) platos.push({ plato_id, cantidad: cant });
-    }
-    recalcTotal(pedidoId);
-  });
+  for (const raw of items) {
+    const it = resolverItemVianda(raw);
+    ins.run(pedidoId, it.plato_id, it.menu_dia_id, it.nombre, it.cantidad, it.precio, it.observacion, it.sector_id, it.sector);
+    if (it.plato_id) platos.push({ plato_id: it.plato_id, cantidad: it.cantidad });
+  }
+  return platos;
+}
+
+// Crea un pedido de vianda con sus ítems (menús del día y/o platos de la carta). Devuelve el pedido.
+function crearViandaPedido({ cliente_nombre, cliente_telefono, cliente_direccion, entrega, hora_entrega, observacion, items }) {
+  const ent = entrega === 'retiro' ? 'retiro' : 'domicilio';
+  const r = db.prepare(
+    `INSERT INTO pedido (tipo, entrega, cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega, observacion, estado)
+     VALUES ('vianda', ?,?,?,?,?,?, 'en_cocina')`
+  ).run(ent, cliente_nombre || null, cliente_telefono || null, cliente_direccion || null, hora_entrega || null, (observacion || '').trim() || null);
+  const pedidoId = r.lastInsertRowid;
+  let platos = [];
+  const tx = db.transaction(() => { platos = guardarItemsVianda(pedidoId, items); recalcTotal(pedidoId); });
   tx();
-  // Descontar stock solo de los ítems de carta (los menús del día no llevan receta)
   for (const it of platos) { try { consumirStockVenta(pedidoId, it.plato_id, it.cantidad); } catch { /* sin receta */ } }
   const p = pedidoCompleto(pedidoId);
   io.emit('pedido:nuevo', p);
@@ -750,8 +760,37 @@ app.post('/api/viandas', (req, res) => {
   const p = crearViandaPedido({
     cliente_nombre: req.body.cliente_nombre, cliente_telefono: req.body.cliente_telefono,
     cliente_direccion: req.body.cliente_direccion, entrega: req.body.entrega,
-    hora_entrega: req.body.hora_entrega, items,
+    hora_entrega: req.body.hora_entrega, observacion: req.body.observacion, items,
   });
+  res.json(p);
+});
+
+// Editar un pedido de vianda ya cargado (mientras NO esté cobrado): reemplaza ítems y datos.
+app.put('/api/viandas/:id', (req, res) => {
+  const id = req.params.id;
+  const ped = db.prepare("SELECT * FROM pedido WHERE id=? AND tipo='vianda'").get(id);
+  if (!ped) return res.status(404).json({ error: 'No existe' });
+  if (ped.estado === 'cobrado') return res.status(409).json({ error: 'El pedido ya fue cobrado. Reabrilo desde Caja para editarlo.' });
+  if (ped.estado === 'anulado') return res.status(409).json({ error: 'El pedido está anulado' });
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  if (!items.length) return res.status(400).json({ error: 'El pedido no tiene ítems' });
+  const ent = req.body.entrega === 'retiro' ? 'retiro' : 'domicilio';
+  let platos = [];
+  const tx = db.transaction(() => {
+    devolverStockPedido(id);                                   // devuelve el stock de los platos actuales
+    db.prepare('DELETE FROM pedido_item WHERE pedido_id=?').run(id);
+    platos = guardarItemsVianda(id, items);
+    db.prepare(
+      `UPDATE pedido SET entrega=?, cliente_nombre=?, cliente_telefono=?, cliente_direccion=?, hora_entrega=?, observacion=? WHERE id=?`
+    ).run(ent, req.body.cliente_nombre || null, req.body.cliente_telefono || ped.cliente_telefono || null,
+          req.body.cliente_direccion || null, req.body.hora_entrega || null, (req.body.observacion || '').trim() || null, id);
+    recalcTotal(id);
+  });
+  tx();
+  for (const it of platos) { try { consumirStockVenta(id, it.plato_id, it.cantidad); } catch { /* sin receta */ } }
+  const p = pedidoCompleto(id);
+  io.emit('pedido:actualizado', p);
+  emitDashboard();
   res.json(p);
 });
 
@@ -895,7 +934,8 @@ app.post('/api/viandas/inbox/:id/confirmar', (req, res) => {
   if (!items.length) return res.status(400).json({ error: 'La propuesta no tiene ítems' });
   const p = crearViandaPedido({
     cliente_nombre: data.cliente_nombre, cliente_telefono: data.cliente_telefono || msg.telefono,
-    cliente_direccion: data.cliente_direccion, entrega: data.entrega, hora_entrega: data.hora_entrega, items,
+    cliente_direccion: data.cliente_direccion, entrega: data.entrega, hora_entrega: data.hora_entrega,
+    observacion: data.observacion || data.nota, items,
   });
   db.prepare("UPDATE wa_inbox SET estado='convertido', pedido_id=? WHERE id=?").run(p.id, msg.id);
   io.emit('wa:actualizado', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(msg.id));
