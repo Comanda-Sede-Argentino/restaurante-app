@@ -45,6 +45,8 @@ const defaultConfig = {
       '¡Hola! 👋 Para hacer tu pedido entrá a nuestra página y elegí todo del menú. 🍽️',
     textoConsulta:
       '¡Hola! 👋 Gracias por escribir a Sede Social. En breve te respondemos. 🙌',
+    // Confirmación de vianda (se le manda al cliente al confirmar su pedido). Usa {detalle} y {total}.
+    textoViandaOK: '¡Anotado! 🍱 {detalle}. Total {total}.',
   },
   telegram: {
     habilitado: false,
