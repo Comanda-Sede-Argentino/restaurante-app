@@ -90,6 +90,15 @@ function Menus({ fecha, menus, onSaved }) {
     catch (e) { toast('No se pudo guardar: ' + e.message, 'error'); }
   };
 
+  const repetirUltimos = async () => {
+    try {
+      const r = await api.menuDiaUltimo();
+      if (!r.menus || !r.menus.length) { toast('No hay menús anteriores para repetir.'); return; }
+      setRows(r.menus.map((m) => ({ nombre: m.nombre, descripcion: m.descripcion || '', precio: m.precio })));
+      toast(`Cargué los menús del ${r.fecha}. Revisá el precio y guardá.`);
+    } catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+
   const generarMensaje = async () => {
     try { const r = await api.viandasMensaje(); setMsg(r.texto || ''); }
     catch (e) { toast('No se pudo generar: ' + e.message, 'error'); }
@@ -120,7 +129,8 @@ function Menus({ fecha, menus, onSaved }) {
         <datalist id="hist-menus">
           {historial.map((h, k) => <option key={k} value={h.nombre} />)}
         </datalist>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <button onClick={repetirUltimos} title="Cargar los menús del último día (para ajustar y guardar)">🔁 Repetir últimos</button>
           <button onClick={agregar}>＋ Otro menú</button>
           <button className="btn-green" style={{ flex: 1 }} onClick={guardar}>💾 Guardar menús del día</button>
         </div>
@@ -420,6 +430,11 @@ function DelDia({ pedidos, porMenu, totalDia, recargar }) {
     try { await api.imprimirCuenta(p.id); toast('🖨 Ticket enviado.'); }
     catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
   };
+  const anular = async (p) => {
+    if (!(await confirmar(`¿Anular el pedido de ${p.cliente_nombre || 'la vianda'}? Se saca del día.`, { peligro: true, ok: 'Anular', cancelar: 'Volver' }))) return;
+    try { await api.anular(p.id, 'Vianda anulada'); recargar(); toast('Pedido anulado.'); }
+    catch (e) { toast('No se pudo anular: ' + e.message, 'error'); }
+  };
   // Resumen acumulado para la cocina (12x Menú 1, 6x Menú 2...). Se puede imprimir varias veces.
   const pasarCocina = async () => {
     try {
@@ -481,6 +496,7 @@ function DelDia({ pedidos, porMenu, totalDia, recargar }) {
                 {dom && !entregado && <button style={{ flex: 1, padding: 9 }} onClick={() => entregar(p)}>📦 Entregado</button>}
                 {!pagado && cobrarId !== p.id && fiadoId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 9 }} onClick={() => { setCobrarId(p.id); setFiadoId(null); }}>💵 Cobrar</button>}
                 <button style={{ padding: 9 }} onClick={() => imprimir(p)} title="Imprimir ticket">🖨</button>
+                {!pagado && <button className="btn-red" style={{ padding: 9 }} onClick={() => anular(p)} title="Anular (cargado por error)">🗑</button>}
               </div>
               {!pagado && cobrarId === p.id && (
                 <div style={{ marginTop: 8 }}>

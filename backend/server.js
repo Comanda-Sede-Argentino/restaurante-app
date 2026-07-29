@@ -678,6 +678,15 @@ app.get('/api/menu-dia/historial', (req, res) => {
   res.json(rows);
 });
 
+// Menús del último día anterior que tenga menús cargados (para "repetir los de la última vez")
+app.get('/api/menu-dia/ultimo', (req, res) => {
+  const fecha = req.query.fecha || fechaHoy();
+  const ult = db.prepare("SELECT MAX(fecha) f FROM menu_dia WHERE fecha < ?").get(fecha).f;
+  if (!ult) return res.json({ fecha: null, menus: [] });
+  const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(ult);
+  res.json({ fecha: ult, menus });
+});
+
 // Texto listo para pegar en la lista de difusión de WhatsApp
 app.get('/api/viandas/mensaje', (req, res) => {
   const fecha = req.query.fecha || fechaHoy();

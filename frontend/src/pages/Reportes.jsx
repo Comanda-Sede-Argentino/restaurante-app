@@ -64,6 +64,7 @@ export default function Reportes() {
   const [[desde, hasta], setRango] = useState(rangoPreset('mes'));
   const [group, setGroup] = useState('dia');
   const [d, setD] = useState(null);
+  const [vi, setVi] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [cierres, setCierres] = useState([]);
@@ -84,6 +85,7 @@ export default function Reportes() {
       .then(setD)
       .catch((e) => setError('No se pudieron cargar los reportes: ' + e.message))
       .finally(() => setCargando(false));
+    api.reportesViandas(desde, hasta).then(setVi).catch(() => setVi(null));
   }, [desde, hasta, group]);
 
   const PRESETS = [
@@ -287,6 +289,97 @@ export default function Reportes() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ---- Reporte de VIANDAS (solo si hubo viandas en el período) ---- */}
+      {vi && vi.totales?.pedidos > 0 && (
+        <div style={{ marginTop: 18 }}>
+          <h2 className="h2" style={{ marginBottom: 10 }}>🍱 Viandas del mediodía</h2>
+          <div className="kpis" style={{ marginBottom: 14 }}>
+            <div className="kpi"><div className="v">{vi.totales.viandas}</div><div className="l">Viandas vendidas</div></div>
+            <div className="kpi"><div className="v">{vi.totales.pedidos}</div><div className="l">Pedidos</div></div>
+            <div className="kpi"><div className="v">{money(vi.totales.total)}</div><div className="l">Total vendido</div></div>
+            <div className="kpi"><div className="v">{money(vi.totales.ticketPromedio)}</div><div className="l">Ticket promedio</div></div>
+          </div>
+
+          <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+            {/* Ranking de menús */}
+            <div className="card">
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <h2 className="h2" style={{ margin: 0 }}>Menús más pedidos</h2>
+                <span className="spacer" />
+                <button onClick={() => descargarCSV(`viandas_menus_${desde}_a_${hasta}.csv`,
+                  [['Menú', 'Cantidad', 'Total', 'Días'], ...vi.porMenu.map((m) => [m.nombre, m.cantidad, m.total, m.dias])])}>⬇ CSV</button>
+              </div>
+              {!vi.porMenu.length && <p style={{ color: 'var(--muted)' }}>Sin datos.</p>}
+              <table style={{ width: '100%' }}>
+                <tbody>
+                  {vi.porMenu.map((m, i) => (
+                    <tr key={i}>
+                      <td style={{ color: 'var(--muted)', width: 24 }}>{i + 1}</td>
+                      <td>{m.nombre} <span style={{ color: 'var(--muted)', fontSize: 12 }}>({m.dias} día{m.dias !== 1 ? 's' : ''})</span></td>
+                      <td style={{ textAlign: 'right' }}><b>{m.cantidad}</b></td>
+                      <td style={{ textAlign: 'right', color: 'var(--muted)' }}>{money(m.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Viandas por día */}
+            <div className="card">
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <h2 className="h2" style={{ margin: 0 }}>Viandas por día</h2>
+                <span className="spacer" />
+                <button onClick={() => descargarCSV(`viandas_por_dia_${desde}_a_${hasta}.csv`,
+                  [['Día', 'Viandas', 'Pedidos', 'Total'], ...vi.serie.map((s) => [s.dia, s.viandas, s.pedidos, s.total])])}>⬇ CSV</button>
+              </div>
+              <Barras datos={vi.serie} label={(s) => s.dia?.slice(5)} valor={(s) => s.viandas} fmtVal={(s) => s.viandas + ' · ' + money(s.total)} />
+            </div>
+
+            {/* Domicilio vs retiro */}
+            <div className="card">
+              <h2 className="h2">Domicilio vs retiro</h2>
+              {vi.porEntrega.map((e) => (
+                <div key={e.entrega} className="cart-item">
+                  <span style={{ flex: 1, textTransform: 'capitalize' }}>{e.entrega === 'retiro' ? '🏪 Retira' : '🛵 A domicilio'} <span style={{ color: 'var(--muted)', fontSize: 12 }}>({e.pedidos})</span></span>
+                  <b>{money(e.total)}</b>
+                </div>
+              ))}
+            </div>
+
+            {/* Por día de la semana */}
+            <div className="card">
+              <h2 className="h2">Por día de la semana</h2>
+              <Barras datos={vi.porDiaSemana} label={(x) => DIAS[Number(x.dow)]?.slice(0, 3) || x.dow} valor={(x) => x.viandas} fmtVal={(x) => x.viandas + ' · ' + money(x.total)} />
+            </div>
+
+            {/* Clientes que más compran */}
+            <div className="card" style={{ gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                <h2 className="h2" style={{ margin: 0 }}>Clientes que más compran</h2>
+                <span className="spacer" />
+                <button onClick={() => descargarCSV(`viandas_clientes_${desde}_a_${hasta}.csv`,
+                  [['Cliente', 'Teléfono', 'Pedidos', 'Total', 'Última'], ...vi.clientes.map((c) => [c.cliente, c.telefono, c.pedidos, c.total, c.ultima])])}>⬇ CSV</button>
+              </div>
+              {!vi.clientes.length && <p style={{ color: 'var(--muted)' }}>Sin datos.</p>}
+              <table style={{ width: '100%' }}>
+                <tbody>
+                  {vi.clientes.map((c, i) => (
+                    <tr key={i}>
+                      <td style={{ color: 'var(--muted)', width: 24 }}>{i + 1}</td>
+                      <td>{c.cliente}</td>
+                      <td style={{ color: 'var(--muted)', fontSize: 12 }}>{c.telefono || ''}</td>
+                      <td style={{ textAlign: 'right' }}><b>{c.pedidos}</b> ped.</td>
+                      <td style={{ textAlign: 'right' }}>{money(c.total)}</td>
+                      <td style={{ textAlign: 'right', color: 'var(--muted)', fontSize: 12 }}>{c.ultima}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cierres de caja anteriores */}

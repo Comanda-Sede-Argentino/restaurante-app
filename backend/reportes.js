@@ -112,4 +112,66 @@ export function registrarReportes(app) {
       productosTop, productosBottom, porCategoria, anulaciones, fiadoCobrado,
     });
   });
+
+  // ---- Reporte específico de VIANDAS (menús del mediodía) ----
+  app.get('/api/reportes/viandas', (req, res) => {
+    const hoy = new Date();
+    const desde = req.query.desde || fmtFecha(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    const hasta = req.query.hasta || fmtFecha(hoy);
+    const rango = [desde, hasta];
+    // Base: pedidos de vianda COBRADOS en el rango (por cerrado_en), sin ítems anulados.
+    const W = "WHERE o.tipo='vianda' AND o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado'";
+    // Cuenta de viandas = ítems que son menú del día (menu_dia_id no nulo). Total $ = todos los ítems.
+    const VIANDA = 'CASE WHEN i.menu_dia_id IS NOT NULL THEN i.cantidad ELSE 0 END';
+
+    const totales = db.prepare(
+      `SELECT COUNT(DISTINCT o.id) pedidos,
+              COALESCE(SUM(${VIANDA}),0) viandas,
+              COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido o JOIN pedido_item i ON i.pedido_id=o.id ${W}`
+    ).get(...rango);
+    totales.ticketPromedio = totales.pedidos ? totales.total / totales.pedidos : 0;
+
+    // Serie por día: cuántas viandas y cuánto se vendió
+    const serie = db.prepare(
+      `SELECT date(o.cerrado_en) dia, COALESCE(SUM(${VIANDA}),0) viandas,
+              COALESCE(SUM(i.cantidad*i.precio_unit),0) total, COUNT(DISTINCT o.id) pedidos
+       FROM pedido o JOIN pedido_item i ON i.pedido_id=o.id ${W} GROUP BY dia ORDER BY dia`
+    ).all(...rango);
+
+    // Ranking histórico de menús (cuál se pide más) — clave para planificar
+    const porMenu = db.prepare(
+      `SELECT md.nombre, SUM(i.cantidad) cantidad, COALESCE(SUM(i.cantidad*i.precio_unit),0) total,
+              COUNT(DISTINCT md.fecha) dias
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id JOIN menu_dia md ON md.id=i.menu_dia_id
+       WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado'
+       GROUP BY md.nombre ORDER BY cantidad DESC LIMIT 40`
+    ).all(...rango);
+
+    // Domicilio vs retiro
+    const porEntrega = db.prepare(
+      `SELECT COALESCE(NULLIF(o.entrega,''),'domicilio') entrega, COUNT(DISTINCT o.id) pedidos,
+              COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido o JOIN pedido_item i ON i.pedido_id=o.id ${W} GROUP BY entrega ORDER BY pedidos DESC`
+    ).all(...rango);
+
+    // Clientes que más compran (recurrencia)
+    const clientes = db.prepare(
+      `SELECT COALESCE(NULLIF(TRIM(o.cliente_nombre),''), o.cliente_telefono, '(sin nombre)') cliente,
+              o.cliente_telefono telefono, COUNT(DISTINCT o.id) pedidos,
+              COALESCE(SUM(i.cantidad*i.precio_unit),0) total, MAX(date(o.cerrado_en)) ultima
+       FROM pedido o JOIN pedido_item i ON i.pedido_id=o.id ${W}
+       GROUP BY COALESCE(o.cliente_telefono, CAST(o.id AS TEXT))
+       ORDER BY pedidos DESC, total DESC LIMIT 40`
+    ).all(...rango);
+
+    // Por día de la semana (qué días se vende más)
+    const porDiaSemana = db.prepare(
+      `SELECT strftime('%w', o.cerrado_en) dow, COALESCE(SUM(${VIANDA}),0) viandas,
+              COALESCE(SUM(i.cantidad*i.precio_unit),0) total, COUNT(DISTINCT o.id) pedidos
+       FROM pedido o JOIN pedido_item i ON i.pedido_id=o.id ${W} GROUP BY dow ORDER BY dow`
+    ).all(...rango);
+
+    res.json({ desde, hasta, totales, serie, porMenu, porEntrega, clientes, porDiaSemana });
+  });
 }
