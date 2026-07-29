@@ -867,6 +867,50 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   res.json({ resultado, porMenu, cartaItems, totalViandas, totalPedidos });
 });
 
+// Marcar como ENTREGADOS todos los domicilios de vianda que faltan (no toca el cobro)
+app.post('/api/viandas/entregar-todos', (req, res) => {
+  const fecha = req.body.fecha || fechaHoy();
+  const rows = db.prepare(
+    `SELECT id FROM pedido WHERE tipo='vianda' AND estado<>'anulado' AND entregado_en IS NULL
+       AND (entrega IS NULL OR entrega<>'retiro') AND date(abierto_en)=?`
+  ).all(fecha);
+  const tx = db.transaction(() => {
+    for (const r of rows) db.prepare("UPDATE pedido SET entregado_en=datetime('now','localtime') WHERE id=?").run(r.id);
+  });
+  tx();
+  for (const r of rows) io.emit('pedido:actualizado', pedidoCompleto(r.id));
+  emitDashboard();
+  res.json({ n: rows.length });
+});
+
+// Hoja de reparto: lista imprimible de los domicilios por entregar (para que la lleve el cadete)
+app.post('/api/viandas/reparto-imprimir', async (req, res) => {
+  const fecha = req.body.fecha || fechaHoy();
+  const rows = db.prepare(
+    `SELECT id FROM pedido WHERE tipo='vianda' AND estado<>'anulado' AND entregado_en IS NULL
+       AND (entrega IS NULL OR entrega<>'retiro') AND date(abierto_en)=?
+     ORDER BY COALESCE(hora_entrega,'~'), id`
+  ).all(fecha);
+  const peds = rows.map((r) => pedidoCompleto(r.id));
+  const L = ['  ' + peds.length + ' entrega(s) - ' + fecha, ''];
+  if (!peds.length) L.push('  No hay domicilios por entregar.');
+  peds.forEach((p, i) => {
+    L.push((i + 1) + ') ' + (p.cliente_nombre || 'Cliente') + '   ' + moneyTxt(p.total) + (p.estado === 'cobrado' ? '  (PAGADO)' : ''));
+    L.push('   Dir: ' + (p.cliente_direccion || '-'));
+    if (p.cliente_telefono) L.push('   Tel: ' + p.cliente_telefono);
+    if (p.hora_entrega) L.push('   Hora: ' + p.hora_entrega);
+    (p.items || []).filter((it) => it.estado !== 'anulado').forEach((it) =>
+      L.push('   - ' + it.cantidad + 'x ' + it.nombre + (it.observacion ? ' (' + it.observacion + ')' : '')));
+    if (p.observacion) L.push('   Nota: ' + p.observacion);
+    L.push('----------------------------------------');
+  });
+  const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
+  let resultado;
+  try { resultado = await imprimirTextoPlano('HOJA DE REPARTO - VIANDAS', L, impresora); }
+  catch (e) { resultado = { ok: false, error: e.message }; }
+  res.json({ ok: true, resultado, n: peds.length });
+});
+
 // Cierre de VIANDAS del día: ticket con desglose por menú, formas de pago, total y efectivo.
 // Se saca al terminar el reparto del mediodía.
 app.post('/api/viandas/cierre-imprimir', async (req, res) => {

@@ -504,6 +504,7 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
   const [fiadoId, setFiadoId] = useState(null);
   const [cuentas, setCuentas] = useState([]);
   const [cuentaId, setCuentaId] = useState('');
+  const [buscar, setBuscar] = useState('');
 
   useEffect(() => { api.cuentas().then(setCuentas).catch(() => {}); }, []);
   const recargarCuentas = () => api.cuentas().then(setCuentas).catch(() => {});
@@ -550,6 +551,28 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
     try { await api.anular(p.id, 'Vianda anulada'); recargar(); toast('Pedido anulado.'); }
     catch (e) { toast('No se pudo anular: ' + e.message, 'error'); }
   };
+  // Editar un pedido: si no está cobrado, directo; si ya se cobró, se reabre (anula el cobro) y se edita
+  const editar = async (p) => {
+    if (p.estado !== 'cobrado') { onEditar(p); return; }
+    if (!(await confirmar(
+      `El pedido de ${p.cliente_nombre || 'este cliente'} ya está cobrado. Para editarlo hay que reabrirlo: se anula el cobro y después lo volvés a cobrar. ¿Seguir?`,
+      { peligro: true, ok: 'Reabrir y editar', cancelar: 'Volver' }
+    ))) return;
+    try { await api.reabrirPedido(p.id); const fresh = await api.pedido(p.id); onEditar(fresh); }
+    catch (e) { toast('No se pudo reabrir: ' + e.message, 'error'); }
+  };
+  const entregarTodos = async () => {
+    if (!(await confirmar('¿Marcar como ENTREGADOS todos los domicilios que faltan? (no toca el cobro)', { ok: 'Marcar entregados' }))) return;
+    try { const r = await api.viandasEntregarTodos(); recargar(); toast(`📦 ${r.n} marcado(s) como entregado(s).`); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+  const hojaReparto = async () => {
+    try {
+      const r = await api.viandasRepartoImprimir();
+      const m = r.resultado?.modo;
+      toast(m === 'impreso' ? `🧾 Hoja de reparto impresa (${r.n} entrega/s).` : `🧾 Hoja generada (${r.n} entrega/s).`);
+    } catch (e) { toast('No se pudo imprimir la hoja: ' + e.message, 'error'); }
+  };
   // Resumen acumulado para la cocina (12x Menú 1, 6x Menú 2...). Se puede imprimir varias veces.
   const pasarCocina = async () => {
     try {
@@ -575,9 +598,12 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
   // Separación visual: por entregar (domicilios sin entregar) / a cobrar / cobrados
   const orden = (a, b) => (a.hora_entrega || '~').localeCompare(b.hora_entrega || '~') || a.id - b.id;
   const faltaEntregar = (p) => p.entrega !== 'retiro' && !p.entregado_en;
-  const gPorEntregar = pedidos.filter((p) => faltaEntregar(p)).sort(orden);
-  const gACobrar = pedidos.filter((p) => !faltaEntregar(p) && p.estado !== 'cobrado').sort(orden);
-  const gCobrados = pedidos.filter((p) => !faltaEntregar(p) && p.estado === 'cobrado').sort(orden);
+  const q = buscar.trim().toLowerCase();
+  const coincide = (p) => !q || (p.cliente_nombre || '').toLowerCase().includes(q) || (p.cliente_telefono || '').includes(q);
+  const visibles = pedidos.filter(coincide);
+  const gPorEntregar = visibles.filter((p) => faltaEntregar(p)).sort(orden);
+  const gACobrar = visibles.filter((p) => !faltaEntregar(p) && p.estado !== 'cobrado').sort(orden);
+  const gCobrados = visibles.filter((p) => !faltaEntregar(p) && p.estado === 'cobrado').sort(orden);
 
   const tarjeta = (p) => {
     const pagado = p.estado === 'cobrado';
@@ -614,7 +640,7 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {dom && !entregado && <button style={{ flex: 1, padding: 9 }} onClick={() => entregar(p)}>📦 Entregado</button>}
           {!pagado && cobrarId !== p.id && fiadoId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 9 }} onClick={() => { setCobrarId(p.id); setFiadoId(null); }}>💵 Cobrar</button>}
-          {!pagado && <button style={{ padding: 9 }} onClick={() => onEditar(p)} title="Editar pedido">✏</button>}
+          <button style={{ padding: 9 }} onClick={() => editar(p)} title={pagado ? 'Editar (reabre el cobro)' : 'Editar pedido'}>✏</button>
           <button style={{ padding: 9 }} onClick={() => imprimir(p)} title="Imprimir ticket">🖨</button>
           {!pagado && <button className="btn-red" style={{ padding: 9 }} onClick={() => anular(p)} title="Anular (cargado por error)">🗑</button>}
         </div>
@@ -648,9 +674,12 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
     );
   };
 
-  const grupo = (titulo, arr, color) => arr.length ? (
+  const grupo = (titulo, arr, color, acciones) => arr.length ? (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontWeight: 700, margin: '4px 0 8px', color }}>{titulo} ({arr.length})</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0 8px', flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 700, color }}>{titulo} ({arr.length})</span>
+        {acciones}
+      </div>
       <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))' }}>
         {arr.map(tarjeta)}
       </div>
@@ -678,9 +707,23 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
 
       {!pedidos.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de viandas cargados hoy.</p>}
 
-      {grupo('🛵 Por entregar', gPorEntregar, 'var(--orange)')}
+      {pedidos.length > 0 && (
+        <input value={buscar} onChange={(e) => setBuscar(e.target.value)}
+          placeholder="🔎 Buscar por nombre o teléfono..." style={{ width: '100%', maxWidth: 360, marginBottom: 12 }} />
+      )}
+
+      {grupo('🛵 Por entregar', gPorEntregar, 'var(--orange)', (
+        <>
+          <button onClick={hojaReparto} title="Imprimir la lista de domicilios para el cadete">🧾 Hoja de reparto</button>
+          <button onClick={entregarTodos} title="Marcar todos entregados (no cobra)">📦 Marcar todos entregados</button>
+        </>
+      ))}
       {grupo('🕒 A cobrar', gACobrar, 'var(--orange)')}
       {grupo('✅ Cobrados', gCobrados, 'var(--green)')}
+
+      {q && !gPorEntregar.length && !gACobrar.length && !gCobrados.length && (
+        <p style={{ color: 'var(--muted)' }}>Ningún pedido coincide con "{buscar}".</p>
+      )}
     </div>
   );
 }
