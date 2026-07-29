@@ -813,6 +813,68 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   res.json({ resultado, porMenu, cartaItems, totalViandas, totalPedidos });
 });
 
+// Cierre de VIANDAS del día: ticket con desglose por menú, formas de pago, total y efectivo.
+// Se saca al terminar el reparto del mediodía.
+app.post('/api/viandas/cierre-imprimir', async (req, res) => {
+  const fecha = req.body.fecha || fechaHoy();
+  const baseCobr = "tipo='vianda' AND estado='cobrado' AND date(cerrado_en)=?";
+  // Desglose por menú (solo cobradas)
+  const porMenu = db.prepare(
+    `SELECT md.opcion, md.nombre, COALESCE(SUM(i.cantidad),0) cantidad, COALESCE(SUM(i.cantidad*i.precio_unit),0) importe
+     FROM menu_dia md JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
+     JOIN pedido o ON o.id=i.pedido_id
+     WHERE md.fecha=? AND o.tipo='vianda' AND o.estado='cobrado' AND date(o.cerrado_en)=?
+     GROUP BY md.id ORDER BY md.opcion ASC`
+  ).all(fecha, fecha);
+  const cartaItems = db.prepare(
+    `SELECT i.nombre, SUM(i.cantidad) cantidad, COALESCE(SUM(i.cantidad*i.precio_unit),0) importe
+     FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+     WHERE o.tipo='vianda' AND o.estado='cobrado' AND date(o.cerrado_en)=? AND i.estado<>'anulado' AND i.menu_dia_id IS NULL
+     GROUP BY i.nombre ORDER BY cantidad DESC`
+  ).all(fecha);
+  const medios = db.prepare(
+    `SELECT pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
+     FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+     WHERE o.${baseCobr} GROUP BY pg.medio ORDER BY total DESC`
+  ).all(fecha);
+  const ent = db.prepare(
+    `SELECT COALESCE(NULLIF(entrega,''),'domicilio') entrega, COUNT(*) n
+     FROM pedido WHERE ${baseCobr} GROUP BY entrega`
+  ).all(fecha);
+  const tot = db.prepare(`SELECT COALESCE(SUM(total),0) total, COUNT(*) n FROM pedido WHERE ${baseCobr}`).get(fecha);
+  const pend = db.prepare(
+    "SELECT COUNT(*) n, COALESCE(SUM(total),0) total FROM pedido WHERE tipo='vianda' AND estado<>'cobrado' AND estado<>'anulado' AND date(abierto_en)=?"
+  ).get(fecha);
+  const totalViandas = porMenu.reduce((a, m) => a + m.cantidad, 0);
+  const efectivo = medios.filter((m) => /EFECTIVO/i.test(m.medio)).reduce((a, m) => a + m.total, 0);
+  const dom = (ent.find((e) => e.entrega === 'domicilio') || {}).n || 0;
+  const ret = (ent.find((e) => e.entrega === 'retiro') || {}).n || 0;
+  const emitido = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const L = [];
+  L.push('  Fecha: ' + fecha + '   Emitido: ' + emitido, '');
+  if (!porMenu.length && !cartaItems.length) L.push('  Sin viandas cobradas hoy.');
+  porMenu.forEach((m, i) => L.push('  ' + String(m.cantidad).padStart(3) + ' x Menu ' + (i + 1) + ': ' + m.nombre + '  ' + moneyTxt(m.importe)));
+  if (cartaItems.length) {
+    L.push('  --- De la carta ---');
+    cartaItems.forEach((c) => L.push('  ' + String(c.cantidad).padStart(3) + ' x ' + c.nombre + '  ' + moneyTxt(c.importe)));
+  }
+  L.push('----------------------------------------');
+  L.push('  Viandas: ' + totalViandas + '    Pedidos: ' + tot.n);
+  L.push('  A domicilio: ' + dom + '    Retiran: ' + ret);
+  L.push('----------------------------------------');
+  L.push('  Formas de pago:');
+  for (const m of medios) L.push('   ' + m.medio + ': ' + moneyTxt(m.total) + ' (' + m.n + ')');
+  L.push('----------------------------------------');
+  L.push('  TOTAL VENDIDO: ' + moneyTxt(tot.total));
+  L.push('  EN EFECTIVO: ' + moneyTxt(efectivo));
+  if (pend.n > 0) { L.push('----------------------------------------'); L.push('  OJO: ' + pend.n + ' pedido(s) SIN COBRAR (' + moneyTxt(pend.total) + ')'); }
+  const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
+  let resultado;
+  try { resultado = await imprimirTextoPlano('CIERRE DE VIANDAS', L, impresora); }
+  catch (e) { resultado = { ok: false, error: e.message }; }
+  res.json({ ok: true, resultado, fecha, totalVendido: tot.total, efectivo, totalViandas, pedidos: tot.n, sinCobrar: pend.n });
+});
+
 // Bandeja del BOT de viandas: mensajes de WhatsApp que la IA interpretó como pedido de vianda,
 // esperando que el local los confirme.
 app.get('/api/viandas/inbox', (req, res) => {

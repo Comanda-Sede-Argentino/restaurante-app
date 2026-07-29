@@ -445,6 +445,17 @@ function DelDia({ pedidos, porMenu, totalDia, recargar }) {
         : `🍳 Resumen generado (${r.totalViandas} vianda(s)).`);
     } catch (e) { toast('No se pudo imprimir el resumen: ' + e.message, 'error'); }
   };
+  // Cierre del día: ticket con desglose, total y efectivo (al terminar el reparto)
+  const cierre = async () => {
+    try {
+      const r = await api.viandasCierreImprimir();
+      const m = r.resultado?.modo;
+      let t = m === 'impreso' ? '🧾 Cierre impreso · ' : '🧾 Cierre generado · ';
+      t += `Total ${money(r.totalVendido)} · efectivo ${money(r.efectivo)}`;
+      if (r.sinCobrar > 0) t += ` · ⚠ ${r.sinCobrar} sin cobrar`;
+      toast(t);
+    } catch (e) { toast('No se pudo imprimir el cierre: ' + e.message, 'error'); }
+  };
 
   return (
     <div>
@@ -454,6 +465,8 @@ function DelDia({ pedidos, porMenu, totalDia, recargar }) {
             <span style={{ fontWeight: 700 }}>Resumen del día {money(totalDia)}</span>
             <button className="btn-accent" style={{ marginLeft: 'auto' }} onClick={pasarCocina}
               title="Imprime el acumulado para la cocina (cuántas de cada menú van hasta ahora)">🍳 Pasar a cocina</button>
+            <button className="btn-blue" onClick={cierre}
+              title="Cierre del día: total, formas de pago y efectivo (al terminar el reparto)">🧾 Cierre de viandas</button>
           </div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {porMenu.map((m, i) => (
