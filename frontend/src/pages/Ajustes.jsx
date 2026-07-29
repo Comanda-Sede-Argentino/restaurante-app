@@ -402,7 +402,8 @@ export default function Ajustes() {
           <br />Podés ponerle un <b>nombre</b> a cada uno con <code>ID: Nombre</code> — así la comanda dice quién la pasó.
         </p>
         <textarea value={(tg.autorizados || []).join('\n')}
-          onChange={(e) => setTg('autorizados', e.target.value.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean))}
+          onChange={(e) => setTg('autorizados', e.target.value.split('\n'))}
+          onBlur={(e) => setTg('autorizados', e.target.value.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean))}
           rows={Math.max(3, (tg.autorizados || []).length + 1)}
           placeholder={'123456789: Juan\n987654321: Pedro'} style={{ width: '100%', fontFamily: 'monospace' }} />
         <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>
