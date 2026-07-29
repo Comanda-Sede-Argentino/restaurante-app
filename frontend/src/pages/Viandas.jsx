@@ -41,12 +41,14 @@ export default function Viandas() {
   }, []);
 
   const sinCobrar = pedidos.filter((p) => p.estado !== 'cobrado').length;
+  const cargado = pedidos.reduce((a, p) => a + (p.total || 0), 0);
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <h1 className="h1" style={{ margin: 0 }}>🍱 Viandas</h1>
-        <span className="badge" style={{ background: 'var(--green)', color: '#fff' }} title="Cobrado en viandas hoy">Hoy: {money(totalDia)}</span>
+        <span className="badge" title="Total cargado hoy (cobrado + sin cobrar)">Cargado: {money(cargado)} ({pedidos.length})</span>
+        <span className="badge" style={{ background: 'var(--green)', color: '#fff' }} title="Cobrado en viandas hoy">Cobrado: {money(totalDia)}</span>
         {sinCobrar > 0 && <span className="badge warn">{sinCobrar} sin cobrar</span>}
         {inbox.length > 0 && <span className="badge" style={{ background: 'var(--blue)', color: '#fff' }}>📥 {inbox.length} de WhatsApp</span>}
         <span className="spacer" />
@@ -253,6 +255,15 @@ function NuevoPedido({ menus, pedidos, editPedido, onDone, irAMenus }) {
 
   const guardar = async () => {
     if (!cart.length) { toast('Agregá al menos un menú o ítem.', 'error'); return; }
+    // Aviso anti-duplicado: si ese teléfono ya tiene un pedido hoy (evita cargar dos veces bot + manual)
+    if (!editId && telefono.replace(/\D/g, '').length >= 6) {
+      const tel = telefono.replace(/\D/g, '');
+      const dup = (pedidos || []).find((p) => (p.cliente_telefono || '').replace(/\D/g, '') === tel);
+      if (dup && !(await confirmar(
+        `⚠ ${dup.cliente_nombre || 'Ese teléfono'} ya tiene un pedido cargado hoy (${money(dup.total)}). ¿Cargar OTRO igual?`,
+        { ok: 'Sí, cargar otro', cancelar: 'Volver' }
+      ))) return;
+    }
     if (entrega === 'domicilio' && !direccion.trim() && !telefono.trim()) {
       if (!(await confirmar('El pedido es a domicilio pero no cargaste dirección ni teléfono. ¿Guardar igual?', { ok: 'Guardar' }))) return;
     }

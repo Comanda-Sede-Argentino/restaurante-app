@@ -653,17 +653,32 @@ app.get('/api/menu-dia', (req, res) => {
   res.json({ fecha, menus });
 });
 
-// Guardar/reemplazar los menús de un día (se cargan cada mañana)
+// Guardar los menús de un día. Actualiza EN EL LUGAR (conserva los IDs) para no romper
+// los pedidos ya tomados: si se reguarda para corregir un typo/precio, el conteo por menú
+// (cocina, cierre, reportes) se mantiene. Los menús que se quitan se desactivan, no se borran.
 app.put('/api/menu-dia', (req, res) => {
   const fecha = req.body.fecha || fechaHoy();
   const menus = Array.isArray(req.body.menus) ? req.body.menus : [];
   const tx = db.transaction(() => {
-    db.prepare("DELETE FROM menu_dia WHERE fecha=?").run(fecha);
-    const ins = db.prepare("INSERT INTO menu_dia (fecha, opcion, nombre, descripcion, precio) VALUES (?,?,?,?,?)");
+    const existentes = db.prepare("SELECT * FROM menu_dia WHERE fecha=?").all(fecha);
+    const usados = new Set();
     menus.forEach((m, i) => {
       if (!m || !String(m.nombre || '').trim()) return;
-      ins.run(fecha, m.opcion || (i + 1), String(m.nombre).trim(), m.descripcion || null, Math.max(0, Number(m.precio) || 0));
+      const opcion = m.opcion || (i + 1);
+      const nombre = String(m.nombre).trim();
+      const descripcion = m.descripcion || null;
+      const precio = Math.max(0, Number(m.precio) || 0);
+      const ex = existentes.find((e) => e.opcion === opcion && !usados.has(e.id));
+      if (ex) {
+        db.prepare("UPDATE menu_dia SET nombre=?, descripcion=?, precio=?, activo=1 WHERE id=?").run(nombre, descripcion, precio, ex.id);
+        usados.add(ex.id);
+      } else {
+        const r = db.prepare("INSERT INTO menu_dia (fecha, opcion, nombre, descripcion, precio) VALUES (?,?,?,?,?)").run(fecha, opcion, nombre, descripcion, precio);
+        usados.add(r.lastInsertRowid);
+      }
     });
+    // Los que ya no vienen se DESACTIVAN (no se borran, para no romper pedidos que los referencian)
+    for (const e of existentes) if (!usados.has(e.id)) db.prepare("UPDATE menu_dia SET activo=0 WHERE id=?").run(e.id);
   });
   tx();
   const guardados = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
