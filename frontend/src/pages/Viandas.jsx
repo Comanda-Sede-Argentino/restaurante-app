@@ -80,16 +80,29 @@ function Menus({ fecha, menus, onSaved }) {
   const [rows, setRows] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [msg, setMsg] = useState('');
+  const initFecha = useRef(null);
 
+  // Inicializa el editor UNA vez por día (no en cada recarga, para no borrar lo que se está tipeando)
   useEffect(() => {
-    // Arranca con lo guardado o 2 filas vacías (los 2 menús habituales)
+    if (!fecha || initFecha.current === fecha) return;
+    initFecha.current = fecha;
     const base = menus.length ? menus.map((m) => ({ nombre: m.nombre, descripcion: m.descripcion || '', precio: m.precio })) : [];
     while (base.length < 2) base.push({ nombre: '', descripcion: '', precio: '' });
     setRows(base);
-    api.menuDiaHistorial().then(setHistorial).catch(() => {});
-  }, [menus]);
+  }, [fecha, menus]);
+  useEffect(() => { api.menuDiaHistorial().then(setHistorial).catch(() => {}); }, []);
 
   const setRow = (i, campo, val) => setRows((rs) => rs.map((r, k) => (k === i ? { ...r, [campo]: val } : r)));
+  // Al escribir/elegir el nombre de un menú ya usado antes, autocompleta el precio si está vacío
+  const setNombreMenu = (i, val) => setRows((rs) => rs.map((r, k) => {
+    if (k !== i) return r;
+    const nr = { ...r, nombre: val };
+    if (!String(r.precio).trim()) {
+      const h = historial.find((x) => (x.nombre || '').toLowerCase() === val.trim().toLowerCase());
+      if (h) nr.precio = h.precio;
+    }
+    return nr;
+  }));
   const agregar = () => setRows((rs) => [...rs, { nombre: '', descripcion: '', precio: '' }]);
   const quitar = (i) => setRows((rs) => rs.filter((_, k) => k !== i));
 
@@ -126,7 +139,7 @@ function Menus({ fecha, menus, onSaved }) {
           <div key={i} style={{ borderTop: i ? '1px solid var(--panel2)' : 'none', paddingTop: i ? 10 : 0, marginTop: i ? 10 : 0 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <b style={{ minWidth: 20 }}>{i + 1})</b>
-              <input list="hist-menus" value={r.nombre} onChange={(e) => setRow(i, 'nombre', e.target.value)}
+              <input list="hist-menus" value={r.nombre} onChange={(e) => setNombreMenu(i, e.target.value)}
                 placeholder="Nombre del menú (ej. Milanesa con puré)" style={{ flex: 1 }} />
               <input type="number" value={r.precio} onChange={(e) => setRow(i, 'precio', e.target.value)}
                 placeholder="Precio" style={{ width: 100 }} />

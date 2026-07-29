@@ -856,7 +856,7 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   ).get(fecha).c;
   const totalViandas = porMenu.reduce((a, m) => a + m.cantidad, 0);
   const hora = db.prepare("SELECT time('now','localtime') t").get().t;
-  const L = ['  Actualizado: ' + hora, ''];
+  const L = ['  Actualizado: ' + hora, '  (TOTAL del dia - reemplaza al anterior)', ''];
   porMenu.forEach((m, i) => L.push('  ' + String(m.cantidad).padStart(3) + ' x  Menu ' + (i + 1) + ': ' + m.nombre));
   if (cartaItems.length) {
     L.push('', '  --- De la carta ---');
