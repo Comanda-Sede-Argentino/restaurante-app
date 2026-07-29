@@ -104,10 +104,13 @@ export async function iniciar() {
         try {
           if (!m.message || m.key.fromMe) continue;
           const jid = m.key.remoteJid || '';
-          if (jid.endsWith('@g.us') || jid.includes('broadcast') || jid.includes('status')) continue;
+          // Ignorar todo lo que NO sea un chat personal: grupos, canales/newsletters, estados, difusiones.
+          if (jid.endsWith('@g.us') || jid.endsWith('@newsletter') || jid.includes('broadcast') || jid.includes('status')) continue;
+          const telefono = (jid.split('@')[0] || '').replace(/[^\d]/g, '');
+          // Los canales/grupos/IDs internos no son teléfonos (18+ dígitos, ej. 120363...). Un número real tiene hasta 15.
+          if (!telefono || telefono.length > 15) continue;
           const texto = textoDeMensaje(m).trim();
           if (!texto) continue;
-          const telefono = jid.split('@')[0];
           const nombre = m.pushName || telefono;
           onMensajeCb && onMensajeCb({ jid, telefono, nombre, texto });
         } catch (e) { /* ignorar mensaje problemático */ }
