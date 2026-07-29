@@ -103,6 +103,7 @@ export const api = {
   waEstado: () => req('/whatsapp/estado'),
   waConectar: () => req('/whatsapp/conectar', { method: 'POST' }),
   waDesconectar: () => req('/whatsapp/desconectar', { method: 'POST' }),
+  waDesvincular: () => req('/whatsapp/desvincular', { method: 'POST' }),
   waInbox: (estado = 'pendiente') => req('/whatsapp/inbox?estado=' + estado),
   waConvertir: (id) => req('/whatsapp/inbox/' + id + '/convertir', { method: 'POST' }),
   waDescartar: (id) => req('/whatsapp/inbox/' + id + '/descartar', { method: 'POST' }),

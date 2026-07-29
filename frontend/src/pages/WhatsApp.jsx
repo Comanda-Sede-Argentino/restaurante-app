@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, socket, money } from '../api';
 import OrderTaker from '../components/OrderTaker.jsx';
-import { toast } from '../ui.jsx';
+import { toast, confirmar } from '../ui.jsx';
 
 export default function WhatsApp() {
   const [estado, setEstado] = useState(null);
@@ -11,6 +11,21 @@ export default function WhatsApp() {
 
   const cargarInbox = () => api.waInbox('pendiente').then(setInbox);
   const cargarEstado = () => api.waEstado().then(setEstado);
+
+  // Desvincular de verdad: borra la sesión guardada y genera un QR nuevo para OTRO número
+  const desvincular = async () => {
+    if (!(await confirmar(
+      '¿Desvincular el WhatsApp actual para conectar OTRO número?\n\nSe cierra la sesión guardada y vas a tener que escanear un QR nuevo con el celular del otro número.',
+      { peligro: true, ok: 'Sí, desvincular', cancelar: 'Volver' }
+    ))) return;
+    try {
+      await api.waDesvincular();
+      toast('Desvinculado. En unos segundos aparece el QR nuevo: escanealo con el OTRO número.');
+      cargarEstado();
+      setTimeout(cargarEstado, 1500);
+      setTimeout(cargarEstado, 3500);
+    } catch (e) { toast('No se pudo desvincular: ' + e.message, 'error'); }
+  };
 
   useEffect(() => {
     cargarEstado();
@@ -120,6 +135,16 @@ export default function WhatsApp() {
                 </>
               )}
             </>
+          )}
+          {estado && (
+            <div style={{ marginTop: 12, borderTop: '1px solid var(--panel2)', paddingTop: 10 }}>
+              <button onClick={desvincular} title="Cierra la sesión guardada y genera un QR nuevo">
+                🔄 Usar otro número (desvincular)
+              </button>
+              <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
+                Usalo si querés cambiar el número: borra la vinculación actual y te muestra un QR nuevo para escanear con el otro celular.
+              </p>
+            </div>
           )}
           <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 12 }}>
             Usá un número <b>dedicado a pedidos</b> (no el personal). La sesión queda guardada;

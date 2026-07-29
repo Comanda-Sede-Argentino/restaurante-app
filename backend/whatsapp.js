@@ -3,6 +3,7 @@
 // Los mensajes entrantes se entregan al callback onMensaje para guardarlos en la
 // bandeja de entrada. El estado/QR se exponen para mostrarlos en la web.
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import QRCode from 'qrcode';
 
@@ -134,4 +135,20 @@ export async function desconectar() {
   estado = { conectado: false, numero: null, qr: null, iniciando: false, error: null };
   sock = null;
   emit(getEstado());
+}
+
+// Desvincular DE VERDAD: cierra sesión y BORRA la vinculación guardada en disco.
+// Después arranca de nuevo para generar un QR nuevo (así se puede poner OTRO número).
+export async function desvincular() {
+  try { if (sock) await sock.logout(); } catch {}
+  try { if (sock && typeof sock.end === 'function') sock.end(); } catch {}
+  sock = null;
+  reintentos = 0;
+  try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); }
+  catch (e) { console.error('No se pudo borrar la sesión de WhatsApp:', e.message); }
+  estado = { conectado: false, numero: null, qr: null, iniciando: false, error: null };
+  emit(getEstado());
+  // Arrancar de cero para generar un QR nuevo (para vincular otro número)
+  setTimeout(() => iniciar().catch(() => {}), 600);
+  return getEstado();
 }

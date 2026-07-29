@@ -1382,6 +1382,8 @@ wa.setHandlers({
 app.get('/api/whatsapp/estado', (req, res) => res.json(wa.getEstado()));
 app.post('/api/whatsapp/conectar', async (req, res) => res.json(await wa.iniciar()));
 app.post('/api/whatsapp/desconectar', async (req, res) => { await wa.desconectar(); res.json({ ok: true }); });
+// Desvincular de verdad (borra la sesión guardada) para poder poner OTRO número
+app.post('/api/whatsapp/desvincular', async (req, res) => { const st = await wa.desvincular(); res.json({ ok: true, estado: st }); });
 
 app.get('/api/whatsapp/inbox', (req, res) => {
   const estado = req.query.estado || 'pendiente';
