@@ -46,7 +46,7 @@ const defaultConfig = {
     textoConsulta:
       '¡Hola! 👋 Gracias por escribir a Sede Social. En breve te respondemos. 🙌',
     // Confirmación de vianda (se le manda al cliente al confirmar su pedido). Usa {detalle} y {total}.
-    textoViandaOK: '¡Anotado! 🍱 {detalle}. Total {total}.',
+    textoViandaOK: '¡Anotado! 🍱 {detalle}. Total {total}. ¡Gracias! 🙌',
   },
   telegram: {
     habilitado: false,

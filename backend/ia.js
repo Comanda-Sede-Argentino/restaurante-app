@@ -180,7 +180,8 @@ REGLAS:
 - Interpretá cantidades en palabras ("dos" = 2, "una" = 1). Si no aclara cantidad, es 1.
 - es_vianda = true SOLO si pide al menos uno de los menús del día. Si es un saludo suelto ("hola"), una consulta ("hasta qué hora entregan?"), o algo que claramente NO es uno de los menús del día, poné es_vianda = false y items vacío.
 - entrega: "domicilio" por defecto, o si da una dirección o dice "llevar/mandar/enviar a...". "retiro" SOLO si dice que lo pasa a buscar o lo retira.
-- Si no aclara nombre o dirección, dejá esos campos vacíos (el sistema los completa con los datos guardados del cliente).`;
+- NOMBRE (¡OJO!): el nombre que a veces aparece al inicio del mensaje ("Hola Mati", "Buenas Mati", "Mati te encargo") es a QUIEN le escriben (el local/dueño), NO el cliente. NUNCA lo tomes como cliente_nombre. Poné cliente_nombre SOLO si el cliente dice claramente SU propio nombre ("soy Cecilia", "de parte de Cecilia", "para Cecilia", "habla Juan"). Si tenés dudas, dejá cliente_nombre vacío.
+- Si no aclara su propio nombre o la dirección, dejá esos campos vacíos (el sistema los completa con los datos guardados del cliente).`;
 
 // Devuelve { es_vianda, items:[{opcion,cantidad}], cliente_nombre, direccion, entrega, hora_entrega, nota }
 export async function parsearViandaIA(texto, menus, apiKey, modelo = 'claude-haiku-4-5', ahora = '') {

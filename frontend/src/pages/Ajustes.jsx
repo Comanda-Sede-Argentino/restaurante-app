@@ -334,7 +334,7 @@ export default function Ajustes() {
 
         <h2 className="h2" style={{ marginTop: 12 }}>🍱 Mensaje de confirmación de VIANDA <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13 }}>(se le manda al cliente cuando confirmás su pedido)</span></h2>
         <textarea value={wa.textoViandaOK || ''} onChange={(e) => setWa('textoViandaOK', e.target.value)}
-          rows={2} style={{ width: '100%' }} placeholder="¡Anotado! 🍱 {detalle}. Total {total}." />
+          rows={2} style={{ width: '100%' }} placeholder="¡Anotado! 🍱 {detalle}. Total {total}. ¡Gracias! 🙌" />
         <p style={{ color: 'var(--muted)', fontSize: 12 }}>
           Podés usar <code>{'{detalle}'}</code> (los ítems del pedido) y <code>{'{total}'}</code> (el importe). Si lo dejás vacío usa el texto por defecto.
           A los pedidos a domicilio se les agrega solo <i>"Te lo llevamos al mediodía 🛵"</i>.

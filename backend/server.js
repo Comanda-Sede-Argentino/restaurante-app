@@ -1003,8 +1003,14 @@ app.post('/api/viandas/inbox/:id/confirmar', (req, res) => {
   const w = getConfig().whatsapp || {};
   const money = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
   const det = items.map((i) => `${i.cantidad}× ${i.nombre}`).join(', ');
-  let txt = (w.textoViandaOK || '¡Anotado! 🍱 {detalle}. Total {total}.').replace('{detalle}', det).replace('{total}', money(p.total));
-  if ((data.entrega || 'domicilio') !== 'retiro') txt += ' Te lo llevamos al mediodía 🛵';
+  let txt = (w.textoViandaOK || '¡Anotado! 🍱 {detalle}. Total {total}. ¡Gracias! 🙌').replace('{detalle}', det).replace('{total}', money(p.total));
+  if ((data.entrega || 'domicilio') !== 'retiro') {
+    // ETA según la hora: pasadas las 12:30 el "mediodía" ya no aplica, avisamos "cerca de las 13 hs"
+    const t = db.prepare("SELECT strftime('%H:%M','now','localtime') t").get().t;
+    const [hh, mm] = t.split(':').map(Number);
+    const tarde = (hh * 60 + mm) >= (12 * 60 + 30);
+    txt += tarde ? ' Cerca de las 13 hs te lo llevamos 🛵' : ' Te lo llevamos al mediodía 🛵';
+  }
   if (msg.wa_jid) wa.enviarMensaje(msg.wa_jid, txt);
   res.json(p);
 });
@@ -1432,8 +1438,11 @@ wa.setHandlers({
               return m ? { menu_dia_id: m.id, opcion: m.opcion, nombre: m.nombre, precio: m.precio, cantidad: Math.max(1, Math.trunc(Number(it.cantidad) || 1)) } : null;
             }).filter(Boolean);
             if (items.length) {
+              // Prioridad del nombre: guardado de pedidos anteriores > nombre del contacto de WhatsApp
+              // (pushName) > lo que la IA haya extraído del texto. Así un "Hola Mati" no pisa al cliente real.
+              const pushName = (nombre && nombre !== telefono) ? nombre : '';
               const propuesta = {
-                cliente_nombre: (v.cliente_nombre || '').trim() || (prev?.nombre || nombre || ''),
+                cliente_nombre: (prev?.nombre || '').trim() || pushName || (v.cliente_nombre || '').trim() || '',
                 cliente_telefono: telefono,
                 cliente_direccion: (v.direccion || '').trim() || (prev?.direccion || ''),
                 entrega: v.entrega === 'retiro' ? 'retiro' : 'domicilio',
