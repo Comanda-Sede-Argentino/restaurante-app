@@ -398,12 +398,17 @@ export default function Ajustes() {
         <h2 className="h2" style={{ marginTop: 14 }}>3) Quién puede mandar pedidos</h2>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
           Por seguridad, solo los IDs autorizados pueden imprimir. Escribíle al bot desde tu celular:
-          si no estás autorizado te va a responder con <b>tu ID</b>. Copialo y pegalo acá (separá varios con comas).
+          si no estás autorizado te va a responder con <b>tu ID</b>. Copialo y pegalo acá, <b>uno por línea</b> (uno abajo del otro).
           <br />Podés ponerle un <b>nombre</b> a cada uno con <code>ID: Nombre</code> — así la comanda dice quién la pasó.
         </p>
-        <input type="text" value={(tg.autorizados || []).join(', ')}
-          onChange={(e) => setTg('autorizados', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
-          placeholder="123456789: Juan, 987654321: Pedro" style={{ width: '100%', fontFamily: 'monospace' }} />
+        <textarea value={(tg.autorizados || []).join('\n')}
+          onChange={(e) => setTg('autorizados', e.target.value.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean))}
+          rows={Math.max(3, (tg.autorizados || []).length + 1)}
+          placeholder={'123456789: Juan\n987654321: Pedro'} style={{ width: '100%', fontFamily: 'monospace' }} />
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>
+          Cada persona en su propio renglón. Ejemplo:<br />
+          <code>111111111: Juan</code><br /><code>222222222: Pedro</code>
+        </p>
 
         <h2 className="h2" style={{ marginTop: 14 }}>4) Costo de envío (opcional)</h2>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
