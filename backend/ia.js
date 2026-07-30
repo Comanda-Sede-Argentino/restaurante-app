@@ -141,6 +141,27 @@ OTRAS REGLAS:
   "en una hora"), SUMALO a la HORA ACTUAL y devolvé HH:MM (24hs). Si no la mencionan, dejá vacío.
 - Si no aclara nombre o dirección, dejá esos campos vacíos.`;
 
+// ---------- ASISTENTE: una llamada a Claude con herramientas (para el chat de reportes) ----------
+// Devuelve la respuesta cruda de la API (con los bloques de contenido y stop_reason).
+export async function claudeConTools({ system, messages, tools, apiKey, modelo = 'claude-sonnet-4-6', maxTokens = 1024 }) {
+  if (!apiKey) throw new Error('Falta la clave de IA (Claude)');
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 30000);
+  let r;
+  try {
+    r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: modelo, max_tokens: maxTokens, system, tools, messages }),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    throw new Error(e.name === 'AbortError' ? 'La IA tardó demasiado' : 'Error de red: ' + e.message);
+  } finally { clearTimeout(to); }
+  if (!r.ok) { const t = await r.text(); throw new Error('IA error ' + r.status + ': ' + t.slice(0, 200)); }
+  return await r.json();
+}
+
 // ---------- VIANDAS: interpreta la respuesta del cliente contra los menús del día ----------
 const HERR_VIANDA = {
   name: 'registrar_vianda',

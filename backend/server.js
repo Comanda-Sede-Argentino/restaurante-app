@@ -10,7 +10,7 @@ import {
 } from './printer.js';
 import * as wa from './whatsapp.js';
 import * as tg from './telegram.js';
-import { parsearPedidoIA, parsearViandaIA } from './ia.js';
+import { parsearPedidoIA, parsearViandaIA, claudeConTools } from './ia.js';
 import { transcribirAudio } from './voz.js';
 import os from 'os';
 import QRCode from 'qrcode';
@@ -2043,6 +2043,117 @@ function avisoTurnoSinCerrar() {
 }
 
 app.get('/api/dashboard', (req, res) => res.json(dashboardData()));
+
+// ================= ASISTENTE DE REPORTES (chat en lenguaje natural sobre las ventas) =================
+// Herramientas que la IA puede pedir para traer datos reales de la base (todas de solo lectura).
+const HERR_ASISTENTE = [
+  { name: 'ventas_totales', description: 'Total vendido, tickets, y desglose por forma de pago y por tipo de pedido, en un rango de fechas.',
+    input_schema: { type: 'object', properties: { desde: { type: 'string', description: 'YYYY-MM-DD (por defecto hoy)' }, hasta: { type: 'string', description: 'YYYY-MM-DD (por defecto hoy)' } } } },
+  { name: 'ventas_por_dia', description: 'Total vendido y tickets por cada día del rango.',
+    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
+  { name: 'productos_mas_vendidos', description: 'Ranking de productos por cantidad vendida en el rango.',
+    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' }, limite: { type: 'integer' }, orden: { type: 'string', description: '"mas" (por defecto) o "menos"' } } } },
+  { name: 'ventas_de_producto', description: 'Cantidad y monto vendido de un producto puntual (búsqueda por nombre) en el rango.',
+    input_schema: { type: 'object', properties: { nombre: { type: 'string' }, desde: { type: 'string' }, hasta: { type: 'string' } }, required: ['nombre'] } },
+  { name: 'ventas_por_modulo', description: 'Total por módulo (Salón mediodía, Viandas, Salón noche, Delivery noche) en el rango. Cuenta por fecha del pedido.',
+    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
+  { name: 'viandas', description: 'Resumen de viandas: total, pedidos y ranking de menús en el rango.',
+    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
+  { name: 'deudas_fiado', description: 'Cuentas corrientes (empresas/personas) que deben plata, con su saldo.',
+    input_schema: { type: 'object', properties: {} } },
+];
+
+function ejecutarHerramientaAsistente(name, input = {}) {
+  const hoy = db.prepare("SELECT date('now','localtime') d").get().d;
+  const d = input.desde || hoy, h = input.hasta || hoy;
+  if (name === 'ventas_totales') {
+    const tot = db.prepare('SELECT COALESCE(SUM(importe),0) total, COUNT(DISTINCT pedido_id) tickets FROM pago WHERE date(fecha) BETWEEN ? AND ?').get(d, h);
+    const porMedio = db.prepare('SELECT medio, SUM(importe) total, COUNT(*) n FROM pago WHERE date(fecha) BETWEEN ? AND ? GROUP BY medio ORDER BY total DESC').all(d, h);
+    const porTipo = db.prepare("SELECT o.tipo, SUM(pg.importe) total, COUNT(DISTINCT pg.pedido_id) tickets FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY o.tipo ORDER BY total DESC").all(d, h);
+    return { desde: d, hasta: h, total: tot.total, tickets: tot.tickets, porMedio, porTipo };
+  }
+  if (name === 'ventas_por_dia') {
+    return { desde: d, hasta: h, dias: db.prepare('SELECT date(fecha) dia, SUM(importe) total, COUNT(DISTINCT pedido_id) tickets FROM pago WHERE date(fecha) BETWEEN ? AND ? GROUP BY dia ORDER BY dia').all(d, h) };
+  }
+  if (name === 'productos_mas_vendidos') {
+    const limite = Math.min(50, Math.max(1, Number(input.limite) || 10));
+    const orden = input.orden === 'menos' ? 'ASC' : 'DESC';
+    const productos = db.prepare(
+      `SELECT i.nombre, SUM(i.cantidad) cantidad, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+       WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado' AND i.plato_id IS NOT NULL
+       GROUP BY i.nombre ORDER BY cantidad ${orden} LIMIT ?`
+    ).all(d, h, limite);
+    return { desde: d, hasta: h, productos };
+  }
+  if (name === 'ventas_de_producto') {
+    const q = '%' + String(input.nombre || '').trim() + '%';
+    const row = db.prepare(
+      `SELECT COALESCE(SUM(i.cantidad),0) cantidad, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+       WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado' AND i.nombre LIKE ?`
+    ).get(d, h, q);
+    return { desde: d, hasta: h, producto: input.nombre, cantidad: row.cantidad, total: row.total };
+  }
+  if (name === 'ventas_por_modulo') {
+    const corte = (getConfig().caja || {}).corteNoche || '17:00';
+    const MOD = `CASE WHEN o.tipo='vianda' THEN 'Viandas' WHEN o.tipo='delivery' THEN 'Delivery noche' WHEN time(o.abierto_en) < ? THEN 'Salon mediodia' ELSE 'Salon noche' END`;
+    const modulos = db.prepare(
+      `SELECT ${MOD} modulo, SUM(pg.importe) total, COUNT(DISTINCT pg.pedido_id) tickets
+       FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY modulo ORDER BY total DESC`
+    ).all(corte, d, h);
+    return { desde: d, hasta: h, modulos };
+  }
+  if (name === 'viandas') {
+    const porMenu = db.prepare(
+      `SELECT md.nombre, SUM(i.cantidad) cantidad, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id JOIN menu_dia md ON md.id=i.menu_dia_id
+       WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado' GROUP BY md.nombre ORDER BY cantidad DESC`
+    ).all(d, h);
+    const tot = db.prepare("SELECT COALESCE(SUM(total),0) total, COUNT(*) pedidos FROM pedido WHERE tipo='vianda' AND estado='cobrado' AND date(cerrado_en) BETWEEN ? AND ?").get(d, h);
+    return { desde: d, hasta: h, total: tot.total, pedidos: tot.pedidos, porMenu };
+  }
+  if (name === 'deudas_fiado') {
+    const deudores = db.prepare(
+      `SELECT c.nombre, COALESCE(SUM(CASE WHEN m.tipo='cargo' THEN m.importe ELSE -m.importe END),0) saldo
+       FROM cuenta c LEFT JOIN cuenta_mov m ON m.cuenta_id=c.id WHERE c.activo=1
+       GROUP BY c.id HAVING saldo > 0 ORDER BY saldo DESC`
+    ).all();
+    return { deudores, totalPorCobrar: deudores.reduce((a, x) => a + x.saldo, 0) };
+  }
+  return { error: 'herramienta desconocida' };
+}
+
+app.post('/api/asistente', async (req, res) => {
+  const pregunta = String(req.body.pregunta || '').trim();
+  if (!pregunta) return res.status(400).json({ error: 'Falta la pregunta' });
+  const claveIA = (getConfig().telegram || {}).claveIA;
+  if (!claveIA) return res.status(400).json({ error: 'Falta la clave de IA (Ajustes → Telegram)' });
+  const hoy = db.prepare("SELECT date('now','localtime') d").get().d;
+  const system = `Sos el asistente de reportes de un restaurante argentino ("Sede Social"). Respondés preguntas del DUEÑO sobre sus ventas.
+HOY es ${hoy} (formato YYYY-MM-DD). Interpretá "hoy", "ayer", "esta semana" (últimos 7 días), "este mes", etc., y pasá las fechas a las herramientas.
+SIEMPRE usá las herramientas para traer datos reales ANTES de responder; nunca inventes números.
+Respondé CORTO y CLARO, en español rioplatense, con los números concretos (montos en pesos con separador de miles).
+Si la pregunta no es sobre las ventas o los datos del negocio, decilo amablemente. Si no hay datos en el período, aclaralo.`;
+  const messages = [{ role: 'user', content: pregunta }];
+  try {
+    for (let paso = 0; paso < 6; paso++) {
+      const data = await claudeConTools({ system, messages, tools: HERR_ASISTENTE, apiKey: claveIA, modelo: 'claude-sonnet-4-6', maxTokens: 1024 });
+      messages.push({ role: 'assistant', content: data.content });
+      const toolUses = (data.content || []).filter((b) => b.type === 'tool_use');
+      if (!toolUses.length) {
+        const txt = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+        return res.json({ respuesta: txt || '(sin respuesta)' });
+      }
+      const results = toolUses.map((tu) => {
+        let out; try { out = ejecutarHerramientaAsistente(tu.name, tu.input || {}); } catch (e) { out = { error: e.message }; }
+        return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) };
+      });
+      messages.push({ role: 'user', content: results });
+    }
+    res.json({ respuesta: 'No pude terminar de responder. Probá una pregunta más específica.' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Estadísticas históricas (placeholder hasta migración Fase 0)
 app.get('/api/stats/top-historico', (req, res) =>

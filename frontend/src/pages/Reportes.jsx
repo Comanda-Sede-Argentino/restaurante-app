@@ -59,6 +59,50 @@ function Barras({ datos, label, valor, fmtVal }) {
   );
 }
 
+// Chat en lenguaje natural sobre las ventas (la IA consulta los datos reales)
+function AsistenteIA() {
+  const [q, setQ] = useState('');
+  const [msgs, setMsgs] = useState([]);
+  const [cargando, setCargando] = useState(false);
+  const enviar = async (texto) => {
+    const pregunta = (texto ?? q).trim();
+    if (!pregunta || cargando) return;
+    setMsgs((m) => [...m, { rol: 'user', texto: pregunta }]);
+    setQ(''); setCargando(true);
+    try { const r = await api.asistente(pregunta); setMsgs((m) => [...m, { rol: 'ia', texto: r.respuesta }]); }
+    catch (e) { setMsgs((m) => [...m, { rol: 'ia', texto: '⚠ No pude responder: ' + e.message }]); }
+    finally { setCargando(false); }
+  };
+  const ejemplos = ['¿Cuánto vendí hoy?', '¿Qué se vendió más esta semana?', '¿Cuánto vendió cada módulo ayer?', '¿Cuántas viandas vendí este mes?', '¿Quién me debe fiado?'];
+  return (
+    <div className="card" style={{ marginBottom: 14, borderColor: 'var(--accent)' }}>
+      <div style={{ fontWeight: 700, marginBottom: 8 }}>🤖 Asistente — preguntá sobre tus ventas</div>
+      {msgs.length > 0 && (
+        <div style={{ maxHeight: 340, overflowY: 'auto', marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {msgs.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.rol === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', padding: '8px 12px', borderRadius: 10, whiteSpace: 'pre-wrap', background: m.rol === 'user' ? 'var(--accent)' : 'var(--panel2)', color: m.rol === 'user' ? '#fff' : 'inherit' }}>
+              {m.texto}
+            </div>
+          ))}
+          {cargando && <div style={{ alignSelf: 'flex-start', color: 'var(--muted)' }}>Pensando…</div>}
+        </div>
+      )}
+      {msgs.length === 0 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+          {ejemplos.map((e) => <button key={e} className="chip" onClick={() => enviar(e)}>{e}</button>)}
+        </div>
+      )}
+      <form onSubmit={(e) => { e.preventDefault(); enviar(); }} style={{ display: 'flex', gap: 8 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Escribí tu pregunta…" style={{ flex: 1 }} disabled={cargando} />
+        <button className="btn-accent" type="submit" disabled={cargando || !q.trim()}>Preguntar</button>
+      </form>
+      <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8, marginBottom: 0 }}>
+        Mira tus datos reales. Podés preguntar por hoy, ayer, esta semana, este mes, un producto puntual, quién debe fiado, etc.
+      </p>
+    </div>
+  );
+}
+
 export default function Reportes() {
   const [preset, setPreset] = useState('mes');
   const [[desde, hasta], setRango] = useState(rangoPreset('mes'));
@@ -98,6 +142,8 @@ export default function Reportes() {
   return (
     <div>
       <h1 className="h1">📊 Reportes</h1>
+
+      <AsistenteIA />
 
       {/* Controles de período */}
       <div className="card" style={{ marginBottom: 14 }}>
