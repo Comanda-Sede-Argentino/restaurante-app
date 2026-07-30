@@ -76,6 +76,7 @@ export const api = {
   dashboard: () => req('/dashboard'),
   reportes: (desde, hasta, group) => req(`/reportes/general?desde=${desde}&hasta=${hasta}&group=${group}`),
   reportesViandas: (desde, hasta) => req(`/reportes/viandas?desde=${desde}&hasta=${hasta}`),
+  reportesModulos: (desde, hasta) => req(`/reportes/modulos?desde=${desde}&hasta=${hasta}`),
   reimprimir: (id) => req('/pedidos/' + id + '/reimprimir', { method: 'POST' }),
   kdsListoTodo: (sector) => req('/kds/listo-todo', { method: 'POST', body: { sector } }),
   cafeteriaMesas: () => req('/cafeteria/mesas'),

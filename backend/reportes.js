@@ -2,6 +2,7 @@
 // Se basa en datos reales de la operación (tabla `pago` para ventas, `pedido`/`pedido_item`
 // para productos). NO incluye datos del sistema viejo (MRC); solo desde que corre este sistema.
 import db from './db.js';
+import { getConfig } from './printer.js';
 
 // Expresión SQL para agrupar por día / semana / mes (sobre pago.fecha, ya en hora local).
 const periodoExpr = (group) =>
@@ -173,5 +174,40 @@ export function registrarReportes(app) {
     ).all(...rango);
 
     res.json({ desde, hasta, totales, serie, porMenu, porEntrega, clientes, porDiaSemana });
+  });
+
+  // ---- Ventas por MÓDULO (Salón mediodía / Viandas / Salón noche / Delivery noche) ----
+  app.get('/api/reportes/modulos', (req, res) => {
+    const hoy = new Date();
+    const desde = req.query.desde || fmtFecha(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    const hasta = req.query.hasta || fmtFecha(hoy);
+    let corte = req.query.corte;
+    try { if (!corte) corte = (getConfig().caja || {}).corteNoche; } catch { /* nada */ }
+    corte = corte || '17:00';
+    const rango = [desde, hasta];
+    // Clasificación de cada pago en un módulo. El salón se parte por la hora de corte.
+    // (Viandas ya incluye el delivery de la mañana; el delivery propio es solo el de la noche.)
+    const MOD = `CASE
+      WHEN o.tipo='vianda' THEN 'Viandas'
+      WHEN o.tipo='delivery' THEN 'Delivery noche'
+      WHEN time(pg.fecha) < ? THEN 'Salón mediodía'
+      ELSE 'Salón noche' END`;
+    const totMod = db.prepare(
+      `SELECT ${MOD} modulo, COALESCE(SUM(pg.importe),0) total, COUNT(DISTINCT pg.pedido_id) tickets
+       FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+       WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY modulo ORDER BY total DESC`
+    ).all(corte, ...rango);
+    const filas = db.prepare(
+      `SELECT ${MOD} modulo, pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
+       FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+       WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY modulo, pg.medio`
+    ).all(corte, ...rango);
+    const porDia = db.prepare(
+      `SELECT date(pg.fecha) dia, ${MOD} modulo, COALESCE(SUM(pg.importe),0) total
+       FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+       WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY dia, modulo ORDER BY dia`
+    ).all(corte, ...rango);
+    const totalGeneral = totMod.reduce((a, m) => a + m.total, 0);
+    res.json({ desde, hasta, corte, totMod, filas, porDia, totalGeneral });
   });
 }

@@ -65,6 +65,7 @@ export default function Reportes() {
   const [group, setGroup] = useState('dia');
   const [d, setD] = useState(null);
   const [vi, setVi] = useState(null);
+  const [mod, setMod] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [cierres, setCierres] = useState([]);
@@ -86,6 +87,7 @@ export default function Reportes() {
       .catch((e) => setError('No se pudieron cargar los reportes: ' + e.message))
       .finally(() => setCargando(false));
     api.reportesViandas(desde, hasta).then(setVi).catch(() => setVi(null));
+    api.reportesModulos(desde, hasta).then(setMod).catch(() => setMod(null));
   }, [desde, hasta, group]);
 
   const PRESETS = [
@@ -127,6 +129,72 @@ export default function Reportes() {
       </div>
 
       {error && <div className="card" style={{ borderColor: 'var(--orange)', color: 'var(--orange)', marginBottom: 14 }}>{error}</div>}
+
+      {/* ---- Ventas por MÓDULO ---- */}
+      {mod && mod.totMod?.length > 0 && (() => {
+        const ORDER = ['Salón mediodía', 'Viandas', 'Salón noche', 'Delivery noche'];
+        const nombres = ORDER.filter((n) => mod.totMod.some((m) => m.modulo === n))
+          .concat(mod.totMod.map((m) => m.modulo).filter((n) => !ORDER.includes(n)));
+        const dias = [...new Set(mod.porDia.map((x) => x.dia))];
+        const val = (dia, name) => mod.porDia.find((x) => x.dia === dia && x.modulo === name)?.total || 0;
+        const totDe = (name) => mod.totMod.find((m) => m.modulo === name)?.total || 0;
+        const medioDe = (name) => mod.filas.filter((f) => f.modulo === name).sort((a, b) => b.total - a.total);
+        return (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+              <h2 className="h2" style={{ margin: 0 }}>🧩 Ventas por módulo</h2>
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>corte salón mediodía/noche: {mod.corte}</span>
+              <span className="spacer" />
+              <button onClick={() => descargarCSV(`modulos_${desde}_a_${hasta}.csv`,
+                [['Día', ...nombres, 'Total'], ...dias.map((dia) => [dia, ...nombres.map((n) => val(dia, n)), nombres.reduce((a, n) => a + val(dia, n), 0)])])}>⬇ CSV</button>
+            </div>
+            <div className="kpis" style={{ marginBottom: 10 }}>
+              {nombres.map((n) => (
+                <div className="kpi" key={n}><div className="v">{money(totDe(n))}</div><div className="l">{n}</div></div>
+              ))}
+              <div className="kpi" style={{ borderColor: 'var(--green)' }}><div className="v">{money(mod.totalGeneral)}</div><div className="l">TOTAL</div></div>
+            </div>
+
+            {/* Desglose por forma de pago dentro de cada módulo */}
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10, marginBottom: 10 }}>
+              {nombres.map((n) => (
+                <div key={n} style={{ background: 'var(--panel2)', borderRadius: 6, padding: 8 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>{n}</div>
+                  {medioDe(n).map((f) => (
+                    <div key={f.medio} className="cart-item" style={{ fontSize: 13 }}>
+                      <span style={{ flex: 1 }}>{f.medio} ({f.n})</span><b>{money(f.total)}</b>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Por día */}
+            {dias.length > 1 && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', color: 'var(--muted)' }}>Día</th>
+                      {nombres.map((n) => <th key={n} style={{ textAlign: 'right', color: 'var(--muted)' }}>{n}</th>)}
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dias.map((dia) => (
+                      <tr key={dia}>
+                        <td>{dia}</td>
+                        {nombres.map((n) => <td key={n} style={{ textAlign: 'right' }}>{val(dia, n) ? money(val(dia, n)) : '—'}</td>)}
+                        <td style={{ textAlign: 'right', fontWeight: 700 }}>{money(nombres.reduce((a, n) => a + val(dia, n), 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {d && (
         <>

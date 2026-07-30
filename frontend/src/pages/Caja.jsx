@@ -231,21 +231,22 @@ export default function Caja() {
           {resumen.ventas.map((m) => (
             <div key={m.medio} className="cart-item"><span style={{ flex: 1 }}>{m.medio} ({m.n})</span><b>{money(m.total)}</b></div>
           ))}
-          <div className="total-row"><span>Total ventas ({resumen.tickets} tickets)</span><span>{money(resumen.totalVentas)}</span></div>
+          <div className="total-row"><span>Total ventas salón ({resumen.tickets} tickets)</span><span>{money(resumen.totalVentas)}</span></div>
           {resumen.descuentos > 0 && <div className="cart-item"><span style={{ flex: 1 }}>Descuentos otorgados</span><b>{money(resumen.descuentos)}</b></div>}
           {resumen.propinas > 0 && <div className="cart-item"><span style={{ flex: 1 }}>Propinas</span><b>{money(resumen.propinas)}</b></div>}
           {resumen.fiadoCobradoTotal > 0 && <div className="cart-item"><span style={{ flex: 1 }}>Cobros de fiado recibidos</span><b>{money(resumen.fiadoCobradoTotal)}</b></div>}
           {resumen.ventaFiado > 0 && <div className="cart-item" style={{ color: 'var(--orange)' }}><span style={{ flex: 1 }}>Fiado nuevo (a cobrar)</span><b>{money(resumen.ventaFiado)}</b></div>}
-
-          <h2 className="h2" style={{ marginTop: 12 }}>🧮 Arqueo de efectivo</h2>
-          <div className="cart-item"><span style={{ flex: 1 }}>Fondo inicial</span><b>{money(resumen.fondo)}</b></div>
-          <div className="cart-item"><span style={{ flex: 1 }}>Ventas en efectivo</span><b>{money(resumen.ventaEfectivo)}</b></div>
-          {resumen.domicilioEfectivo > 0 && (
-            <div className="cart-item" style={{ color: 'var(--orange)' }}>
-              <span style={{ flex: 1 }}>(−) Delivery a domicilio efvo. (lo tiene el cadete, caja aparte)</span>
-              <b>−{money(resumen.domicilioEfectivo)}</b>
+          {(resumen.aparteViandas > 0 || resumen.aparteDelivery > 0) && (
+            <div style={{ marginTop: 8, padding: 8, borderRadius: 6, background: 'var(--panel2)', fontSize: 13 }}>
+              <div style={{ color: 'var(--muted)', marginBottom: 4 }}>Otras cajas (aparte — no suman acá):</div>
+              {resumen.aparteViandas > 0 && <div className="cart-item"><span style={{ flex: 1 }}>🍱 Viandas</span><b>{money(resumen.aparteViandas)}</b></div>}
+              {resumen.aparteDelivery > 0 && <div className="cart-item"><span style={{ flex: 1 }}>🛵 Delivery</span><b>{money(resumen.aparteDelivery)}</b></div>}
             </div>
           )}
+
+          <h2 className="h2" style={{ marginTop: 12 }}>🧮 Arqueo de efectivo (salón)</h2>
+          <div className="cart-item"><span style={{ flex: 1 }}>Fondo inicial</span><b>{money(resumen.fondo)}</b></div>
+          <div className="cart-item"><span style={{ flex: 1 }}>Ventas en efectivo</span><b>{money(resumen.ventaEfectivo)}</b></div>
           {resumen.propinaRetiradaEfectivo > 0 && (
             <div className="cart-item" style={{ color: 'var(--orange)' }}>
               <span style={{ flex: 1 }}>(−) Propinas por tarjeta/transf. (el mozo retira ese efvo. del cajón)</span>

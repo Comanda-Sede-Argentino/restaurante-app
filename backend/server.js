@@ -1238,12 +1238,17 @@ function inicioPeriodoCaja() {
 
 function resumenCaja() {
   const desde = inicioPeriodoCaja();
+  // La caja es SOLO del salón (mediodía + noche, incl. cafetería/mostrador). Viandas y delivery
+  // se manejan como cajas APARTE (cada una con su propio cierre) y no suman acá.
+  const SALON = "o.tipo NOT IN ('vianda','delivery')";
   const ventas = db.prepare(
-    `SELECT medio, COALESCE(SUM(importe),0) total, COUNT(*) n
-     FROM pago WHERE fecha > ? GROUP BY medio ORDER BY total DESC`
+    `SELECT pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
+     FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+     WHERE pg.fecha > ? AND ${SALON} GROUP BY pg.medio ORDER BY total DESC`
   ).all(desde);
   const tot = db.prepare(
-    'SELECT COALESCE(SUM(importe),0) total, COUNT(DISTINCT pedido_id) tickets FROM pago WHERE fecha > ?'
+    `SELECT COALESCE(SUM(pg.importe),0) total, COUNT(DISTINCT pg.pedido_id) tickets
+     FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE pg.fecha > ? AND ${SALON}`
   ).get(desde);
   const cobrosFiado = db.prepare(
     `SELECT COALESCE(medio,'(s/d)') medio, COALESCE(SUM(importe),0) total, COUNT(*) n
@@ -1254,57 +1259,51 @@ function resumenCaja() {
   const fondo = sumMov('apertura');
   const egresos = sumMov('egreso');
   const ingresos = sumMov('ingreso');
-  const propinas = db.prepare("SELECT COALESCE(SUM(propina),0) t FROM pedido WHERE estado='cobrado' AND cerrado_en > ?").get(desde).t;
-  const descuentos = db.prepare("SELECT COALESCE(SUM(descuento),0) t FROM pedido WHERE estado='cobrado' AND cerrado_en > ?").get(desde).t;
+  const propinas = db.prepare(`SELECT COALESCE(SUM(o.propina),0) t FROM pedido o WHERE o.estado='cobrado' AND o.cerrado_en > ? AND ${SALON}`).get(desde).t;
+  const descuentos = db.prepare(`SELECT COALESCE(SUM(o.descuento),0) t FROM pedido o WHERE o.estado='cobrado' AND o.cerrado_en > ? AND ${SALON}`).get(desde).t;
   const sum = (arr, f = () => true) => arr.filter(f).reduce((a, m) => a + m.total, 0);
   const esEfectivo = (m) => /EFECTIVO/i.test(m.medio);
   const esFiado = (m) => /FIADO/i.test(m.medio);
   const ventaEfectivo = sum(ventas, esEfectivo);
   const ventaFiado = sum(ventas, esFiado);
   const fiadoCobradoEfectivo = sum(cobrosFiado, esEfectivo);
-  // Delivery A DOMICILIO (con envío): esa plata la maneja el cadete, es una CAJA APARTE.
-  // Se saca del efectivo esperado del salón (el cajón no la tiene).
-  const domicilioEfectivo = db.prepare(
-    `SELECT COALESCE(SUM(pg.importe),0) t FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
-     WHERE pg.fecha > ? AND UPPER(pg.medio) LIKE '%EFECTIVO%'
-       AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')`
-  ).get(desde).t;
-  const domicilioTotal = db.prepare(
-    `SELECT COALESCE(SUM(pg.importe),0) t FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
-     WHERE pg.fecha > ?
-       AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')`
-  ).get(desde).t;
-  const ventaEfectivoSalon = ventaEfectivo - domicilioEfectivo;
-  // Propina cobrada por TARJETA/TRANSFERENCIA: entra por el posnet, pero el mozo retira esa
-  // misma plata en EFECTIVO del cajón. Por eso al cerrar FALTA ese efectivo → hay que restarlo
-  // del esperado. (La propina en efectivo el mozo la saca antes de que entre al cajón, así que
-  // no toca la caja y cuadra sola: son los pedidos que NO tienen ningún pago en efectivo.)
+  // Propina cobrada por TARJETA/TRANSFERENCIA: entra por el posnet, pero el mozo retira esa misma
+  // plata en EFECTIVO del cajón → hay que restarla del esperado. (La de efectivo la saca antes de
+  // que entre al cajón, así que no toca la caja: son los pedidos SIN ningún pago en efectivo.)
   const propinaRetiradaEfectivo = db.prepare(
     `SELECT COALESCE(SUM(o.propina),0) t FROM pedido o
-     WHERE o.estado='cobrado' AND o.cerrado_en > ? AND o.propina > 0
+     WHERE o.estado='cobrado' AND o.cerrado_en > ? AND o.propina > 0 AND ${SALON}
        AND NOT EXISTS (SELECT 1 FROM pago pg WHERE pg.pedido_id=o.id AND UPPER(pg.medio) LIKE '%EFECTIVO%')`
   ).get(desde).t;
-  const esperado = fondo + ventaEfectivoSalon + fiadoCobradoEfectivo + ingresos - egresos - propinaRetiradaEfectivo;
+  const esperado = fondo + ventaEfectivo + fiadoCobradoEfectivo + ingresos - egresos - propinaRetiradaEfectivo;
+  // Informativo: lo que se vendió en las cajas APARTE (viandas y delivery). NO suma en el salón.
+  const aparte = db.prepare(
+    `SELECT o.tipo, COALESCE(SUM(pg.importe),0) total FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+     WHERE pg.fecha > ? AND o.tipo IN ('vianda','delivery') GROUP BY o.tipo`
+  ).all(desde);
+  const aparteViandas = (aparte.find((a) => a.tipo === 'vianda') || {}).total || 0;
+  const aparteDelivery = (aparte.find((a) => a.tipo === 'delivery') || {}).total || 0;
   return {
     desde, ventas, totalVentas: tot.total, tickets: tot.tickets,
-    ventaEfectivo, ventaEfectivoSalon, domicilioEfectivo, domicilioTotal,
+    ventaEfectivo, ventaEfectivoSalon: ventaEfectivo,
     ventaFiado, ventaOtros: tot.total - ventaEfectivo - ventaFiado,
     cobrosFiado, fiadoCobradoTotal: sum(cobrosFiado), fiadoCobradoEfectivo,
     fondo, egresos, ingresos, propinas, propinaRetiradaEfectivo, descuentos, movimientos,
+    aparteViandas, aparteDelivery,
     esperado, efectivoEnCaja: esperado,
   };
 }
 
 async function imprimirCierre(cierre, r) {
   const L = [];
-  L.push('Cierre #' + cierre.id);
+  L.push('Cierre #' + cierre.id + '  (SALON)');
   L.push('  desde ' + cierre.desde);
   L.push('  hasta ' + cierre.hasta);
   L.push('------------------------');
-  L.push('VENTAS POR MEDIO');
+  L.push('VENTAS POR MEDIO (salon)');
   for (const m of r.ventas) L.push(' ' + m.medio + ': ' + moneyTxt(m.total) + ' (' + m.n + ')');
   L.push('Tickets: ' + r.tickets);
-  L.push('TOTAL VENTAS: ' + moneyTxt(r.totalVentas));
+  L.push('TOTAL VENTAS (salon): ' + moneyTxt(r.totalVentas));
   if (r.descuentos > 0) L.push('Descuentos: ' + moneyTxt(r.descuentos));
   if (r.propinas > 0) L.push('Propinas: ' + moneyTxt(r.propinas));
   if (r.fiadoCobradoTotal > 0) {
@@ -1313,11 +1312,16 @@ async function imprimirCierre(cierre, r) {
     for (const m of r.cobrosFiado) L.push(' ' + m.medio + ': ' + moneyTxt(m.total));
   }
   if (r.ventaFiado > 0) L.push('Fiado nuevo (a cobrar): ' + moneyTxt(r.ventaFiado));
+  if (r.aparteViandas > 0 || r.aparteDelivery > 0) {
+    L.push('------------------------');
+    L.push('OTRAS CAJAS (aparte, no suman)');
+    if (r.aparteViandas > 0) L.push(' Viandas: ' + moneyTxt(r.aparteViandas));
+    if (r.aparteDelivery > 0) L.push(' Delivery: ' + moneyTxt(r.aparteDelivery));
+  }
   L.push('------------------------');
-  L.push('ARQUEO DE EFECTIVO');
+  L.push('ARQUEO DE EFECTIVO (salon)');
   L.push(' Fondo inicial: ' + moneyTxt(r.fondo));
   L.push(' Ventas efectivo: ' + moneyTxt(r.ventaEfectivo));
-  if (r.domicilioEfectivo > 0) L.push(' (-) Delivery domicilio (cadete): ' + moneyTxt(r.domicilioEfectivo));
   if (r.fiadoCobradoEfectivo > 0) L.push(' Fiado cobrado efvo: ' + moneyTxt(r.fiadoCobradoEfectivo));
   if (r.propinaRetiradaEfectivo > 0) L.push(' (-) Propinas tarjeta/transf (mozo retira efvo): ' + moneyTxt(r.propinaRetiradaEfectivo));
   if (r.ingresos > 0) L.push(' Ingresos: ' + moneyTxt(r.ingresos));

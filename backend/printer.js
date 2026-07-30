@@ -73,6 +73,8 @@ const defaultConfig = {
   caja: {
     // Avisar "cerrá la caja" si pasan más de estas horas con ventas sin cerrar (0 = sin aviso)
     avisarHoras: 8,
+    // Hora de corte para separar "Salón mediodía" de "Salón noche" en el reporte por módulo
+    corteNoche: '17:00',
   },
   facturador: {
     habilitado: false, // muestra el botón "Facturar" en Caja
