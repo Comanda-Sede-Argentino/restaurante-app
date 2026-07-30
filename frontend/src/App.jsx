@@ -22,6 +22,7 @@ import { UiHost, toast } from './ui.jsx';
 export default function App() {
   const [online, setOnline] = useState(socket.connected);
   const [caja, setCaja] = useState({ horas: null, umbral: 0 });
+  const [turnoMsg, setTurnoMsg] = useState(null);
   const [snoozeCaja, setSnoozeCaja] = useState(() => Number(localStorage.getItem('snoozeCaja') || 0));
   useEffect(() => {
     const on = () => setOnline(true);
@@ -30,7 +31,7 @@ export default function App() {
       toast('⚠ La comanda del pedido #' + (d.pedido_id ?? '?') +
             ' NO se imprimió. Revisá la COMANDERA y reimprimí desde Cocina.', 'error');
     const onTrancada = (d) => toast(`⚠ La impresora tiene ${d.count ?? ''} comanda(s) sin salir. Revisá el papel o si está encendida.`, 'error');
-    const onDash = (d) => setCaja({ horas: d?.horasSinCierre ?? null, umbral: d?.avisarCajaHoras ?? 0 });
+    const onDash = (d) => { setCaja({ horas: d?.horasSinCierre ?? null, umbral: d?.avisarCajaHoras ?? 0 }); setTurnoMsg(d?.turnoSinCerrar ?? null); };
     socket.on('connect', on);
     socket.on('disconnect', off);
     socket.on('impresion:error', onImpError);
@@ -73,7 +74,12 @@ export default function App() {
           ⚠ Sin conexión con el sistema — reconectando… Esperá a que vuelva antes de cobrar o mandar comandas.
         </div>
       )}
-      {online && avisarCaja && (
+      {online && turnoMsg && (
+        <div className="caja-banner" style={{ background: '#e5484d', color: '#fff' }}>
+          {turnoMsg} Cerralo en <b>Caja → Cerrar caja</b>.
+        </div>
+      )}
+      {online && !turnoMsg && avisarCaja && (
         <div className="caja-banner">
           🕒 Hace {Math.round(caja.horas)} h que no se cierra la caja. Conviene cerrar el turno en <b>Caja → Cerrar caja</b>.
           <button className="caja-banner-x" onClick={postergarCaja}>Recordar más tarde</button>

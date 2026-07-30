@@ -1983,6 +1983,7 @@ function dashboardData() {
   ).get(inicioPeriodoCaja());
   const horasSinCierre = sinCerrar.n > 0 ? Math.round(sinCerrar.horas * 10) / 10 : null;
   const avisarCajaHoras = Math.max(0, Math.round(Number((getConfig().caja || {}).avisarHoras) || 0));
+  const turnoSinCerrar = avisoTurnoSinCerrar();
   return {
     ventasHoy: ventas.total,
     tickets: ventas.tickets,
@@ -2000,9 +2001,30 @@ function dashboardData() {
     ventasMedio,
     horasSinCierre,
     avisarCajaHoras,
+    turnoSinCerrar,
     ts: new Date().toISOString(),
   };
 }
+
+// Detecta si la caja del SALÓN abierta mezcla dos turnos (mediodía y noche): si la primera venta
+// de salón sin cerrar es de un turno distinto al actual, hay un cierre pendiente del turno anterior.
+function avisoTurnoSinCerrar() {
+  const desde = inicioPeriodoCaja();
+  const corte = (getConfig().caja || {}).corteNoche || '17:00';
+  const first = db.prepare(
+    `SELECT MIN(pg.fecha) f FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+     WHERE pg.fecha > ? AND o.tipo NOT IN ('vianda','delivery')`
+  ).get(desde).f;
+  if (!first) return null; // no hay ventas de salón en el período abierto
+  const nowTs = db.prepare("SELECT datetime('now','localtime') t").get().t;
+  const turno = (ts) => ({ dia: ts.slice(0, 10), parte: (ts.slice(11, 16) < corte ? 'mediodia' : 'noche') });
+  const a = turno(first), b = turno(nowTs);
+  if (a.dia === b.dia && a.parte === b.parte) return null; // mismo turno, todo bien
+  return a.parte === 'mediodia'
+    ? '⚠ Tenés el mediodía sin cerrar — cerrá la caja antes de arrancar la noche.'
+    : '⚠ Tenés la noche sin cerrar — cerrá la caja antes de arrancar el mediodía.';
+}
+
 app.get('/api/dashboard', (req, res) => res.json(dashboardData()));
 
 // Estadísticas históricas (placeholder hasta migración Fase 0)
