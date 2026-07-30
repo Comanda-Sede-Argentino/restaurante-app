@@ -185,27 +185,29 @@ export function registrarReportes(app) {
     try { if (!corte) corte = (getConfig().caja || {}).corteNoche; } catch { /* nada */ }
     corte = corte || '17:00';
     const rango = [desde, hasta];
-    // Clasificación de cada pago en un módulo. El salón se parte por la hora de corte.
+    // Clasificación de cada venta en un módulo. Se usa la fecha/hora en que se TOMÓ el pedido
+    // (abierto_en), NO cuándo se cobró: así un delivery de anoche cobrado a la mañana igual cuenta
+    // en la noche que corresponde. El salón se parte por la hora de corte.
     // (Viandas ya incluye el delivery de la mañana; el delivery propio es solo el de la noche.)
     const MOD = `CASE
       WHEN o.tipo='vianda' THEN 'Viandas'
       WHEN o.tipo='delivery' THEN 'Delivery noche'
-      WHEN time(pg.fecha) < ? THEN 'Salón mediodía'
+      WHEN time(o.abierto_en) < ? THEN 'Salón mediodía'
       ELSE 'Salón noche' END`;
     const totMod = db.prepare(
       `SELECT ${MOD} modulo, COALESCE(SUM(pg.importe),0) total, COUNT(DISTINCT pg.pedido_id) tickets
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
-       WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY modulo ORDER BY total DESC`
+       WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY modulo ORDER BY total DESC`
     ).all(corte, ...rango);
     const filas = db.prepare(
       `SELECT ${MOD} modulo, pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
-       WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY modulo, pg.medio`
+       WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY modulo, pg.medio`
     ).all(corte, ...rango);
     const porDia = db.prepare(
-      `SELECT date(pg.fecha) dia, ${MOD} modulo, COALESCE(SUM(pg.importe),0) total
+      `SELECT date(o.abierto_en) dia, ${MOD} modulo, COALESCE(SUM(pg.importe),0) total
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
-       WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY dia, modulo ORDER BY dia`
+       WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY dia, modulo ORDER BY dia`
     ).all(corte, ...rango);
     const totalGeneral = totMod.reduce((a, m) => a + m.total, 0);
     res.json({ desde, hasta, corte, totMod, filas, porDia, totalGeneral });
