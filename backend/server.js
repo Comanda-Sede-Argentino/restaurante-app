@@ -1411,6 +1411,18 @@ function pareceVianda(texto, menus) {
   return false;
 }
 
+// ¿Estamos en el horario en que el bot de viandas debe interpretar? (config whatsapp.viandasDesde/Hasta)
+// Vacío = sin restricción. Fuera de esa franja, el bot NO gasta IA interpretando viandas.
+function enHorarioViandas(w) {
+  const desde = (w.viandasDesde || '').trim();
+  const hasta = (w.viandasHasta || '').trim();
+  if (!desde && !hasta) return true;
+  const now = db.prepare("SELECT strftime('%H:%M','now','localtime') t").get().t;
+  if (desde && now < desde) return false;
+  if (hasta && now > hasta) return false;
+  return true;
+}
+
 wa.setHandlers({
   emitEstado: (st) => io.emit('wa:estado', st),
   onMensaje: async ({ jid, telefono, nombre, texto }) => {
@@ -1427,7 +1439,7 @@ wa.setHandlers({
     // lo interpretamos con la IA y lo dejamos como PROPUESTA en la bandeja de viandas (NO se le
     // responde al cliente todavía: se le avisa recién cuando el local confirma). ---
     try {
-      if (w.viandasBot !== false) {
+      if (w.viandasBot !== false && enHorarioViandas(w)) {
         const fecha = fechaHoy();
         const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
         const claveIA = (cfg.telegram || {}).claveIA;

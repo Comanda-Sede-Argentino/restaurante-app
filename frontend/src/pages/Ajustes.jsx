@@ -332,6 +332,19 @@ export default function Ajustes() {
         <textarea value={wa.textoConsulta || ''} onChange={(e) => setWa('textoConsulta', e.target.value)}
           rows={3} style={{ width: '100%' }} />
 
+        <h2 className="h2" style={{ marginTop: 12 }}>🍱 Bot de viandas — horario</h2>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
+          El bot solo interpreta pedidos de vianda dentro de esta franja (fuera de ella no gasta IA). Dejalos vacíos para sin límite.
+        </p>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ color: 'var(--muted)', fontSize: 13 }}>Desde
+            <input type="time" value={wa.viandasDesde || ''} onChange={(e) => setWa('viandasDesde', e.target.value)} style={{ display: 'block', marginTop: 4 }} />
+          </label>
+          <label style={{ color: 'var(--muted)', fontSize: 13 }}>Hasta
+            <input type="time" value={wa.viandasHasta || ''} onChange={(e) => setWa('viandasHasta', e.target.value)} style={{ display: 'block', marginTop: 4 }} />
+          </label>
+        </div>
+
         <h2 className="h2" style={{ marginTop: 12 }}>🍱 Mensaje de confirmación de VIANDA <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13 }}>(se le manda al cliente cuando confirmás su pedido)</span></h2>
         <textarea value={wa.textoViandaOK || ''} onChange={(e) => setWa('textoViandaOK', e.target.value)}
           rows={2} style={{ width: '100%' }} placeholder="¡Anotado! 🍱 {detalle}. Total {total}. ¡Gracias! 🙌" />

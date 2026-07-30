@@ -47,6 +47,10 @@ const defaultConfig = {
       '¡Hola! 👋 Gracias por escribir a Sede Social. En breve te respondemos. 🙌',
     // Confirmación de vianda (se le manda al cliente al confirmar su pedido). Usa {detalle} y {total}.
     textoViandaOK: '¡Anotado! 🍱 {detalle}. Total {total}. ¡Gracias! 🙌',
+    // Franja horaria en la que el bot interpreta pedidos de vianda (vacío = sin límite).
+    // Fuera de esta franja NO gasta IA. Ej: solo a la mañana/mediodía.
+    viandasDesde: '10:00',
+    viandasHasta: '13:30',
   },
   telegram: {
     habilitado: false,
