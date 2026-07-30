@@ -100,7 +100,7 @@ export default function App() {
           <Route path="/caja" element={<PinGate area="la Caja"><Caja /></PinGate>} />
           <Route path="/cuentas" element={<PinGate area="las Cuentas corrientes"><Cuentas /></PinGate>} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/reportes" element={<PinGate area="los Reportes"><Reportes /></PinGate>} />
+          <Route path="/reportes" element={<PinGate area="los Reportes" clave="soloyo25" store="pin_reportes"><Reportes /></PinGate>} />
           <Route path="/stock" element={<PinGate area="el Stock"><Stock /></PinGate>} />
           <Route path="/admin" element={<PinGate area="el Catálogo"><Admin /></PinGate>} />
           <Route path="/ajustes" element={<PinGate area="Ajustes"><Ajustes /></PinGate>} />
