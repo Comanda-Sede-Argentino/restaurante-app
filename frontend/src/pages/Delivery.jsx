@@ -5,6 +5,13 @@ import { toast, confirmar, preguntar } from '../ui.jsx';
 
 const MEDIOS = ['EFECTIVO', 'TARJETA DÉBITO', 'TARJETA CRÉDITO', 'QR / TRANSFERENCIA', 'FIADO (cuenta corriente)'];
 const esFiadoMedio = (m) => /FIADO/i.test(m);
+// Botones rápidos de forma de pago en la lista (para cobrar sin abrir el detalle)
+const MEDIOS_RAPIDOS = [
+  { k: 'EFECTIVO', label: '💵 Efvo', cls: 'btn-green' },
+  { k: 'QR / TRANSFERENCIA', label: '📱 Transf', cls: 'btn-blue' },
+  { k: 'TARJETA DÉBITO', label: '💳 Déb', cls: 'btn-blue' },
+  { k: 'TARJETA CRÉDITO', label: '💳 Créd', cls: 'btn-blue' },
+];
 
 export default function Delivery() {
   const [pedido, setPedido] = useState(null);
@@ -16,6 +23,7 @@ export default function Delivery() {
   const [cuentas, setCuentas] = useState([]);
   const [cuentaId, setCuentaId] = useState('');
   const [detalleFiado, setDetalleFiado] = useState('');
+  const [cobrarId, setCobrarId] = useState(null); // pedido de la lista eligiendo forma de pago
 
   const cargarActivos = () =>
     api.deliveryPendientes().then(setActivos); // delivery que falta cobrar O entregar
@@ -119,14 +127,13 @@ export default function Delivery() {
     catch (e) { toast('No se pudo: ' + e.message, 'error'); }
   };
 
-  // Cobro rápido en EFECTIVO desde la lista (1 toque). Para tarjeta/transferencia/fiado, abrir el pedido.
-  const cobrarRapido = async (e, p) => {
-    if (e) e.stopPropagation();
-    if (!(await confirmar(`¿Cobrar ${money(p.total)} de ${p.cliente_nombre || 'delivery'} en EFECTIVO?`, { ok: 'Cobrar efectivo' }))) return;
+  // Cobro desde la lista eligiendo la forma de pago (1 toque). Para fiado se abre el detalle (cuenta).
+  const cobrarConMedio = async (p, medio) => {
+    if (!(await confirmar(`¿Cobrar ${money(p.total)} de ${p.cliente_nombre || 'delivery'} en ${medio}?`, { ok: 'Cobrar' }))) return;
     try {
-      await api.pagar(p.id, [{ medio: 'EFECTIVO', importe: p.total }], {});
-      cargarActivos(); cargarCuentas();
-      toast('✅ Cobrado en efectivo.');
+      await api.pagar(p.id, [{ medio, importe: p.total }], {});
+      setCobrarId(null); cargarActivos(); cargarCuentas();
+      toast('✅ Cobrado.');
     } catch (err) {
       toast(err.message.includes('409') ? 'Ese pedido ya estaba cobrado.' : 'No se pudo cobrar: ' + err.message, 'error');
       cargarActivos();
@@ -273,8 +280,7 @@ export default function Delivery() {
         <div>
           <h2 className="h2">Pedidos de delivery activos</h2>
           <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0 }}>
-            Cuando el cadete vuelve con la plata, tocá <b>💵 Cobrar</b> (efectivo). Para tarjeta/transferencia/fiado, tocá la tarjeta y abrí el detalle.
-            Un pedido se va de acá recién cuando está <b>pagado Y entregado</b>.
+            Tocá <b>💵 Cobrar</b> y elegí la <b>forma de pago</b> (efectivo, transferencia, tarjeta o fiado). Un pedido se va de acá recién cuando está <b>pagado Y entregado</b>.
           </p>
           {(() => {
             const sinCobrar = activos.filter((p) => p.estado !== 'cobrado');
@@ -310,13 +316,23 @@ export default function Delivery() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: pagado ? 'var(--green)' : 'var(--orange)' }}>{pagado ? '✅ Pagado' : '🕒 A cobrar'}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: entregado ? 'var(--green)' : 'var(--muted)' }}>{entregado ? '📦 Entregado' : '🛵 Sin entregar'}</span>
                   <span className="spacer" />
-                  {!pagado && (
-                    <button className="btn-green" style={{ padding: '6px 10px' }} onClick={(e) => cobrarRapido(e, p)}>💵 Cobrar</button>
+                  {!pagado && cobrarId !== p.id && (
+                    <button className="btn-green" style={{ padding: '6px 10px' }} onClick={(e) => { e.stopPropagation(); setCobrarId(p.id); }}>💵 Cobrar</button>
                   )}
                   {!entregado && (
                     <button style={{ padding: '6px 10px' }} onClick={(e) => marcarEntregado(e, p.id)}>📦 Entregado</button>
                   )}
                 </div>
+                {!pagado && cobrarId === p.id && (
+                  <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, borderTop: '1px solid var(--panel2)', paddingTop: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>¿Cómo paga?</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {MEDIOS_RAPIDOS.map((m) => <button key={m.k} className={m.cls} style={{ padding: '6px 10px' }} onClick={() => cobrarConMedio(p, m.k)}>{m.label}</button>)}
+                      <button className="btn-blue" style={{ padding: '6px 10px' }} onClick={() => { setCobrarId(null); setMedio('FIADO (cuenta corriente)'); abrir(p.id); }}>📒 Fiado</button>
+                      <button style={{ padding: '6px 10px' }} onClick={() => setCobrarId(null)}>✕</button>
+                    </div>
+                  </div>
+                )}
               </div>
               );
             })}

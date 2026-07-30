@@ -295,46 +295,51 @@ app.post('/api/delivery/cobrar-entregados', (req, res) => {
   res.json({ ok: true, n: rows.length, total });
 });
 
-// Imprime el CIERRE DE DELIVERY del turno: pedidos de delivery cobrados desde el último cierre de caja,
-// con el total y cuánto es en efectivo (lo que el cadete tiene que entregar).
+// Imprime el CIERRE DE DELIVERY del turno: TODO el delivery cobrado desde el último cierre de caja
+// (domicilios Y retiros), con el desglose, el total y cuánto es en efectivo.
 app.post('/api/delivery/cierre-imprimir', async (req, res) => {
   const desde = inicioPeriodoCaja();
-  // Solo A DOMICILIO (con envío) — los retiros van en la caja del salón, no acá.
-  const dom = "AND EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')";
+  const base = "o.tipo='delivery' AND o.estado='cobrado' AND o.cerrado_en > ?";
+  const DOM = "EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')";
   const pedidos = db.prepare(
-    `SELECT o.cliente_nombre, o.total, o.cerrado_en FROM pedido o
-     WHERE o.tipo='delivery' AND o.estado='cobrado' AND o.cerrado_en > ? ${dom} ORDER BY o.cerrado_en ASC`
+    `SELECT o.cliente_nombre, o.total, o.cerrado_en, (${DOM}) domicilio FROM pedido o WHERE ${base} ORDER BY o.cerrado_en ASC`
   ).all(desde);
   const medios = db.prepare(
     `SELECT pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
-     FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
-     WHERE o.tipo='delivery' AND o.estado='cobrado' AND o.cerrado_en > ? ${dom}
-     GROUP BY pg.medio ORDER BY total DESC`
+     FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE ${base} GROUP BY pg.medio ORDER BY total DESC`
   ).all(desde);
   const totalVendido = pedidos.reduce((a, p) => a + Math.round(p.total || 0), 0);
   const efectivo = medios.filter((m) => /EFECTIVO/i.test(m.medio)).reduce((a, m) => a + m.total, 0);
+  const domic = pedidos.filter((p) => p.domicilio);
+  const retiros = pedidos.filter((p) => !p.domicilio);
+  const domTotal = domic.reduce((a, p) => a + Math.round(p.total || 0), 0);
+  const retTotal = retiros.reduce((a, p) => a + Math.round(p.total || 0), 0);
   const fecha = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const L = [];
-  L.push('(Solo pedidos a domicilio - caja del cadete)');
   L.push('Emitido: ' + fecha);
+  L.push('(D = a domicilio · R = retira)');
   L.push('----------------------------------------');
-  if (!pedidos.length) L.push('Sin domicilios cobrados en el turno.');
+  if (!pedidos.length) L.push('Sin delivery cobrado en el turno.');
   for (const p of pedidos) {
     const h = (p.cerrado_en || '').slice(11, 16);
-    const nom = (p.cliente_nombre || 'Cliente').slice(0, 16);
-    L.push(h + ' ' + nom + '  ' + moneyTxt(p.total));
+    const nom = (p.cliente_nombre || 'Cliente').slice(0, 14);
+    L.push(h + ' ' + (p.domicilio ? 'D' : 'R') + ' ' + nom + '  ' + moneyTxt(p.total));
   }
   L.push('----------------------------------------');
-  L.push('Pedidos: ' + pedidos.length);
+  L.push('Pedidos: ' + pedidos.length + '  (D:' + domic.length + '  R:' + retiros.length + ')');
+  if (domTotal > 0) L.push(' A domicilio: ' + moneyTxt(domTotal));
+  if (retTotal > 0) L.push(' Retiros: ' + moneyTxt(retTotal));
+  L.push('----------------------------------------');
+  L.push('Por medio de pago:');
   for (const m of medios) L.push('  ' + m.medio + ': ' + moneyTxt(m.total) + ' (' + m.n + ')');
   L.push('----------------------------------------');
-  L.push('TOTAL A DOMICILIO: ' + moneyTxt(totalVendido));
-  L.push('EN EFECTIVO (entrega cadete): ' + moneyTxt(efectivo));
+  L.push('TOTAL DELIVERY: ' + moneyTxt(totalVendido));
+  L.push('EN EFECTIVO: ' + moneyTxt(efectivo));
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let r;
-  try { r = await imprimirTextoPlano('CIERRE DELIVERY DOMICILIO', L, impresora); }
+  try { r = await imprimirTextoPlano('CIERRE DE DELIVERY', L, impresora); }
   catch (e) { r = { ok: false, error: e.message }; }
-  res.json({ ok: true, resultado: r, totalVendido, efectivo, n: pedidos.length });
+  res.json({ ok: true, resultado: r, totalVendido, efectivo, n: pedidos.length, domicilios: domic.length, retiros: retiros.length });
 });
 
 // El facturador AFIP avisa que este pedido fue facturado (guarda la referencia para Caja/Reportes)
