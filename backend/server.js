@@ -938,14 +938,20 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
     "SELECT COUNT(*) c FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado<>'anulado'"
   ).get(fecha).c;
   const totalViandas = porMenu.reduce((a, m) => a + m.cantidad, 0);
-  const hora = db.prepare("SELECT time('now','localtime') t").get().t;
-  const L = ['  Actualizado: ' + hora, '  (TOTAL del dia - reemplaza al anterior)', ''];
-  porMenu.forEach((m, i) => L.push('  ' + String(m.cantidad).padStart(3) + ' x  Menu ' + (i + 1) + ': ' + m.nombre));
+  const hora = db.prepare("SELECT time('now','localtime') t").get().t.slice(0, 5);
+  // Las cantidades por menú y el total van en LETRA GRANDE para leerlas de un pantallazo.
+  const L = ['Actualizado: ' + hora + '  (TOTAL del dia)', ''];
+  porMenu.forEach((m, i) => {
+    L.push({ t: ' ' + String(m.cantidad).padStart(2) + '  Menu ' + (i + 1), big: true });
+    L.push('     (' + m.nombre + ')');
+  });
   if (cartaItems.length) {
-    L.push('', '  --- De la carta ---');
-    cartaItems.forEach((c) => L.push('  ' + String(c.cantidad).padStart(3) + ' x  ' + c.nombre));
+    L.push('', ' --- De la carta ---');
+    cartaItems.forEach((c) => L.push({ t: ' ' + String(c.cantidad).padStart(2) + '  ' + c.nombre.slice(0, 14), big: true }));
   }
-  L.push('', '  Viandas: ' + totalViandas + '    Pedidos: ' + totalPedidos);
+  L.push('');
+  L.push({ t: ' TOTAL: ' + totalViandas, big: true });
+  L.push(' Pedidos: ' + totalPedidos);
   const resultado = await imprimirTextoPlano('COCINA - VIANDAS ' + fecha, L);
   res.json({ resultado, porMenu, cartaItems, totalViandas, totalPedidos });
 });

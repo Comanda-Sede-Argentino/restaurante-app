@@ -452,18 +452,32 @@ export async function imprimirBebidas(pedido, bebidas) {
   return { ok, modo: ok ? 'impreso' : 'error-impresion', impresora, archivo };
 }
 
-// Imprime texto libre (ej. arqueo / cierre de caja). Título centrado y líneas tal cual.
+// Imprime texto libre (ej. arqueo / cierre de caja, resumen de cocina). Título centrado y líneas tal cual.
+// Cada línea puede ser un string (tamaño normal) o un objeto { t: 'texto', big: true } para imprimirla
+// GRANDE (doble alto y ancho) en las impresoras térmicas — útil para leer de un pantallazo en la cocina.
 export async function imprimirTextoPlano(titulo, lineas, impresoraOverride) {
   const { impresion } = getConfig();
   const w = impresion.anchoColumnas || 42;
-  const cuerpo = [linea(w), centrar(titulo, w), linea(w), ...lineas, linea(w)].join('\r\n');
+  // Normalizar: string -> { t, big:false }
+  const norm = (lineas || []).map((l) => (l && typeof l === 'object') ? { t: String(l.t ?? ''), big: !!l.big } : { t: String(l), big: false });
+  const head = [linea(w), centrar(titulo, w), linea(w)];
+  const foot = [linea(w)];
+  // Versión en texto plano (para el respaldo en archivo y para el modo GDI)
+  const cuerpo = [...head, ...norm.map((l) => l.t), ...foot].join('\r\n');
   const archivo = path.join(OUT_DIR, `cierre_${Date.now()}.txt`);
   try { fs.writeFileSync(archivo, cuerpo, 'latin1'); } catch (e) { console.error('respaldo cierre:', e.message); }
   if (!impresion.habilitada) return { ok: true, modo: 'archivo', archivo };
 
-  // ESC/POS: init + texto + avance + corte
+  // ESC/POS: init + texto (con tamaño por línea) + avance + corte
+  const GRANDE = [GS, 0x21, 0x11], NORMAL = [GS, 0x21, 0x00]; // GS ! : doble alto+ancho / normal
   const b = [ESC, 0x40];
-  for (const c of Buffer.from(sinAcentos(cuerpo) + '\n', 'latin1')) b.push(c);
+  const push = (s) => { for (const c of Buffer.from(sinAcentos(s), 'latin1')) b.push(c); };
+  for (const s of head) { push(s); b.push(0x0a); }
+  for (const l of norm) {
+    if (l.big) { b.push(...GRANDE); push(l.t); b.push(0x0a); b.push(...NORMAL); }
+    else { push(l.t); b.push(0x0a); }
+  }
+  for (const s of foot) { push(s); b.push(0x0a); }
   b.push(0x0a, 0x0a, 0x0a, GS, 0x56, 66, 0);
   const bytes = Buffer.from(b);
 
