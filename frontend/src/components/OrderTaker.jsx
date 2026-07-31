@@ -17,6 +17,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
   });
   const [obsItem, setObsItem] = useState({});
   const [varios, setVarios] = useState(null);      // formulario de pedido especial (VARIOS / fuera de carta)
+  const [mitad, setMitad] = useState(null);        // formulario de pizza mitad y mitad { a, b }
   const [guarnItem, setGuarnItem] = useState({}); // plato_id -> [guarnición por unidad]
   const [salsaItem, setSalsaItem] = useState({}); // plato_id -> [salsa por unidad] (pastas)
   const [puntoItem, setPuntoItem] = useState({}); // plato_id -> [punto de cocción por unidad]
@@ -50,6 +51,9 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const puntoDe = useMemo(() => {
     const m = {}; for (const p of todos) m[p.id] = p.punto; return m;
   }, [todos]);
+  // Pizzas (categoría marcada como pizza): para el botón de "media y media"
+  const pizzas = useMemo(() => todos.filter((p) => p.cat_pizza && p.activo !== 0), [todos]);
+  const cortoPizza = (nom) => (nom || '').replace(/^\s*pizza\s+/i, '').trim();
   const setUnidad = (setter) => (id, unidad, v) => setter((o) => {
     const arr = (o[id] || []).slice();
     arr[unidad] = arr[unidad] === v ? '' : v;
@@ -100,6 +104,19 @@ export default function OrderTaker({ pedido, onEnviado }) {
     const id = -Date.now(); // id negativo único: solo identifica la línea en el carrito (va como fuera de carta)
     setCart((c) => [...c, { plato_id: id, libre: true, nombre, precio_unit: precio, cantidad: 1 }]);
     setVarios(null);
+    setCartOpen(true);
+  };
+
+  // Pizza mitad y mitad: elegís dos variedades -> una sola pizza con las 2 mitades. Cobra la más cara.
+  const agregarMitad = () => {
+    const a = pizzas.find((p) => p.id === Number(mitad?.a));
+    const b = pizzas.find((p) => p.id === Number(mitad?.b));
+    if (!a || !b) { toast('Elegí las dos mitades de la pizza.', 'error'); return; }
+    const nombre = 'Pizza 1/2 ' + cortoPizza(a.nombre) + ' + 1/2 ' + cortoPizza(b.nombre);
+    const precio = Math.max(a.precio, b.precio);
+    const id = -Date.now();
+    setCart((c) => [...c, { plato_id: id, libre: true, nombre, precio_unit: precio, cantidad: 1 }]);
+    setMitad(null);
     setCartOpen(true);
   };
 
@@ -164,11 +181,38 @@ export default function OrderTaker({ pedido, onEnviado }) {
             </>
           )}
           <span className="spacer" />
+          {pizzas.length > 0 && (
+            <button style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }} title="Pizza mitad y mitad"
+              onClick={() => setMitad(mitad ? null : { a: '', b: '' })}>
+              🍕 ½ y ½
+            </button>
+          )}
           <button style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }} title="Pedido especial fuera de carta"
             onClick={() => setVarios(varios ? null : { nombre: '', precio: '' })}>
             ➕ Varios
           </button>
         </div>
+        {mitad && (
+          <div className="card" style={{ marginBottom: 8, borderColor: 'var(--accent)' }}>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>
+              🍕 <b>Pizza mitad y mitad</b> — elegí las dos variedades. Se cobra la más cara.
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+              <select value={mitad.a} onChange={(e) => setMitad((m) => ({ ...m, a: e.target.value }))} style={{ flex: 1, minWidth: 150 }}>
+                <option value="">— primera mitad —</option>
+                {pizzas.map((p) => <option key={p.id} value={p.id}>{cortoPizza(p.nombre)} ({money(p.precio)})</option>)}
+              </select>
+              <select value={mitad.b} onChange={(e) => setMitad((m) => ({ ...m, b: e.target.value }))} style={{ flex: 1, minWidth: 150 }}>
+                <option value="">— segunda mitad —</option>
+                {pizzas.map((p) => <option key={p.id} value={p.id}>{cortoPizza(p.nombre)} ({money(p.precio)})</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn-green" onClick={agregarMitad}>Agregar</button>
+              <button onClick={() => setMitad(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
         {varios && (
           <div className="card" style={{ marginBottom: 8, borderColor: 'var(--accent)' }}>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>

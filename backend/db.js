@@ -209,6 +209,8 @@ addCol("ALTER TABLE categoria ADD COLUMN en_comanda INTEGER DEFAULT 1");
 addCol("ALTER TABLE categoria ADD COLUMN salsa INTEGER DEFAULT 0");
 // Categorías de CAFETERÍA (café, medialunas, criollos...): aparecen como botones en el módulo Cafetería
 addCol("ALTER TABLE categoria ADD COLUMN cafeteria INTEGER DEFAULT 0");
+// Categorías de PIZZA: sus platos se pueden combinar como "media y media" desde el tomador de pedidos
+addCol("ALTER TABLE categoria ADD COLUMN pizza INTEGER DEFAULT 0");
 // Control de stock: marca si ya se devolvió el stock de un ítem anulado (evita doble devolución)
 addCol("ALTER TABLE pedido_item ADD COLUMN stock_devuelto INTEGER DEFAULT 0");
 // Caja: descuento y propina por pedido

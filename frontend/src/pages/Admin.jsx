@@ -28,6 +28,7 @@ export default function Admin() {
   const [verComanda, setVerComanda] = useState(false);
   const [verSalsa, setVerSalsa] = useState(false);
   const [verCafe, setVerCafe] = useState(false);
+  const [verPizza, setVerPizza] = useState(false);
 
   // Abrir edición cargando la receta completa (insumos que descuenta del stock)
   const abrirEdit = async (p) => {
@@ -99,6 +100,16 @@ export default function Admin() {
     }
   };
 
+  const togglePizza = async (c) => {
+    const nuevo = c.pizza ? 0 : 1;
+    setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, pizza: nuevo } : x)));
+    try {
+      await api.editarCategoria(c.id, { pizza: nuevo });
+    } catch (e) {
+      setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, pizza: c.pizza } : x)));
+      toast('No se pudo guardar. Revisá que esta PC tenga la última actualización.', 'error');
+    }
+  };
   const toggleCafeteria = async (c) => {
     const nuevo = c.cafeteria ? 0 : 1;
     setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, cafeteria: nuevo } : x)));
@@ -279,6 +290,30 @@ export default function Admin() {
               {cats.map((c) => (
                 <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                   <input type="checkbox" checked={!!c.cafeteria} onChange={() => toggleCafeteria(c)} />
+                  {c.nombre}
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h2 className="h2" style={{ margin: 0 }}>🍕 Categorías de pizza (media y media)</h2>
+          <span className="spacer" />
+          <button onClick={() => setVerPizza((v) => !v)}>{verPizza ? 'Ocultar' : 'Configurar'}</button>
+        </div>
+        {verPizza && (
+          <>
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>
+              Marcá la categoría de las <b>pizzas</b>. Cargá cada variedad como un producto (Muzzarella, Napolitana, Ananá...).
+              Con esto, en el tomador de pedidos aparece el botón <b>🍕 ½ y ½</b> para combinar dos mitades.
+            </p>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 6 }}>
+              {cats.map((c) => (
+                <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                  <input type="checkbox" checked={!!c.pizza} onChange={() => togglePizza(c)} />
                   {c.nombre}
                 </label>
               ))}

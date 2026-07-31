@@ -67,7 +67,7 @@ app.get('/api/categorias', (req, res) =>
 app.get('/api/platos', (req, res) => {
   const { categoria, q, todos } = req.query;
   let sql = `SELECT p.*, c.nombre categoria, COALESCE(c.guarnicion,0) cat_guarnicion,
-                    COALESCE(c.salsa,0) cat_salsa, COALESCE(c.cafeteria,0) cat_cafeteria, COALESCE(c.en_comanda,1) cat_en_comanda, s.nombre sector
+                    COALESCE(c.salsa,0) cat_salsa, COALESCE(c.cafeteria,0) cat_cafeteria, COALESCE(c.pizza,0) cat_pizza, COALESCE(c.en_comanda,1) cat_en_comanda, s.nombre sector
              FROM plato p
              LEFT JOIN categoria c ON c.id=p.categoria_id
              LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE 1=1`;
@@ -119,7 +119,7 @@ app.get('/api/platos/frecuentes', (req, res) => {
   const n = Math.min(60, Math.max(1, Number(req.query.n) || 30));
   res.json(db.prepare(
     `SELECT p.*, c.nombre categoria, COALESCE(c.guarnicion,0) cat_guarnicion,
-            COALESCE(c.salsa,0) cat_salsa, COALESCE(c.en_comanda,1) cat_en_comanda, s.nombre sector,
+            COALESCE(c.salsa,0) cat_salsa, COALESCE(c.pizza,0) cat_pizza, COALESCE(c.en_comanda,1) cat_en_comanda, s.nombre sector,
             COALESCE(SUM(CASE WHEN i.estado<>'anulado' THEN i.cantidad ELSE 0 END),0) vendidos
      FROM plato p
      LEFT JOIN categoria c ON c.id=p.categoria_id
@@ -147,15 +147,16 @@ app.post('/api/categorias', (req, res) => {
 });
 
 app.put('/api/categorias/:id', (req, res) => {
-  const { nombre, orden, guarnicion, en_comanda, salsa, cafeteria } = req.body;
+  const { nombre, orden, guarnicion, en_comanda, salsa, cafeteria, pizza } = req.body;
   db.prepare(
     `UPDATE categoria SET nombre=COALESCE(?,nombre), orden=COALESCE(?,orden),
-       guarnicion=COALESCE(?,guarnicion), en_comanda=COALESCE(?,en_comanda), salsa=COALESCE(?,salsa), cafeteria=COALESCE(?,cafeteria) WHERE id=?`
+       guarnicion=COALESCE(?,guarnicion), en_comanda=COALESCE(?,en_comanda), salsa=COALESCE(?,salsa), cafeteria=COALESCE(?,cafeteria), pizza=COALESCE(?,pizza) WHERE id=?`
   ).run(nombre ?? null, orden ?? null,
         guarnicion == null ? null : (guarnicion ? 1 : 0),
         en_comanda == null ? null : (en_comanda ? 1 : 0),
         salsa == null ? null : (salsa ? 1 : 0),
         cafeteria == null ? null : (cafeteria ? 1 : 0),
+        pizza == null ? null : (pizza ? 1 : 0),
         req.params.id);
   res.json(db.prepare('SELECT * FROM categoria WHERE id=?').get(req.params.id));
 });
