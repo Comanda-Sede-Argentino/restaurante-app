@@ -2143,6 +2143,8 @@ const HERR_ASISTENTE = [
     input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
   { name: 'deudas_fiado', description: 'Cuentas corrientes (empresas/personas) que deben plata, con su saldo.',
     input_schema: { type: 'object', properties: {} } },
+  { name: 'consultar_datos', description: 'Ejecuta una consulta SQL de SOLO LECTURA (SELECT/WITH) sobre la base, para responder CUALQUIER pregunta que las otras herramientas no cubran (promedios, filtros combinados, fiados por módulo/fecha, cafés, etc.). Devuelve las filas. Escribí SQLite válido usando el ESQUEMA del prompt e incluí un LIMIT.',
+    input_schema: { type: 'object', properties: { sql: { type: 'string', description: 'Una única sentencia SELECT (o WITH ... SELECT), SQLite. Ej: SELECT ... FROM pago WHERE ... LIMIT 100' } }, required: ['sql'] } },
 ];
 
 function ejecutarHerramientaAsistente(name, input = {}) {
@@ -2221,6 +2223,18 @@ function ejecutarHerramientaAsistente(name, input = {}) {
     ).all();
     return { deudores, totalPorCobrar: deudores.reduce((a, x) => a + x.saldo, 0) };
   }
+  if (name === 'consultar_datos') {
+    const sql = String(input.sql || '').trim();
+    if (!/^\s*(select|with)\b/i.test(sql)) return { error: 'Solo se permiten consultas SELECT o WITH.' };
+    if (/;\s*\S/.test(sql)) return { error: 'Escribí una sola sentencia (sin ";" en el medio).' };
+    if (/\b(insert|update|delete|drop|alter|create|replace|attach|detach|reindex|vacuum|pragma)\b/i.test(sql)) return { error: 'Consulta no permitida (solo lectura).' };
+    try {
+      const stmt = db.prepare(sql);
+      if (!stmt.reader) return { error: 'La consulta no devuelve datos.' };
+      const rows = stmt.all();
+      return { filas: rows.slice(0, 200), total_filas: rows.length };
+    } catch (e) { return { error: 'Error en la consulta: ' + e.message }; }
+  }
   return { error: 'herramienta desconocida' };
 }
 
@@ -2231,14 +2245,25 @@ app.post('/api/asistente', async (req, res) => {
   if (!claveIA) return res.status(400).json({ error: 'Falta la clave de IA (Ajustes → Telegram)' });
   const hoy = db.prepare("SELECT date('now','localtime') d").get().d;
   const system = `Sos el asistente de reportes de un restaurante argentino ("Sede Social"). Respondés preguntas del DUEÑO sobre sus ventas.
-HOY es ${hoy} (formato YYYY-MM-DD). Interpretá "hoy", "ayer", "esta semana" (últimos 7 días), "este mes", etc., y pasá las fechas a las herramientas.
+HOY es ${hoy} (formato YYYY-MM-DD). Interpretá "hoy", "ayer", "esta semana" (últimos 7 días), "este mes", etc.
 SIEMPRE usá las herramientas para traer datos reales ANTES de responder; nunca inventes números.
-Respondé CORTO y CLARO, en español rioplatense, con los números concretos (montos en pesos con separador de miles, ej. $12.500).
-IMPORTANTE — FORMATO: respondé en TEXTO PLANO simple, SIN markdown. NO uses tablas, NI asteriscos para negrita (**), NI almohadillas (#). Para listar, usá guiones (-) o saltos de línea. Podés usar emojis con moderación.
-Si la pregunta no es sobre las ventas o los datos del negocio, decilo amablemente. Si no hay datos en el período, aclaralo.`;
+Para preguntas comunes usá las herramientas específicas. Para CUALQUIER otra cosa que no cubran (promedios por día, filtros combinados, fiados por módulo/fecha, cafés, comparaciones, etc.) usá "consultar_datos" con una consulta SQL de SOLO LECTURA sobre este ESQUEMA (SQLite):
+
+- pedido(id, tipo, estado, abierto_en, cerrado_en, total, propina, descuento, mozo_nombre, cliente_nombre, cliente_telefono, entrega, fijo_id). tipo ∈ 'salon','mostrador','cafeteria','delivery','vianda'. Una VENTA es estado='cobrado'. abierto_en = cuándo se tomó, cerrado_en = cuándo se cobró.
+- pedido_item(id, pedido_id, plato_id, menu_dia_id, nombre, cantidad, precio_unit, observacion, estado). Ítem vendido: estado<>'anulado' y el pedido cobrado.
+- pago(id, pedido_id, medio, importe, fecha). fecha = cuándo se cobró. medio: 'EFECTIVO','QR / TRANSFERENCIA','TARJETA DÉBITO','TARJETA CRÉDITO','FIADO'.
+- plato(id, nombre, categoria_id, precio); categoria(id, nombre, cafeteria). Los CAFÉS/cafetería son platos cuya categoría tiene cafeteria=1.
+- cuenta(id, nombre, activo); cuenta_mov(id, cuenta_id, tipo, importe, pedido_id, medio, fecha). tipo='cargo' = fiado nuevo (deuda), tipo='pago' = pagó su cuenta. El pedido_id te permite unir el cargo al pedido (y ver su tipo/módulo).
+- menu_dia(id, fecha, opcion, nombre, precio); un ítem de vianda tiene menu_dia_id no nulo.
+- Fechas locales: usá date(columna), time(columna), strftime('%H',columna), strftime('%w',columna) (0=Dom..6=Sáb).
+- PROMEDIO por día = total / cantidad de días (COUNT(DISTINCT date(...))). Incluí siempre un LIMIT.
+
+Respondé CORTO y CLARO en español rioplatense, con montos en pesos con separador de miles (ej. $12.500).
+FORMATO: TEXTO PLANO simple, SIN markdown (no tablas, no ** negrita **, no #). Para listar usá guiones o saltos de línea. Emojis con moderación.
+Si la pregunta no es sobre el negocio, decilo amablemente. Si no hay datos, aclaralo.`;
   const messages = [{ role: 'user', content: pregunta }];
   try {
-    for (let paso = 0; paso < 6; paso++) {
+    for (let paso = 0; paso < 8; paso++) {
       const data = await claudeConTools({ system, messages, tools: HERR_ASISTENTE, apiKey: claveIA, modelo: 'claude-sonnet-4-6', maxTokens: 1024 });
       messages.push({ role: 'assistant', content: data.content });
       const toolUses = (data.content || []).filter((b) => b.type === 'tool_use');
