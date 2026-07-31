@@ -48,6 +48,8 @@ input, select, textarea {
   padding: 8px 14px; border-radius: 8px; color: var(--muted); font-weight: 600;
 }
 .nav a.active { background: var(--panel2); color: var(--text); }
+/* Botón ☰ del menú: oculto en compu/tablet, aparece solo en teléfono */
+.nav-toggle { display: none; background: var(--panel2); padding: 6px 13px; font-size: 20px; line-height: 1; border-radius: 8px; }
 .content { flex: 1; padding: 16px; }
 .spacer { flex: 1; }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--green); }
@@ -210,4 +212,15 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
    El !important pisa los grid-template-columns puestos en línea en cada página. */
 @media (max-width: 720px) {
   .grid { grid-template-columns: 1fr !important; }
+  /* Navegación como menú ☰ desplegable */
+  .nav-toggle { display: inline-block; }
+  .nav { display: none; }
+  .nav.open {
+    display: flex; flex-direction: column; gap: 2px;
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: #0b1222; border-bottom: 1px solid var(--panel2);
+    padding: 8px; z-index: 30; max-height: 82vh; overflow-y: auto;
+    box-shadow: 0 12px 24px rgba(0,0,0,.45);
+  }
+  .nav.open a { padding: 13px 14px; font-size: 16px; }
 }

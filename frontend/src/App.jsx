@@ -23,6 +23,7 @@ export default function App() {
   const [online, setOnline] = useState(socket.connected);
   const [caja, setCaja] = useState({ horas: null, umbral: 0 });
   const [turnoMsg, setTurnoMsg] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false); // menú ☰ desplegable (solo teléfono)
   const [snoozeCaja, setSnoozeCaja] = useState(() => Number(localStorage.getItem('snoozeCaja') || 0));
   useEffect(() => {
     const on = () => setOnline(true);
@@ -50,7 +51,7 @@ export default function App() {
       <UiHost />
       <div className="topbar">
         <NavLink to="/" className="brand">🍽 Sede Social</NavLink>
-        <nav className="nav">
+        <nav className={'nav' + (menuOpen ? ' open' : '')} onClick={() => setMenuOpen(false)}>
           <NavLink to="/mozo" className={link}>Mozo</NavLink>
           <NavLink to="/cafeteria" className={link}>Cafetería</NavLink>
           <NavLink to="/delivery" className={link}>Delivery</NavLink>
@@ -67,6 +68,7 @@ export default function App() {
           <NavLink to="/ajustes" className={link}>Ajustes</NavLink>
         </nav>
         <div className="spacer" />
+        <button className="nav-toggle" onClick={() => setMenuOpen((o) => !o)} aria-label="Menú">{menuOpen ? '✕' : '☰'}</button>
         <span className={'dot' + (online ? '' : ' off')} title={online ? 'En línea' : 'Sin conexión'} />
       </div>
       {!online && (
