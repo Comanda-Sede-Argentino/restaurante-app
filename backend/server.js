@@ -2057,6 +2057,10 @@ const HERR_ASISTENTE = [
     input_schema: { type: 'object', properties: { nombre: { type: 'string' }, desde: { type: 'string' }, hasta: { type: 'string' } }, required: ['nombre'] } },
   { name: 'ventas_por_modulo', description: 'Total por módulo (Salón mediodía, Viandas, Salón noche, Delivery noche) en el rango. Cuenta por fecha del pedido.',
     input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
+  { name: 'ventas_por_hora', description: 'Total vendido y tickets por hora del día (para saber el horario pico) en el rango.',
+    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
+  { name: 'ventas_por_mozo', description: 'Total vendido, tickets y propinas por cada mozo en el rango.',
+    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
   { name: 'viandas', description: 'Resumen de viandas: total, pedidos y ranking de menús en el rango.',
     input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
   { name: 'deudas_fiado', description: 'Cuentas corrientes (empresas/personas) que deben plata, con su saldo.',
@@ -2070,7 +2074,25 @@ function ejecutarHerramientaAsistente(name, input = {}) {
     const tot = db.prepare('SELECT COALESCE(SUM(importe),0) total, COUNT(DISTINCT pedido_id) tickets FROM pago WHERE date(fecha) BETWEEN ? AND ?').get(d, h);
     const porMedio = db.prepare('SELECT medio, SUM(importe) total, COUNT(*) n FROM pago WHERE date(fecha) BETWEEN ? AND ? GROUP BY medio ORDER BY total DESC').all(d, h);
     const porTipo = db.prepare("SELECT o.tipo, SUM(pg.importe) total, COUNT(DISTINCT pg.pedido_id) tickets FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY o.tipo ORDER BY total DESC").all(d, h);
-    return { desde: d, hasta: h, total: tot.total, tickets: tot.tickets, porMedio, porTipo };
+    const extra = db.prepare("SELECT COALESCE(SUM(propina),0) propinas, COALESCE(SUM(descuento),0) descuentos FROM pedido WHERE estado='cobrado' AND date(cerrado_en) BETWEEN ? AND ?").get(d, h);
+    const ticketPromedio = tot.tickets ? Math.round(tot.total / tot.tickets) : 0;
+    return { desde: d, hasta: h, total: tot.total, tickets: tot.tickets, ticketPromedio, propinas: extra.propinas, descuentos: extra.descuentos, porMedio, porTipo };
+  }
+  if (name === 'ventas_por_hora') {
+    const horas = db.prepare("SELECT strftime('%H',fecha) hora, SUM(importe) total, COUNT(DISTINCT pedido_id) tickets FROM pago WHERE date(fecha) BETWEEN ? AND ? GROUP BY hora ORDER BY total DESC").all(d, h);
+    return { desde: d, hasta: h, porHora: horas };
+  }
+  if (name === 'ventas_por_mozo') {
+    const mozos = db.prepare(
+      `SELECT COALESCE(NULLIF(TRIM(o.mozo_nombre),''),'(sin mozo)') mozo, SUM(pg.importe) total, COUNT(DISTINCT pg.pedido_id) tickets
+       FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE date(pg.fecha) BETWEEN ? AND ? GROUP BY mozo ORDER BY total DESC`
+    ).all(d, h);
+    const propinas = db.prepare(
+      `SELECT COALESCE(NULLIF(TRIM(mozo_nombre),''),'(sin mozo)') mozo, COALESCE(SUM(propina),0) propinas
+       FROM pedido WHERE estado='cobrado' AND propina>0 AND date(cerrado_en) BETWEEN ? AND ? GROUP BY mozo`
+    ).all(d, h);
+    const mapProp = Object.fromEntries(propinas.map((p) => [p.mozo, p.propinas]));
+    return { desde: d, hasta: h, mozos: mozos.map((m) => ({ ...m, propinas: mapProp[m.mozo] || 0 })) };
   }
   if (name === 'ventas_por_dia') {
     return { desde: d, hasta: h, dias: db.prepare('SELECT date(fecha) dia, SUM(importe) total, COUNT(DISTINCT pedido_id) tickets FROM pago WHERE date(fecha) BETWEEN ? AND ? GROUP BY dia ORDER BY dia').all(d, h) };
@@ -2133,7 +2155,8 @@ app.post('/api/asistente', async (req, res) => {
   const system = `Sos el asistente de reportes de un restaurante argentino ("Sede Social"). Respondés preguntas del DUEÑO sobre sus ventas.
 HOY es ${hoy} (formato YYYY-MM-DD). Interpretá "hoy", "ayer", "esta semana" (últimos 7 días), "este mes", etc., y pasá las fechas a las herramientas.
 SIEMPRE usá las herramientas para traer datos reales ANTES de responder; nunca inventes números.
-Respondé CORTO y CLARO, en español rioplatense, con los números concretos (montos en pesos con separador de miles).
+Respondé CORTO y CLARO, en español rioplatense, con los números concretos (montos en pesos con separador de miles, ej. $12.500).
+IMPORTANTE — FORMATO: respondé en TEXTO PLANO simple, SIN markdown. NO uses tablas, NI asteriscos para negrita (**), NI almohadillas (#). Para listar, usá guiones (-) o saltos de línea. Podés usar emojis con moderación.
 Si la pregunta no es sobre las ventas o los datos del negocio, decilo amablemente. Si no hay datos en el período, aclaralo.`;
   const messages = [{ role: 'user', content: pregunta }];
   try {
