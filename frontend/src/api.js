@@ -23,6 +23,7 @@ export const api = {
   platosFrecuentes: () => req('/platos/frecuentes'),
   setDisponible: (id, disponible) => req('/platos/' + id + '/disponible', { method: 'POST', body: { disponible } }),
   crearPlato: (data) => req('/platos', { method: 'POST', body: data }),
+  cargarPizzas: () => req('/platos/cargar-pizzas', { method: 'POST', body: {} }),
   editarPlato: (id, data) => req('/platos/' + id, { method: 'PUT', body: data }),
   borrarPlato: (id) => req('/platos/' + id, { method: 'DELETE' }),
   usuarios: () => req('/usuarios'),

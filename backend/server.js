@@ -107,6 +107,32 @@ app.put('/api/platos/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM plato WHERE id=?').get(req.params.id));
 });
 
+// Carga (idempotente) las 12 variedades de pizza con su precio entero y de media, y marca la
+// categoría "Pizzas" para el botón de media y media. Para el botón del Catálogo (no borra nada).
+app.post('/api/platos/cargar-pizzas', (req, res) => {
+  const PIZZAS = [
+    ['Muzzarella', 16500, 11000], ['Especial con jamón', 20000, 13000], ['Especial con huevo', 20000, 13000],
+    ['Napolitana', 21000, 14000], ['Palmitos', 24000, 15000], ['Roquefort', 21000, 14000],
+    ['4 quesos', 22500, 14000], ['Calabresa', 21000, 14000], ['Fugazzeta', 20000, 13000],
+    ['Rúcula con jamón', 22500, 14000], ['Anchoa', 20000, 13000], ['Fugazza', 20000, 13000],
+  ];
+  let cat = db.prepare("SELECT id FROM categoria WHERE lower(nombre) IN ('pizzas','pizza')").get();
+  if (!cat) cat = { id: db.prepare("INSERT INTO categoria (nombre, pizza) VALUES ('Pizzas', 1)").run().lastInsertRowid };
+  db.prepare('UPDATE categoria SET pizza=1 WHERE id=?').run(cat.id);
+  const ref = db.prepare("SELECT sector_id FROM plato WHERE lower(nombre) LIKE '%pizza%' AND sector_id IS NOT NULL LIMIT 1").get();
+  const sectorId = ref ? ref.sector_id : null;
+  let nuevas = 0, actualizadas = 0;
+  const tx = db.transaction(() => {
+    for (const [nombre, precio, media] of PIZZAS) {
+      const ex = db.prepare('SELECT id FROM plato WHERE nombre=? AND categoria_id=?').get(nombre, cat.id);
+      if (ex) { db.prepare('UPDATE plato SET precio=?, precio_media=?, activo=1 WHERE id=?').run(precio, media, ex.id); actualizadas++; }
+      else { db.prepare('INSERT INTO plato (nombre, categoria_id, sector_id, precio, precio_media, activo) VALUES (?,?,?,?,?,1)').run(nombre, cat.id, sectorId, precio, media); nuevas++; }
+    }
+  });
+  tx();
+  res.json({ ok: true, nuevas, actualizadas, categoria_id: cat.id });
+});
+
 // Marcar un plato como disponible / sin stock (desde la cocina). Avisa en tiempo real a los mozos.
 app.post('/api/platos/:id/disponible', (req, res) => {
   const disp = req.body.disponible ? 1 : 0;

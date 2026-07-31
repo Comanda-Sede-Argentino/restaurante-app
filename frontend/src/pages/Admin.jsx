@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { api, money } from '../api';
-import { toast } from '../ui.jsx';
+import { toast, confirmar } from '../ui.jsx';
 
 export default function Admin() {
   const [cats, setCats] = useState([]);
@@ -101,6 +101,14 @@ export default function Admin() {
     }
   };
 
+  const cargarPizzasAuto = async () => {
+    if (!(await confirmar('¿Cargar las 12 variedades de pizza con sus precios (entero y media)?\n\nNo borra nada: agrega las que falten y actualiza precios. Después desactivá las viejas duplicadas.', { ok: 'Cargar pizzas' }))) return;
+    try {
+      const r = await api.cargarPizzas();
+      toast(`✅ Pizzas: ${r.nuevas} nuevas, ${r.actualizadas} actualizadas. Revisá y desactivá las viejas.`);
+      cargar();
+    } catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
   const togglePizza = async (c) => {
     const nuevo = c.pizza ? 0 : 1;
     setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, pizza: nuevo } : x)));
@@ -310,8 +318,16 @@ export default function Admin() {
           <>
             <p style={{ color: 'var(--muted)', fontSize: 13 }}>
               Marcá la categoría de las <b>pizzas</b>. Cargá cada variedad como un producto (Muzzarella, Napolitana, Ananá...).
-              Con esto, en el tomador de pedidos aparece el botón <b>🍕 ½ y ½</b> para combinar dos mitades.
+              Con esto, en el tomador de pedidos aparecen los botones <b>🍕 Media</b> y <b>🍕 ½ y ½</b>.
             </p>
+            <div className="card" style={{ borderColor: 'var(--accent)', marginBottom: 10 }}>
+              <b>Cargar de una vez las 12 variedades</b>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>
+                Crea Muzzarella, Especial c/jamón, Napolitana, Palmitos, Roquefort, 4 quesos, Calabresa, Fugazzeta,
+                Rúcula con jamón, Anchoa, Fugazza, Especial c/huevo — con su precio entero y de media, y marca la categoría.
+              </p>
+              <button className="btn-accent" onClick={cargarPizzasAuto}>🍕 Cargar las 12 variedades de pizza</button>
+            </div>
             <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 6 }}>
               {cats.map((c) => (
                 <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
