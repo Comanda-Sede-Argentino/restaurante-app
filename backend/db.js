@@ -250,4 +250,23 @@ addCol("ALTER TABLE pedido ADD COLUMN entrega TEXT");
 addCol("ALTER TABLE wa_inbox ADD COLUMN clase TEXT");       // 'vianda' si es una propuesta de vianda
 addCol("ALTER TABLE wa_inbox ADD COLUMN propuesta TEXT");   // JSON con el pedido interpretado
 
+// Clientes FIJOS de vianda: reciben vianda automáticamente los días que corresponde (no piden por WhatsApp)
+addCol(`CREATE TABLE IF NOT EXISTS vianda_fijo (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cliente_nombre TEXT NOT NULL,
+  cliente_telefono TEXT,
+  cliente_direccion TEXT,
+  entrega TEXT DEFAULT 'domicilio',     -- 'domicilio' | 'retiro'
+  dias TEXT DEFAULT '1,2,3,4,5',        -- días de la semana (0=Dom..6=Sáb); vacío = lun a vie
+  opcion INTEGER DEFAULT 1,             -- menú preferido (1 | 2). 0 = a elección
+  cantidad INTEGER DEFAULT 1,
+  pago TEXT DEFAULT 'dia',              -- 'dia' (cobra al entregar) | 'fiado'
+  cuenta_id INTEGER,                    -- cuenta corriente si paga por fiado
+  nota TEXT,
+  activo INTEGER DEFAULT 1,
+  creado_en TEXT DEFAULT (datetime('now','localtime'))
+)`);
+// Vincula un pedido de vianda al cliente fijo que lo generó (para no duplicar y mostrar el 📌)
+addCol("ALTER TABLE pedido ADD COLUMN fijo_id INTEGER");
+
 export default db;

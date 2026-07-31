@@ -29,7 +29,8 @@ export default function Viandas() {
 
   useEffect(() => {
     cargarMenus();
-    cargarDia();
+    // Generar los pedidos de los clientes fijos de hoy (si hay menús) y después cargar el día
+    api.viandasGenerarFijos().then(cargarDia).catch(cargarDia);
     cargarInbox();
     const reload = () => cargarDia();
     ['pedido:nuevo', 'pedido:actualizado', 'pedido:cobrado', 'connect'].forEach((e) => socket.on(e, reload));
@@ -55,6 +56,7 @@ export default function Viandas() {
         <div style={{ display: 'flex', gap: 6 }}>
           <button className={'chip' + (tab === 'pedido' ? ' active' : '')} onClick={() => setTab('pedido')}>➕ Nuevo pedido</button>
           <button className={'chip' + (tab === 'dia' ? ' active' : '')} onClick={() => setTab('dia')}>🛵 Pedidos del día</button>
+          <button className={'chip' + (tab === 'fijos' ? ' active' : '')} onClick={() => setTab('fijos')}>📌 Fijos</button>
           <button className={'chip' + (tab === 'menus' ? ' active' : '')} onClick={() => setTab('menus')}>📋 Menús</button>
         </div>
       </div>
@@ -62,6 +64,7 @@ export default function Viandas() {
       {inbox.length > 0 && <InboxViandas inbox={inbox} recargar={() => { cargarInbox(); cargarDia(); }} />}
 
       {tab === 'menus' && <Menus fecha={fecha} menus={menus} onSaved={() => { cargarMenus(); cargarDia(); }} />}
+      {tab === 'fijos' && <Fijos />}
       {tab === 'pedido' && (
         <NuevoPedido menus={menus} pedidos={pedidos} editPedido={editPedido}
           onDone={(fueEdicion) => { setEditPedido(null); cargarDia(); if (fueEdicion) setTab('dia'); }}
@@ -625,15 +628,20 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
     const items = (p.items || []).filter((i) => i.estado !== 'anulado');
     const tel = (p.cliente_telefono || '').replace(/[^\d+]/g, '');
     return (
-      <div key={p.id} className="card">
+      <div key={p.id} className="card" style={p.fijo_id ? { borderColor: 'var(--blue)' } : undefined}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <b style={{ fontSize: 17 }}>{p.cliente_nombre || 'Cliente'}</b>
+          <b style={{ fontSize: 17 }}>{p.fijo_id ? '📌 ' : ''}{p.cliente_nombre || 'Cliente'}</b>
           <b style={{ color: 'var(--accent)', fontSize: 17 }}>{money(p.total)}</b>
         </div>
         <div style={{ margin: '4px 0', fontSize: 13 }}>
           {dom ? <>🛵 {p.cliente_direccion || 'sin dirección'}</> : <>🏪 Retira</>}
           {p.hora_entrega && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>⏰ {p.hora_entrega}</span>}
         </div>
+        {p.fijo_id && (
+          <div style={{ fontSize: 12, color: 'var(--blue)', marginBottom: 4 }}>
+            Cliente fijo{p.fijoPago === 'fiado' ? ' · 📒 fiado' + (p.fijoCuenta ? ' → ' + p.fijoCuenta : '') : ' · 💵 cobra al entregar'}
+          </div>
+        )}
         {items.length > 0 && (
           <div style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0', borderTop: '1px solid var(--panel2)', paddingTop: 6 }}>
             {items.map((i) => (
@@ -737,6 +745,132 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
       {q && !gPorEntregar.length && !gACobrar.length && !gCobrados.length && (
         <p style={{ color: 'var(--muted)' }}>Ningún pedido coincide con "{buscar}".</p>
       )}
+    </div>
+  );
+}
+
+// ---------- Pestaña CLIENTES FIJOS (reciben vianda automáticamente los días que corresponde) ----------
+const DIAS_SEM = [['1', 'Lun'], ['2', 'Mar'], ['3', 'Mié'], ['4', 'Jue'], ['5', 'Vie'], ['6', 'Sáb'], ['0', 'Dom']];
+const diasTexto = (csv) => (csv || '').split(',').filter(Boolean)
+  .map((n) => (DIAS_SEM.find((d) => d[0] === n) || [, n])[1]).join(' ');
+
+function Fijos() {
+  const vacio = { cliente_nombre: '', cliente_telefono: '', cliente_direccion: '', entrega: 'domicilio', dias: ['1', '2', '3', '4', '5'], opcion: 1, cantidad: 1, pago: 'dia', cuenta_id: '', nota: '' };
+  const [lista, setLista] = useState([]);
+  const [cuentas, setCuentas] = useState([]);
+  const [form, setForm] = useState(vacio);
+  const [editId, setEditId] = useState(null);
+
+  const cargar = () => api.viandasFijos().then(setLista).catch(() => {});
+  useEffect(() => { cargar(); api.cuentas().then(setCuentas).catch(() => {}); }, []);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const toggleDia = (n) => setForm((f) => ({ ...f, dias: f.dias.includes(n) ? f.dias.filter((x) => x !== n) : [...f.dias, n] }));
+  const cancelar = () => { setEditId(null); setForm(vacio); };
+  const editar = (fj) => {
+    setEditId(fj.id);
+    setForm({
+      cliente_nombre: fj.cliente_nombre || '', cliente_telefono: fj.cliente_telefono || '', cliente_direccion: fj.cliente_direccion || '',
+      entrega: fj.entrega || 'domicilio', dias: (fj.dias || '').split(',').filter(Boolean), opcion: fj.opcion ?? 1, cantidad: fj.cantidad || 1,
+      pago: fj.pago || 'dia', cuenta_id: fj.cuenta_id ? String(fj.cuenta_id) : '', nota: fj.nota || '',
+    });
+  };
+  const guardar = async () => {
+    if (!form.cliente_nombre.trim()) { toast('Poné el nombre.', 'error'); return; }
+    if (!form.dias.length) { toast('Elegí al menos un día.', 'error'); return; }
+    if (form.pago === 'fiado' && !form.cuenta_id) { toast('Elegí la cuenta del fiado.', 'error'); return; }
+    const data = { ...form, dias: form.dias.join(','), cuenta_id: form.pago === 'fiado' ? Number(form.cuenta_id) : null };
+    try {
+      if (editId) await api.editarFijo(editId, data); else await api.crearFijo(data);
+      toast(editId ? '✅ Cliente fijo actualizado.' : '✅ Cliente fijo agregado.');
+      cancelar(); cargar();
+    } catch (e) { toast('No se pudo guardar: ' + e.message, 'error'); }
+  };
+  const borrar = async (fj) => {
+    if (!(await confirmar(`¿Borrar al cliente fijo "${fj.cliente_nombre}"? No se borran los pedidos ya generados.`, { peligro: true, ok: 'Borrar', cancelar: 'Volver' }))) return;
+    try { await api.borrarFijo(fj.id); cargar(); if (editId === fj.id) cancelar(); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+  const toggleActivo = async (fj) => {
+    try { await api.editarFijo(fj.id, { ...fj, activo: !fj.activo }); cargar(); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+
+  return (
+    <div className="grid" style={{ gridTemplateColumns: '380px 1fr', gap: 16, alignItems: 'start' }}>
+      <div className="card">
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>{editId ? '✏ Editar cliente fijo' : '➕ Nuevo cliente fijo'}</div>
+        <input value={form.cliente_nombre} onChange={(e) => set('cliente_nombre', e.target.value)} placeholder="Nombre *" style={{ width: '100%', marginBottom: 6 }} />
+        <input value={form.cliente_telefono} onChange={(e) => set('cliente_telefono', e.target.value)} placeholder="Teléfono (opcional)" style={{ width: '100%', marginBottom: 6 }} />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+          <button className={form.entrega === 'domicilio' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => set('entrega', 'domicilio')}>🛵 A domicilio</button>
+          <button className={form.entrega === 'retiro' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => set('entrega', 'retiro')}>🏪 Retira</button>
+        </div>
+        {form.entrega === 'domicilio' && (
+          <input value={form.cliente_direccion} onChange={(e) => set('cliente_direccion', e.target.value)} placeholder="Dirección" style={{ width: '100%', marginBottom: 6 }} />
+        )}
+        <div style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0 4px' }}>¿Qué días recibe?</div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+          {DIAS_SEM.map(([n, l]) => (
+            <button key={n} className={form.dias.includes(n) ? 'btn-accent' : ''} style={{ padding: '6px 10px' }} onClick={() => toggleDia(n)}>{l}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+          <label style={{ fontSize: 13, color: 'var(--muted)' }}>Menú
+            <select value={form.opcion} onChange={(e) => set('opcion', Number(e.target.value))} style={{ display: 'block', marginTop: 4 }}>
+              <option value={1}>Menú 1</option>
+              <option value={2}>Menú 2</option>
+              <option value={0}>A elección</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 13, color: 'var(--muted)' }}>Cantidad
+            <input type="number" min="1" value={form.cantidad} onChange={(e) => set('cantidad', Number(e.target.value))} style={{ display: 'block', width: 80, marginTop: 4 }} />
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+          <button className={form.pago === 'dia' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => set('pago', 'dia')}>💵 Cobra al día</button>
+          <button className={form.pago === 'fiado' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => set('pago', 'fiado')}>📒 Fiado mensual</button>
+        </div>
+        {form.pago === 'fiado' && (
+          <select value={form.cuenta_id} onChange={(e) => set('cuenta_id', e.target.value)} style={{ width: '100%', marginBottom: 6 }}>
+            <option value="">— cuenta del fiado —</option>
+            {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+        )}
+        <input value={form.nota} onChange={(e) => set('nota', e.target.value)} placeholder="Nota (ej. sin sal, dejar en portería)" style={{ width: '100%', marginBottom: 8 }} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-green" style={{ flex: 1, padding: 11 }} onClick={guardar}>{editId ? '💾 Guardar' : '➕ Agregar'}</button>
+          {editId && <button onClick={cancelar}>✕</button>}
+        </div>
+      </div>
+
+      <div>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
+          Los clientes fijos aparecen <b>solos</b> en “Pedidos del día” los días que corresponde (apenas cargás los menús). Si un día alguno no quiere, anulá ese pedido con el 🗑.
+        </p>
+        {!lista.length && <p style={{ color: 'var(--muted)' }}>Todavía no hay clientes fijos. Cargá uno a la izquierda.</p>}
+        <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
+          {lista.map((fj) => (
+            <div key={fj.id} className="card" style={{ opacity: fj.activo ? 1 : 0.5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <b>{fj.cliente_nombre}</b>
+                <span style={{ fontSize: 12, color: fj.entrega === 'retiro' ? 'var(--muted)' : 'var(--accent)' }}>{fj.entrega === 'retiro' ? '🏪 Retira' : '🛵 Domicilio'}</span>
+              </div>
+              {fj.cliente_direccion && <div style={{ fontSize: 13, color: 'var(--muted)' }}>📍 {fj.cliente_direccion}</div>}
+              <div style={{ fontSize: 13, margin: '4px 0' }}>
+                📅 {diasTexto(fj.dias)} · {fj.opcion === 0 ? 'a elección' : 'Menú ' + fj.opcion}{fj.cantidad > 1 ? ` ×${fj.cantidad}` : ''}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--blue)' }}>{fj.pago === 'fiado' ? '📒 Fiado' + (fj.cuenta_nombre ? ' → ' + fj.cuenta_nombre : '') : '💵 Cobra al día'}</div>
+              {fj.nota && <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', marginTop: 2 }}>📝 {fj.nota}</div>}
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                <button style={{ padding: '6px 10px' }} onClick={() => editar(fj)}>✏ Editar</button>
+                <button style={{ padding: '6px 10px' }} onClick={() => toggleActivo(fj)}>{fj.activo ? '⏸ Desactivar' : '▶ Activar'}</button>
+                <button className="btn-red" style={{ padding: '6px 10px' }} onClick={() => borrar(fj)}>🗑</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

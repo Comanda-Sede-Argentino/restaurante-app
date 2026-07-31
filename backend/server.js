@@ -686,8 +686,11 @@ app.put('/api/menu-dia', (req, res) => {
     for (const e of existentes) if (!usados.has(e.id)) db.prepare("UPDATE menu_dia SET activo=0 WHERE id=?").run(e.id);
   });
   tx();
+  // Al cargar los menús del día, generar automáticamente los pedidos de los clientes fijos de hoy.
+  let fijos = { n: 0 };
+  try { fijos = generarFijosHoy(); } catch (e) { console.error('generarFijosHoy:', e.message); }
   const guardados = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
-  res.json({ fecha, menus: guardados });
+  res.json({ fecha, menus: guardados, fijosGenerados: fijos.n || 0 });
 });
 
 // Sugerencias de menús anteriores (para reusar los que se repiten)
@@ -814,6 +817,75 @@ app.put('/api/viandas/:id', (req, res) => {
   res.json(p);
 });
 
+// ---------- CLIENTES FIJOS DE VIANDA (reciben automáticamente los días que corresponde) ----------
+app.get('/api/viandas/fijos', (req, res) => {
+  res.json(db.prepare(
+    `SELECT f.*, c.nombre cuenta_nombre FROM vianda_fijo f LEFT JOIN cuenta c ON c.id=f.cuenta_id
+     ORDER BY f.activo DESC, f.cliente_nombre`
+  ).all());
+});
+function guardarFijo(b, id) {
+  const nombre = String(b.cliente_nombre || '').trim();
+  const entrega = b.entrega === 'retiro' ? 'retiro' : 'domicilio';
+  const dias = String(b.dias || '1,2,3,4,5');
+  const opcion = Number(b.opcion) || 1;
+  const cantidad = Math.max(1, Number(b.cantidad) || 1);
+  const pago = b.pago === 'fiado' ? 'fiado' : 'dia';
+  const cuenta_id = pago === 'fiado' ? (Number(b.cuenta_id) || null) : null;
+  if (id) {
+    db.prepare(`UPDATE vianda_fijo SET cliente_nombre=?, cliente_telefono=?, cliente_direccion=?, entrega=?, dias=?, opcion=?, cantidad=?, pago=?, cuenta_id=?, nota=?, activo=? WHERE id=?`)
+      .run(nombre, b.cliente_telefono || null, b.cliente_direccion || null, entrega, dias, opcion, cantidad, pago, cuenta_id, b.nota || null, b.activo === false ? 0 : 1, id);
+    return id;
+  }
+  return db.prepare(`INSERT INTO vianda_fijo (cliente_nombre, cliente_telefono, cliente_direccion, entrega, dias, opcion, cantidad, pago, cuenta_id, nota, activo) VALUES (?,?,?,?,?,?,?,?,?,?,1)`)
+    .run(nombre, b.cliente_telefono || null, b.cliente_direccion || null, entrega, dias, opcion, cantidad, pago, cuenta_id, b.nota || null).lastInsertRowid;
+}
+app.post('/api/viandas/fijos', (req, res) => {
+  if (!String(req.body.cliente_nombre || '').trim()) return res.status(400).json({ error: 'Falta el nombre' });
+  const id = guardarFijo(req.body);
+  res.json(db.prepare('SELECT * FROM vianda_fijo WHERE id=?').get(id));
+});
+app.put('/api/viandas/fijos/:id', (req, res) => {
+  guardarFijo(req.body, req.params.id);
+  res.json(db.prepare('SELECT * FROM vianda_fijo WHERE id=?').get(req.params.id));
+});
+app.delete('/api/viandas/fijos/:id', (req, res) => {
+  db.prepare('DELETE FROM vianda_fijo WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// Genera (sin duplicar) los pedidos de los clientes fijos que corresponden a HOY. Necesita menús cargados.
+function generarFijosHoy() {
+  const fecha = fechaHoy();
+  const dow = String(db.prepare("SELECT strftime('%w','now','localtime') w").get().w);
+  const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
+  if (!menus.length) return { n: 0, sinMenus: true };
+  const fijos = db.prepare('SELECT * FROM vianda_fijo WHERE activo=1').all();
+  let n = 0;
+  for (const f of fijos) {
+    const dias = (f.dias || '').trim();
+    const aplica = dias ? dias.split(',').map((s) => s.trim()).includes(dow) : ['1', '2', '3', '4', '5'].includes(dow);
+    if (!aplica) continue;
+    const ya = db.prepare("SELECT id FROM pedido WHERE tipo='vianda' AND fijo_id=? AND estado<>'anulado' AND date(abierto_en)=?").get(f.id, fecha);
+    if (ya) continue;
+    const m = menus.find((x) => x.opcion === (f.opcion || 1)) || menus[0];
+    if (!m) continue;
+    const r = db.prepare(
+      `INSERT INTO pedido (tipo, entrega, cliente_nombre, cliente_telefono, cliente_direccion, observacion, fijo_id, estado)
+       VALUES ('vianda', ?,?,?,?,?,?, 'en_cocina')`
+    ).run(f.entrega === 'retiro' ? 'retiro' : 'domicilio', f.cliente_nombre, f.cliente_telefono, f.cliente_direccion, f.nota, f.id);
+    const pid = r.lastInsertRowid;
+    db.prepare(`INSERT INTO pedido_item (pedido_id, menu_dia_id, nombre, cantidad, precio_unit, estado) VALUES (?,?,?,?,?, 'listo')`)
+      .run(pid, m.id, m.nombre, Math.max(1, f.cantidad || 1), m.precio);
+    recalcTotal(pid);
+    io.emit('pedido:nuevo', pedidoCompleto(pid));
+    n++;
+  }
+  if (n) emitDashboard();
+  return { n };
+}
+app.post('/api/viandas/generar-fijos', (req, res) => res.json(generarFijosHoy()));
+
 // Pedidos de vianda de un día + resumen por menú (para la vista del mediodía)
 app.get('/api/viandas', (req, res) => {
   const fecha = req.query.fecha || fechaHoy();
@@ -821,6 +893,12 @@ app.get('/api/viandas', (req, res) => {
     "SELECT id FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado<>'anulado' ORDER BY id ASC"
   ).all(fecha);
   const pedidos = rows.map((row) => pedidoCompleto(row.id));
+  // Para los pedidos que vienen de un cliente FIJO, adjuntar su forma de pago (y la cuenta si es fiado)
+  for (const p of pedidos) {
+    if (!p.fijo_id) continue;
+    const f = db.prepare('SELECT f.pago, c.nombre cuenta FROM vianda_fijo f LEFT JOIN cuenta c ON c.id=f.cuenta_id WHERE f.id=?').get(p.fijo_id);
+    if (f) { p.fijoPago = f.pago; p.fijoCuenta = f.cuenta || null; }
+  }
   const menus = db.prepare("SELECT * FROM menu_dia WHERE fecha=? AND activo=1 ORDER BY opcion ASC").all(fecha);
   // Cantidad e importe vendidos por cada menú del día
   const porMenu = db.prepare(
