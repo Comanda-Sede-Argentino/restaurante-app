@@ -3,19 +3,20 @@
 //   Uso:  node backend/cargar_pizzas.mjs
 import db from './db.js';
 
+// [nombre, precio entero, precio media porción]
 const PIZZAS = [
-  ['Muzzarella', 16500],
-  ['Especial con jamón', 20000],
-  ['Especial con huevo', 20000],
-  ['Napolitana', 21000],
-  ['Palmitos', 24000],
-  ['Roquefort', 21000],
-  ['4 quesos', 22500],
-  ['Calabresa', 21000],
-  ['Fugazzeta', 20000],
-  ['Rúcula con jamón', 22500],
-  ['Anchoa', 20000],
-  ['Fugazza', 20000],
+  ['Muzzarella', 16500, 11000],
+  ['Especial con jamón', 20000, 13000],
+  ['Especial con huevo', 20000, 13000],
+  ['Napolitana', 21000, 14000],
+  ['Palmitos', 24000, 15000],
+  ['Roquefort', 21000, 14000],
+  ['4 quesos', 22500, 14000],
+  ['Calabresa', 21000, 14000],
+  ['Fugazzeta', 20000, 13000],
+  ['Rúcula con jamón', 22500, 14000],
+  ['Anchoa', 20000, 13000],
+  ['Fugazza', 20000, 13000],
 ];
 
 // Categoría "Pizzas": usar la que exista o crearla, y marcarla para media y media
@@ -29,10 +30,10 @@ const sectorId = ref ? ref.sector_id : null;
 
 let nuevas = 0, actualizadas = 0;
 const tx = db.transaction(() => {
-  for (const [nombre, precio] of PIZZAS) {
+  for (const [nombre, precio, media] of PIZZAS) {
     const ex = db.prepare('SELECT id FROM plato WHERE nombre=? AND categoria_id=?').get(nombre, cat.id);
-    if (ex) { db.prepare('UPDATE plato SET precio=?, activo=1 WHERE id=?').run(precio, ex.id); actualizadas++; }
-    else { db.prepare('INSERT INTO plato (nombre, categoria_id, sector_id, precio, activo) VALUES (?,?,?,?,1)').run(nombre, cat.id, sectorId, precio); nuevas++; }
+    if (ex) { db.prepare('UPDATE plato SET precio=?, precio_media=?, activo=1 WHERE id=?').run(precio, media, ex.id); actualizadas++; }
+    else { db.prepare('INSERT INTO plato (nombre, categoria_id, sector_id, precio, precio_media, activo) VALUES (?,?,?,?,?,1)').run(nombre, cat.id, sectorId, precio, media); nuevas++; }
   }
 });
 tx();

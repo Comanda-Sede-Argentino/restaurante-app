@@ -18,6 +18,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const [obsItem, setObsItem] = useState({});
   const [varios, setVarios] = useState(null);      // formulario de pedido especial (VARIOS / fuera de carta)
   const [mitad, setMitad] = useState(null);        // formulario de pizza mitad y mitad { a, b }
+  const [media, setMedia] = useState(null);        // formulario de media pizza { v }
   const [guarnItem, setGuarnItem] = useState({}); // plato_id -> [guarnición por unidad]
   const [salsaItem, setSalsaItem] = useState({}); // plato_id -> [salsa por unidad] (pastas)
   const [puntoItem, setPuntoItem] = useState({}); // plato_id -> [punto de cocción por unidad]
@@ -107,6 +108,17 @@ export default function OrderTaker({ pedido, onEnviado }) {
     setCartOpen(true);
   };
 
+  // Media pizza (media porción de una variedad). Cobra el precio de media (o ~60% si no está cargado).
+  const precioMediaDe = (p) => (p.precio_media && p.precio_media > 0) ? p.precio_media : Math.round(p.precio * 0.6 / 1000) * 1000;
+  const agregarMedia = () => {
+    const p = pizzas.find((x) => x.id === Number(media?.v));
+    if (!p) { toast('Elegí la variedad de la media pizza.', 'error'); return; }
+    const id = -Date.now();
+    setCart((c) => [...c, { plato_id: id, libre: true, nombre: '1/2 ' + cortoPizza(p.nombre), precio_unit: precioMediaDe(p), cantidad: 1 }]);
+    setMedia(null);
+    setCartOpen(true);
+  };
+
   // Pizza mitad y mitad: elegís dos variedades -> una sola pizza con las 2 mitades. Cobra la más cara.
   const agregarMitad = () => {
     const a = pizzas.find((p) => p.id === Number(mitad?.a));
@@ -182,16 +194,35 @@ export default function OrderTaker({ pedido, onEnviado }) {
           )}
           <span className="spacer" />
           {pizzas.length > 0 && (
-            <button style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }} title="Pizza mitad y mitad"
-              onClick={() => setMitad(mitad ? null : { a: '', b: '' })}>
-              🍕 ½ y ½
-            </button>
+            <>
+              <button style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }} title="Media pizza (una variedad)"
+                onClick={() => setMedia(media ? null : { v: '' })}>
+                🍕 Media
+              </button>
+              <button style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }} title="Pizza mitad y mitad"
+                onClick={() => setMitad(mitad ? null : { a: '', b: '' })}>
+                🍕 ½ y ½
+              </button>
+            </>
           )}
           <button style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }} title="Pedido especial fuera de carta"
             onClick={() => setVarios(varios ? null : { nombre: '', precio: '' })}>
             ➕ Varios
           </button>
         </div>
+        {media && (
+          <div className="card" style={{ marginBottom: 8, borderColor: 'var(--accent)' }}>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>🍕 <b>Media pizza</b> — elegí la variedad. Cobra el precio de media.</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <select value={media.v} onChange={(e) => setMedia({ v: e.target.value })} style={{ flex: 1, minWidth: 150 }}>
+                <option value="">— variedad —</option>
+                {pizzas.map((p) => <option key={p.id} value={p.id}>{cortoPizza(p.nombre)} ({money(precioMediaDe(p))})</option>)}
+              </select>
+              <button className="btn-green" onClick={agregarMedia}>Agregar</button>
+              <button onClick={() => setMedia(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
         {mitad && (
           <div className="card" style={{ marginBottom: 8, borderColor: 'var(--accent)' }}>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>

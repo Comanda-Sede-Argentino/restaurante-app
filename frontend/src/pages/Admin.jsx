@@ -53,6 +53,7 @@ export default function Admin() {
       activo: edit.activo ? 1 : 0,
       alias_ia: edit.alias_ia || '',
       punto: edit.punto ? 1 : 0,
+      precio_media: edit.precio_media,
     };
     const id = edit.id ? (await api.editarPlato(edit.id, data), edit.id) : (await api.crearPlato(data)).id;
     // Guardar la receta (qué insumos descuenta del stock)
@@ -172,6 +173,7 @@ export default function Admin() {
               {sectores.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
             </select>
             <input type="number" placeholder="Precio" value={edit.precio} onChange={(e) => setEdit({ ...edit, precio: e.target.value })} />
+            <input type="number" placeholder="Precio media (solo pizzas)" value={edit.precio_media ?? ''} onChange={(e) => setEdit({ ...edit, precio_media: e.target.value })} title="Precio de media porción (para el botón Media de las pizzas)" />
             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input type="checkbox" checked={!!edit.activo} onChange={(e) => setEdit({ ...edit, activo: e.target.checked })} /> Activo
             </label>

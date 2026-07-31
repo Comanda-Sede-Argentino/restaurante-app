@@ -211,6 +211,8 @@ addCol("ALTER TABLE categoria ADD COLUMN salsa INTEGER DEFAULT 0");
 addCol("ALTER TABLE categoria ADD COLUMN cafeteria INTEGER DEFAULT 0");
 // Categorías de PIZZA: sus platos se pueden combinar como "media y media" desde el tomador de pedidos
 addCol("ALTER TABLE categoria ADD COLUMN pizza INTEGER DEFAULT 0");
+// Precio de MEDIA porción (para pizzas): si está seteado, el botón "Media" cobra este precio
+addCol("ALTER TABLE plato ADD COLUMN precio_media REAL");
 // Control de stock: marca si ya se devolvió el stock de un ítem anulado (evita doble devolución)
 addCol("ALTER TABLE pedido_item ADD COLUMN stock_devuelto INTEGER DEFAULT 0");
 // Caja: descuento y propina por pedido

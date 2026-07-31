@@ -80,27 +80,30 @@ app.get('/api/platos', (req, res) => {
 });
 
 app.post('/api/platos', (req, res) => {
-  const { nombre, categoria_id, sector_id, precio, activo, alias_ia, punto } = req.body;
+  const { nombre, categoria_id, sector_id, precio, activo, alias_ia, punto, precio_media } = req.body;
   const r = db
     .prepare(
-      `INSERT INTO plato (nombre, categoria_id, sector_id, precio, activo, alias_ia, punto, revisar_precio)
-       VALUES (?,?,?,?,?,?,?,0)`
+      `INSERT INTO plato (nombre, categoria_id, sector_id, precio, activo, alias_ia, punto, precio_media, revisar_precio)
+       VALUES (?,?,?,?,?,?,?,?,0)`
     )
-    .run(nombre, categoria_id, sector_id, precio || 0, activo ?? 1, alias_ia || null, punto ? 1 : 0);
+    .run(nombre, categoria_id, sector_id, precio || 0, activo ?? 1, alias_ia || null, punto ? 1 : 0,
+         (precio_media === '' || precio_media == null) ? null : Number(precio_media) || null);
   res.json(db.prepare('SELECT * FROM plato WHERE id=?').get(r.lastInsertRowid));
 });
 
 app.put('/api/platos/:id', (req, res) => {
-  const { nombre, categoria_id, sector_id, precio, activo, alias_ia, punto, favorito, disponible } = req.body;
+  const { nombre, categoria_id, sector_id, precio, activo, alias_ia, punto, favorito, disponible, precio_media } = req.body;
   db.prepare(
     `UPDATE plato SET nombre=COALESCE(?,nombre), categoria_id=COALESCE(?,categoria_id),
        sector_id=COALESCE(?,sector_id), precio=COALESCE(?,precio), activo=COALESCE(?,activo),
        alias_ia=COALESCE(?,alias_ia), punto=COALESCE(?,punto), favorito=COALESCE(?,favorito),
-       disponible=COALESCE(?,disponible), revisar_precio=0 WHERE id=?`
+       disponible=COALESCE(?,disponible), precio_media=COALESCE(?,precio_media), revisar_precio=0 WHERE id=?`
   ).run(nombre, categoria_id, sector_id, precio, activo, alias_ia ?? null,
         punto == null ? null : (punto ? 1 : 0),
         favorito == null ? null : (favorito ? 1 : 0),
-        disponible == null ? null : (disponible ? 1 : 0), req.params.id);
+        disponible == null ? null : (disponible ? 1 : 0),
+        precio_media === undefined ? null : (precio_media === '' || precio_media === null ? null : Number(precio_media)),
+        req.params.id);
   res.json(db.prepare('SELECT * FROM plato WHERE id=?').get(req.params.id));
 });
 
