@@ -166,6 +166,34 @@ app.delete('/api/platos/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// Eliminar DE VERDAD un producto (solo si nunca se vendió; si tiene ventas se rompería el historial)
+app.post('/api/platos/:id/eliminar', (req, res) => {
+  const id = req.params.id;
+  const ventas = db.prepare('SELECT COUNT(*) c FROM pedido_item WHERE plato_id=?').get(id).c;
+  if (ventas > 0) return res.status(409).json({ error: 'Tiene ventas registradas: no se puede borrar (rompe el historial). Desactivalo.' });
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM receta WHERE plato_id=?').run(id);
+    db.prepare('DELETE FROM plato WHERE id=?').run(id);
+  });
+  tx();
+  res.json({ ok: true });
+});
+
+// Limpieza: elimina DE VERDAD todos los inactivos que nunca se vendieron. Los que tienen ventas se conservan.
+app.post('/api/platos/limpiar-inactivos', (req, res) => {
+  const conVentas = new Set(db.prepare('SELECT DISTINCT plato_id FROM pedido_item WHERE plato_id IS NOT NULL').all().map((r) => r.plato_id));
+  const inactivos = db.prepare('SELECT id FROM plato WHERE activo=0').all().map((r) => r.id);
+  const borrables = inactivos.filter((id) => !conVentas.has(id));
+  const tx = db.transaction(() => {
+    for (const id of borrables) {
+      db.prepare('DELETE FROM receta WHERE plato_id=?').run(id);
+      db.prepare('DELETE FROM plato WHERE id=?').run(id);
+    }
+  });
+  tx();
+  res.json({ ok: true, eliminados: borrables.length, conservados: inactivos.length - borrables.length });
+});
+
 app.get('/api/categorias/:id', (req, res) =>
   res.json(db.prepare('SELECT * FROM categoria WHERE id=?').get(req.params.id))
 );

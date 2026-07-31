@@ -146,6 +146,19 @@ export default function Admin() {
   const nuevo = () =>
     setEdit({ nombre: '', categoria_id: cats[0]?.id, sector_id: sectores[0]?.id, precio: 0, activo: 1, alias_ia: '', punto: 0, receta: [] });
 
+  const inactivosCount = platos.filter((p) => !p.activo).length;
+  const limpiarInactivos = async () => {
+    if (!(await confirmar('¿Eliminar DE VERDAD los productos inactivos que nunca se vendieron?\n\nLos inactivos que tienen ventas se conservan (para no romper el historial).', { peligro: true, ok: 'Eliminar', cancelar: 'Volver' }))) return;
+    try { const r = await api.limpiarInactivos(); toast(`🗑 ${r.eliminados} eliminado(s)${r.conservados ? ` · ${r.conservados} conservado(s) con ventas` : ''}.`); cargar(); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+  const eliminarActual = async () => {
+    if (!edit?.id) return;
+    if (!(await confirmar(`¿Eliminar definitivamente "${edit.nombre}"?\n\nSi tiene ventas no se podrá borrar (rompería el historial); ahí conviene desactivarlo.`, { peligro: true, ok: 'Eliminar', cancelar: 'Volver' }))) return;
+    try { await api.eliminarPlato(edit.id); toast('🗑 Producto eliminado.'); setEdit(null); cargar(); }
+    catch (e) { toast(e.message.includes('409') ? '⚠ Tiene ventas: no se puede borrar. Desactivalo (destildá "Activo").' : 'No se pudo: ' + e.message, 'error'); }
+  };
+
   const revisar = platos.filter((p) => p.revisar_precio).length;
 
   return (
@@ -161,12 +174,17 @@ export default function Admin() {
           revisalos/ajustalos (o completá la migración exacta del MDF en la Fase 0).
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={catSel} onChange={(e) => setCatSel(e.target.value)}>
           <option value="">Todas las categorías</option>
           {cats.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
         <input placeholder="🔎 Buscar..." value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 180 }} />
+        {inactivosCount > 0 && (
+          <button className="btn-red" onClick={limpiarInactivos} title="Elimina los inactivos que nunca se vendieron">
+            🗑 Limpiar inactivos ({inactivosCount})
+          </button>
+        )}
       </div>
 
       {edit && (
@@ -228,9 +246,10 @@ export default function Admin() {
               con su cantidad por porción (ej. 0,2 kg carne + 0,05 kg queso). Sin filas = no controla stock.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <button className="btn-green" onClick={guardar}>Guardar</button>
             <button onClick={() => setEdit(null)}>Cancelar</button>
+            {edit.id && <button className="btn-red" style={{ marginLeft: 'auto' }} onClick={eliminarActual} title="Eliminar definitivamente (si nunca se vendió)">🗑 Eliminar</button>}
           </div>
         </div>
       )}
