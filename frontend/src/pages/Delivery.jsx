@@ -140,6 +140,12 @@ export default function Delivery() {
     }
   };
 
+  // Imprimir a mano el comprobante con espacio de firma (cuando el cliente sí está o se necesita el papel)
+  const imprimirTicket = async (p) => {
+    try { await api.imprimirCuenta(p.id, { firma: true }); toast('🖨 Comprobante enviado.'); }
+    catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
+  };
+
   const nuevaCuentaRapida = async () => {
     const nombre = await preguntar('Nombre de la cuenta (empresa o persona) para el fiado:', pedido?.cliente_nombre || '');
     if (!nombre || !nombre.trim()) return;
@@ -157,13 +163,13 @@ export default function Delivery() {
     try {
       await api.pagar(p.id, [{ medio: esFiado ? 'FIADO' : medio, importe: p.total }],
         esFiado ? { cuenta_id: Number(cuentaId), detalle: detalleFiado || null } : {});
-      // Fiado: imprimir el ticket con espacio de FIRMA como comprobante de la deuda (best-effort).
-      if (esFiado) { try { await api.imprimirCuenta(p.id, { firma: true }); } catch { /* ignorar */ } }
+      // El comprobante con firma NO se imprime solo (el cliente casi nunca está para firmar).
+      // Si hace falta, se imprime a mano con el botón "🖨 Con firma".
       setPedido(null);
       setCli({ cliente_nombre: '', cliente_telefono: '', cliente_direccion: '', hora_entrega: '' });
       setMedio('EFECTIVO'); setCuentaId(''); setDetalleFiado('');
       cargarActivos(); cargarCuentas();
-      toast(esFiado ? '✅ Cargado al fiado. Ticket impreso.' : '✅ Cobrado.');
+      toast(esFiado ? '✅ Cargado al fiado.' : '✅ Cobrado.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
       cargarActivos();
@@ -191,6 +197,9 @@ export default function Delivery() {
               </select>
               <button className="btn-green" onClick={cobrar}>💵 Cobrar {money(pedido.total)}</button>
             </>
+          )}
+          {pedido.total > 0 && (
+            <button onClick={() => imprimirTicket(pedido)} title="Imprimir el comprobante con espacio para firma">🖨 Con firma</button>
           )}
           {pedido.estado === 'cobrado' && !pedido.entregado_en && (
             <button className="btn-green" onClick={async () => { await marcarEntregado(null, pedido.id); setPedido(null); }}>📦 Marcar entregado</button>

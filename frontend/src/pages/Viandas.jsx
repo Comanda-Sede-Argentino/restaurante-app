@@ -551,7 +551,7 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
     if (!(await confirmar(`¿Cargar ${money(p.total)} al fiado de ${emp?.nombre || 'la empresa'}?`, { ok: 'Cargar' }))) return;
     try {
       await api.pagar(p.id, [{ medio: 'FIADO', importe: Math.round(p.total) }], { cuenta_id: Number(cuentaId) });
-      try { await api.imprimirCuenta(p.id, { firma: true }); } catch { /* best-effort */ }
+      // No imprime solo: si hace falta el comprobante con firma, se usa el botón "🖨 Con firma".
       setFiadoId(null); setCuentaId(''); recargar(); recargarCuentas(); toast('✅ Cargado al fiado.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya estaba cobrado.' : 'No se pudo cargar: ' + e.message, 'error');
@@ -560,6 +560,11 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
   };
   const imprimir = async (p) => {
     try { await api.imprimirCuenta(p.id); toast('🖨 Ticket enviado.'); }
+    catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
+  };
+  // Comprobante con espacio para firma (para el fiado, cuando se necesita el papel firmado)
+  const imprimirFirma = async (p) => {
+    try { await api.imprimirCuenta(p.id, { firma: true }); toast('🖨 Comprobante con firma enviado.'); }
     catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
   };
   const anular = async (p) => {
@@ -687,6 +692,7 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="btn-green" style={{ flex: 1 }} onClick={() => cobrarFiado(p)}>Cargar al fiado</button>
+              <button onClick={() => imprimirFirma(p)} title="Imprimir comprobante con firma">🖨 Con firma</button>
               <button onClick={() => { setFiadoId(null); setCobrarId(p.id); }}>←</button>
             </div>
           </div>

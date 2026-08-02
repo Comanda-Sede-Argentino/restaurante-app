@@ -66,20 +66,25 @@ export default function Reparto() {
       toast('Cuenta creada.');
     } catch (e) { toast('No se pudo crear: ' + e.message, 'error'); }
   };
-  // Cargar el pedido al fiado de una empresa (cuenta corriente) e imprimir el ticket con firma
+  // Cargar el pedido al fiado de una empresa (cuenta corriente). NO imprime solo: el comprobante
+  // con firma se imprime a mano con el botón "🖨" si hace falta (el cliente casi nunca está para firmar).
   const cobrarFiado = async (p) => {
     if (!cuentaId) { toast('Elegí la empresa (o creá una nueva).', 'error'); return; }
     const emp = cuentas.find((c) => String(c.id) === String(cuentaId));
     if (!(await confirmar(`¿Cargar ${money(p.total)} al fiado de ${emp?.nombre || 'la empresa'}?`, { ok: 'Cargar' }))) return;
     try {
       await api.pagar(p.id, [{ medio: 'FIADO', importe: p.total }], { cuenta_id: Number(cuentaId) });
-      try { await api.imprimirCuenta(p.id, { firma: true }); } catch { /* impresión best-effort */ }
       setFiadoId(null); setCuentaId(''); cargar(); cargarCuentas();
-      toast('✅ Cargado al fiado. Ticket impreso.');
+      toast('✅ Cargado al fiado.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya estaba cobrado.' : 'No se pudo cargar: ' + e.message, 'error');
       cargar();
     }
+  };
+  // Imprimir a mano el comprobante con espacio de firma
+  const imprimirTicket = async (p) => {
+    try { await api.imprimirCuenta(p.id, { firma: true }); toast('🖨 Comprobante enviado.'); }
+    catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
   };
 
   // Imprime el ticket de cierre del turno de delivery (total vendido + cuánto en efectivo)
@@ -156,6 +161,7 @@ export default function Reparto() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {!entregado && <button style={{ flex: 1, padding: 10 }} onClick={() => entregar(p)}>📦 Entregado</button>}
                 {!pagado && cobrarId !== p.id && fiadoId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 10 }} onClick={() => { setCobrarId(p.id); setFiadoId(null); }}>💵 Cobrar</button>}
+                <button style={{ padding: 10 }} onClick={() => imprimirTicket(p)} title="Imprimir comprobante con firma">🖨</button>
               </div>
               {!pagado && cobrarId === p.id && (
                 <div style={{ marginTop: 8 }}>
