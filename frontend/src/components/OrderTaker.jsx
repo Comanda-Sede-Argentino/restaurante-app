@@ -187,6 +187,10 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const enviar = async (sinComanda = false) => {
     if (!cart.length || enviando) return;
     if (sinComanda && !(await confirmar('¿Agregar a la cuenta SIN mandar comanda a la cocina?\n\nUsalo solo si ya serviste esto (no sale el ticket ni aparece en la pantalla de cocina). Igual se cobra y queda en los reportes.', { ok: 'Sí, agregar sin comanda' }))) return;
+    // Recordatorio: un delivery sin HORA imprime el remito sin hora de entrega.
+    if (pedido.tipo === 'delivery' && !pedido.hora_entrega) {
+      if (!(await confirmar('⏰ Este delivery NO tiene HORA de entrega cargada.\n\nSi imprimís ahora, el remito sale SIN hora. Cargala arriba (🕒 Hora de entrega) antes de enviar.', { ok: 'Enviar igual (sin hora)', cancelar: 'Volver a cargar la hora' }))) return;
+    }
     setEnviando(true);
     try {
       const items = [];

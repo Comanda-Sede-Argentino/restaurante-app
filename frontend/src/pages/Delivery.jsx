@@ -5,6 +5,11 @@ import { toast, confirmar, preguntar } from '../ui.jsx';
 
 const MEDIOS = ['EFECTIVO', 'TARJETA DÉBITO', 'TARJETA CRÉDITO', 'QR / TRANSFERENCIA', 'FIADO (cuenta corriente)'];
 const esFiadoMedio = (m) => /FIADO/i.test(m);
+// Devuelve la hora (HH:MM) de dentro de `mins` minutos, para los botones rápidos de hora de entrega
+const horaEn = (mins) => {
+  const d = new Date(Date.now() + mins * 60000);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+};
 // Botones rápidos de forma de pago en la lista (para cobrar sin abrir el detalle)
 const MEDIOS_RAPIDOS = [
   { k: 'EFECTIVO', label: '💵 Efvo', cls: 'btn-green' },
@@ -221,12 +226,24 @@ export default function Delivery() {
             <input placeholder="A nombre de (opcional)" value={detalleFiado} onChange={(e) => setDetalleFiado(e.target.value)} style={{ width: '100%', marginTop: 8 }} />
           </div>
         )}
-        <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card" style={{ marginBottom: 12, border: '2px solid ' + (pedido.hora_entrega ? 'var(--green)' : 'var(--orange)') }}>
           <div style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 10 }}>
             📞 {pedido.cliente_telefono || '—'} &nbsp;·&nbsp; 📍 {pedido.cliente_direccion || '—'}
           </div>
-          <label>🕒 Hora de entrega: </label>
-          <input type="time" value={pedido.hora_entrega || ''} onChange={(e) => setHora(e.target.value)} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 18, fontWeight: 800 }}>🕒 Hora de entrega:</label>
+            <input type="time" value={pedido.hora_entrega || ''} onChange={(e) => setHora(e.target.value)}
+              style={{ fontSize: 22, fontWeight: 800, padding: '6px 12px', borderColor: pedido.hora_entrega ? '' : 'var(--orange)' }} />
+            {!pedido.hora_entrega
+              ? <b style={{ color: 'var(--orange)', fontSize: 15 }}>⚠ Falta la hora</b>
+              : <b style={{ color: 'var(--green)', fontSize: 15 }}>✓</b>}
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--muted)', fontSize: 13, alignSelf: 'center' }}>Rápido:</span>
+            <button onClick={() => setHora(horaEn(30))}>En 30 min</button>
+            <button onClick={() => setHora(horaEn(45))}>En 45 min</button>
+            <button onClick={() => setHora(horaEn(60))}>En 1 h</button>
+          </div>
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={cobrandoEnvio} onChange={(e) => toggleEnvio(e.target.checked)} />
