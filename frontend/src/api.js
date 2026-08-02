@@ -44,7 +44,7 @@ export const api = {
   pedido: (id) => req('/pedidos/' + id),
   crearPedido: (data) => req('/pedidos', { method: 'POST', body: data }),
   actualizarPedido: (id, data) => req('/pedidos/' + id, { method: 'PUT', body: data }),
-  agregarItems: (id, items) => req('/pedidos/' + id + '/items', { method: 'POST', body: { items } }),
+  agregarItems: (id, items, opts = {}) => req('/pedidos/' + id + '/items', { method: 'POST', body: { items, ...opts } }),
   estadoItem: (id, estado) => req('/items/' + id + '/estado', { method: 'PUT', body: { estado } }),
   pagar: (id, pagos, extra = {}) => req('/pedidos/' + id + '/pagar', { method: 'POST', body: { pagos, ...extra } }),
   envio: (id, data) => req('/pedidos/' + id + '/envio', { method: 'POST', body: data }),

@@ -476,14 +476,19 @@ app.post('/api/pedidos/:id/items', (req, res) => {
   const ped = db.prepare('SELECT * FROM pedido WHERE id=?').get(pedidoId);
   if (!ped) return res.status(404).json({ error: 'Pedido inexistente' });
   const items = req.body.items || [];
+  // "Sin comanda": el mozo ya sirvió esto (ej. una porción que fue a buscar a la cocina).
+  // Se registra para la cuenta y el stock, pero NO se imprime la comanda ni aparece en la pantalla
+  // de cocina (se guarda como 'servido').
+  const sinComanda = req.body.sinComanda === true;
+  const estadoItem = sinComanda ? 'servido' : 'pendiente';
   // Bloquear platos marcados "sin stock" por la cocina
   const sinStock = items
     .map((it) => db.prepare('SELECT nombre FROM plato WHERE id=? AND disponible=0').get(it.plato_id))
     .filter(Boolean).map((p) => p.nombre);
   if (sinStock.length) return res.status(409).json({ error: 'Sin stock: ' + [...new Set(sinStock)].join(', ') });
   const ins = db.prepare(
-    `INSERT INTO pedido_item (pedido_id, plato_id, nombre, cantidad, precio_unit, observacion, sector_id, sector_nombre)
-     VALUES (@pedido_id,@plato_id,@nombre,@cantidad,@precio_unit,@observacion,@sector_id,@sector_nombre)`
+    `INSERT INTO pedido_item (pedido_id, plato_id, nombre, cantidad, precio_unit, observacion, sector_id, sector_nombre, estado)
+     VALUES (@pedido_id,@plato_id,@nombre,@cantidad,@precio_unit,@observacion,@sector_id,@sector_nombre,@estado)`
   );
   const nuevos = [];
   const tx = db.transaction(() => {
@@ -500,22 +505,27 @@ app.post('/api/pedidos/:id/items', (req, res) => {
         observacion: it.observacion || null,
         sector_id: plato ? plato.sector_id : null,
         sector_nombre: plato ? plato.sector : null,
+        estado: estadoItem,
       });
       nuevos.push(db.prepare('SELECT * FROM pedido_item WHERE id=?').get(r.lastInsertRowid));
     }
-    db.prepare("UPDATE pedido SET estado='en_cocina' WHERE id=?").run(pedidoId);
+    // Solo pasa a "en_cocina" si algo va realmente a cocina. Lo "sin comanda" ya está servido.
+    if (!sinComanda) db.prepare("UPDATE pedido SET estado='en_cocina' WHERE id=?").run(pedidoId);
     recalcTotal(pedidoId);
   });
   tx();
   // Descontar stock de cada plato vendido (según receta; bebidas = 1:1)
   for (const it of nuevos) consumirStockVenta(pedidoId, it.plato_id, it.cantidad);
-  // Emitir cada item nuevo a la cocina (KDS) por sector
-  for (const it of nuevos) {
-    io.emit('item:nuevo', { ...it, pedido: pedidoCompleto(pedidoId) });
+  // Emitir cada item nuevo a la cocina (KDS) por sector. "Sin comanda" no va a la pantalla de cocina.
+  if (!sinComanda) {
+    for (const it of nuevos) {
+      io.emit('item:nuevo', { ...it, pedido: pedidoCompleto(pedidoId) });
+    }
   }
   const p = pedidoCompleto(pedidoId);
   io.emit('pedido:actualizado', p);
   emitDashboard();
+  if (sinComanda) return res.json(p); // no imprime comanda ni ticket de bebidas
   // Qué se imprime en la comanda:
   // - SALÓN: es la comanda de cocina -> solo lo NUEVO (sin bebidas, sin precios).
   // - DELIVERY / MOSTRADOR: la comanda es también el remito del cliente (con precios y TOTAL),

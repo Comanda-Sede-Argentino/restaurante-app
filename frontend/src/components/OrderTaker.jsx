@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, money, socket } from '../api';
-import { toast } from '../ui.jsx';
+import { toast, confirmar } from '../ui.jsx';
 
 // Observaciones rápidas (se tocan para agregar/quitar). Editable a futuro.
 // Puntos de cocción (para platos marcados "pide punto", se elige por unidad)
@@ -184,8 +184,9 @@ export default function OrderTaker({ pedido, onEnviado }) {
      baseObs]
       .filter(Boolean).join(' - ') || null;
 
-  const enviar = async () => {
+  const enviar = async (sinComanda = false) => {
     if (!cart.length || enviando) return;
+    if (sinComanda && !(await confirmar('¿Agregar a la cuenta SIN mandar comanda a la cocina?\n\nUsalo solo si ya serviste esto (no sale el ticket ni aparece en la pantalla de cocina). Igual se cobra y queda en los reportes.', { ok: 'Sí, agregar sin comanda' }))) return;
     setEnviando(true);
     try {
       const items = [];
@@ -200,10 +201,10 @@ export default function OrderTaker({ pedido, onEnviado }) {
           items.push({ plato_id: x.libre ? null : x.plato_id, nombre: x.nombre, precio_unit: x.precio_unit, cantidad: x.cantidad, observacion: obsUnidad(x.plato_id, 0, baseObs) });
         }
       }
-      await api.agregarItems(pedido.id, items);
+      await api.agregarItems(pedido.id, items, { sinComanda });
       setCart([]); setObsItem({}); setGuarnItem({}); setSalsaItem({}); setPuntoItem({}); setCartOpen(false);
       if (draftKey) localStorage.removeItem(draftKey);
-      toast('✅ Comanda enviada a cocina.');
+      toast(sinComanda ? '✅ Agregado a la cuenta (sin comanda).' : '✅ Comanda enviada a cocina.');
       onEnviado && onEnviado();
     } catch (e) {
       toast('⚠ No se pudo enviar la comanda. Revisá la conexión y volvé a intentar. (No se duplicó nada.)', 'error');
@@ -439,9 +440,15 @@ export default function OrderTaker({ pedido, onEnviado }) {
           </div>
         ))}
         <div className="total-row"><span>Total</span><span>{money(total)}</span></div>
-        <button className="btn-accent" style={{ width: '100%', padding: 14 }} disabled={!cart.length || enviando} onClick={enviar}>
+        <button className="btn-accent" style={{ width: '100%', padding: 14 }} disabled={!cart.length || enviando} onClick={() => enviar(false)}>
           {enviando ? 'Enviando...' : '🍳 Enviar a cocina'}
         </button>
+        {pedido.tipo === 'salon' && (
+          <button style={{ width: '100%', padding: 10, marginTop: 8 }} disabled={!cart.length || enviando} onClick={() => enviar(true)}
+            title="Solo suma a la cuenta. No imprime comanda ni va a la pantalla de cocina. Usalo si ya serviste esto.">
+            ➕ Agregar sin comanda (ya servido)
+          </button>
+        )}
       </div>
 
       {/* Fondo oscuro al abrir el carrito en celular */}
@@ -454,7 +461,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
             🛒 <b>{totalCount}</b> ítem(s) · <b>{money(total)}</b>
           </div>
           <button onClick={() => setCartOpen(true)}>Ver</button>
-          <button className="btn-accent" disabled={enviando} onClick={enviar}>{enviando ? '...' : '🍳 Enviar'}</button>
+          <button className="btn-accent" disabled={enviando} onClick={() => enviar(false)}>{enviando ? '...' : '🍳 Enviar'}</button>
         </div>
       )}
     </div>
