@@ -4,6 +4,9 @@ import { api, money } from '../api';
 import OrderTaker from '../components/OrderTaker.jsx';
 import { toast, confirmar, preguntar } from '../ui.jsx';
 
+const MEDIOS = ['EFECTIVO', 'TARJETA DÉBITO', 'TARJETA CRÉDITO', 'QR / TRANSFERENCIA', 'FIADO'];
+const numAR = (v) => Number(String(v).replace(/[^\d]/g, '')) || 0;
+
 export default function Mozo() {
   const { mesaId } = useParams();
   const nav = useNavigate();
@@ -18,6 +21,9 @@ export default function Mozo() {
   const [modoFiado, setModoFiado] = useState(false);   // sub-pantalla para elegir empresa (fiado)
   const [cuentas, setCuentas] = useState([]);          // empresas / cuentas corrientes
   const [cuentaId, setCuentaId] = useState('');        // empresa elegida para el fiado
+  const [propina, setPropina] = useState('');          // propina (se registra aparte del total)
+  const [mixto, setMixto] = useState(false);           // pago con varios medios a la vez
+  const [pagos, setPagos] = useState([{ medio: 'EFECTIVO', importe: '' }]); // renglones del pago mixto
   const [buscarMesa, setBuscarMesa] = useState('');    // buscador de mesas (número / nombre / mozo)
   const [soloMias, setSoloMias] = useState(() => localStorage.getItem('soloMisMesas') === '1'); // ver solo mis mesas (+ libres)
 
@@ -96,21 +102,58 @@ export default function Mozo() {
   // Abrir el cobro (antes chequea que no queden ítems sin enviar)
   const abrirCobro = async () => {
     if (!(await confirmarSinEnviar())) return;
-    setCobrando(true); setRecibido(''); setModoFiado(false); setCuentaId(''); cargarCuentas();
+    setCobrando(true); setRecibido(''); setModoFiado(false); setCuentaId('');
+    setPropina(''); setMixto(false); setPagos([{ medio: 'EFECTIVO', importe: String(Math.round(pedido.total)) }]);
+    cargarCuentas();
   };
+  const cerrarCobro = () => {
+    setCobrando(false); setModoFiado(false); setRecibido(''); setPropina(''); setMixto(false); setCuentaId('');
+  };
+  const setPagoRow = (i, campo, valor) => setPagos((ps) => ps.map((r, j) => (j === i ? { ...r, [campo]: valor } : r)));
 
   // Registra el cobro en la caja con la forma de pago elegida y libera la mesa. NO imprime (la cuenta se imprime aparte).
   const cobrarMesa = async (medio) => {
     const total = pedido.total;
+    const rec = numAR(recibido);
+    let propinaN = numAR(propina);
     let extra = '';
     if (medio === 'EFECTIVO') {
-      const rec = Number(String(recibido).replace(/[^\d]/g, '')) || 0;
       if (rec > 0) extra = `\nPaga con ${money(rec)} → vuelto ${money(Math.max(0, rec - total))}`;
+    } else if (rec > total && propinaN === 0) {
+      // Pagó de más con tarjeta/transferencia (no hay vuelto) → el excedente es propina.
+      propinaN = rec - total;
     }
-    if (!(await confirmar(`¿Cobrar ${money(total)} en ${medio}?${extra}\n\nLa mesa queda libre.`, { ok: 'Cobrar' }))) return;
+    const lineaProp = propinaN > 0 ? `\nPropina: ${money(propinaN)} (se registra aparte)` : '';
+    if (!(await confirmar(`¿Cobrar ${money(total)} en ${medio}?${lineaProp}${extra}\n\nLa mesa queda libre.`, { ok: 'Cobrar' }))) return;
     try {
-      await api.pagar(pedido.id, [{ medio, importe: total }], {}); // registra la venta y libera la mesa
-      setCobrando(false); setRecibido('');
+      await api.pagar(pedido.id, [{ medio, importe: total }], { propina: propinaN }); // registra la venta + propina y libera la mesa
+      cerrarCobro();
+      setPedido(null); nav('/mozo'); cargarMesas();
+      toast('✅ Cobrado. Mesa liberada.');
+    } catch (e) {
+      toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
+    }
+  };
+
+  // Cobro con VARIOS medios a la vez (ej. una parte en efectivo y otra por transferencia).
+  const cobrarMixtoMesa = async () => {
+    const total = pedido.total;
+    const propinaN = numAR(propina);
+    const rows = pagos.filter((x) => numAR(x.importe) > 0).map((x) => ({ medio: x.medio, importe: numAR(x.importe) }));
+    const suma = rows.reduce((a, x) => a + x.importe, 0);
+    if (!rows.length) { toast('Cargá al menos un medio con importe.', 'error'); return; }
+    if (Math.abs(suma - total) > 1) {
+      toast(`Los pagos deben sumar ${money(total)}. Ahora suman ${money(suma)}.`, 'error'); return;
+    }
+    const hayFiado = rows.some((x) => /FIADO/i.test(x.medio));
+    if (hayFiado && !cuentaId) { toast('Elegí la empresa para la parte en fiado.', 'error'); return; }
+    const detalle = rows.map((x) => `• ${x.medio}: ${money(x.importe)}`).join('\n');
+    const lineaProp = propinaN > 0 ? `\nPropina: ${money(propinaN)} (aparte)` : '';
+    if (!(await confirmar(`¿Cobrar ${money(total)}?${lineaProp}\n\n${detalle}\n\nLa mesa queda libre.`, { ok: 'Cobrar' }))) return;
+    try {
+      await api.pagar(pedido.id, rows, { propina: propinaN, cuenta_id: hayFiado ? Number(cuentaId) : undefined });
+      if (hayFiado) { try { await api.imprimirCuenta(pedido.id, { firma: true }); } catch { /* best-effort */ } }
+      cerrarCobro();
       setPedido(null); nav('/mozo'); cargarMesas();
       toast('✅ Cobrado. Mesa liberada.');
     } catch (e) {
@@ -218,25 +261,75 @@ export default function Mozo() {
           <span className="badge warn">{pedido.estado}</span>
         </div>
         {cobrando && (() => {
-          const recNum = Number(String(recibido).replace(/[^\d]/g, '')) || 0;
-          const vuelto = recNum > 0 ? Math.max(0, recNum - pedido.total) : null;
+          const total = pedido.total;
+          const recNum = numAR(recibido);
+          const propNum = numAR(propina);
+          const sumaMixto = pagos.reduce((a, x) => a + numAR(x.importe), 0);
+          const faltaMixto = total - sumaMixto;
+          const hayFiadoMixto = pagos.some((x) => /FIADO/i.test(x.medio));
+          const excedente = recNum > total ? recNum - total : 0; // pagó de más → vuelto (efvo) o propina (tarjeta/transf)
+          const vuelto = recNum > 0 ? Math.max(0, recNum - total) : null;
           return (
             <div className="card" style={{ marginBottom: 12, borderColor: 'var(--green)' }}>
-              <h2 className="h2" style={{ marginTop: 0 }}>💵 Cobrar {money(pedido.total)} — {modoFiado ? '¿a qué empresa?' : '¿cómo paga?'}</h2>
+              <h2 className="h2" style={{ marginTop: 0 }}>💵 Cobrar {money(total)} — {modoFiado ? '¿a qué empresa?' : '¿cómo paga?'}</h2>
               {!modoFiado ? (
                 <>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                    <button className="btn-green" onClick={() => cobrarMesa('EFECTIVO')}>💵 Efectivo</button>
-                    <button className="btn-blue" onClick={() => cobrarMesa('TARJETA DÉBITO')}>💳 Débito</button>
-                    <button className="btn-blue" onClick={() => cobrarMesa('TARJETA CRÉDITO')}>💳 Crédito</button>
-                    <button className="btn-blue" onClick={() => cobrarMesa('QR / TRANSFERENCIA')}>📱 QR / Transf.</button>
-                    <button className="btn-blue" onClick={() => setModoFiado(true)}>📒 Fiado (empresa)</button>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                    <label style={{ color: 'var(--muted)', fontSize: 13 }}>🎁 Propina (opcional) $</label>
+                    <input inputMode="numeric" value={propina} onChange={(e) => setPropina(e.target.value)} placeholder="0" style={{ width: 120 }} />
+                    {propNum > 0 && <b style={{ color: 'var(--green)' }}>Total con propina: {money(total + propNum)}</b>}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <label style={{ color: 'var(--muted)', fontSize: 13 }}>Efectivo — ¿con cuánto paga? (para el vuelto):</label>
-                    <input inputMode="numeric" value={recibido} onChange={(e) => setRecibido(e.target.value)} placeholder="$" style={{ width: 130 }} />
-                    {vuelto != null && <b style={{ color: 'var(--green)' }}>Vuelto: {money(vuelto)}</b>}
-                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                    <input type="checkbox" checked={mixto} onChange={(e) => setMixto(e.target.checked)} /> 🔀 Pago mixto (una parte con cada medio)
+                  </label>
+                  {!mixto ? (
+                    <>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                        <button className="btn-green" onClick={() => cobrarMesa('EFECTIVO')}>💵 Efectivo</button>
+                        <button className="btn-blue" onClick={() => cobrarMesa('TARJETA DÉBITO')}>💳 Débito</button>
+                        <button className="btn-blue" onClick={() => cobrarMesa('TARJETA CRÉDITO')}>💳 Crédito</button>
+                        <button className="btn-blue" onClick={() => cobrarMesa('QR / TRANSFERENCIA')}>📱 QR / Transf.</button>
+                        <button className="btn-blue" onClick={() => setModoFiado(true)}>📒 Fiado (empresa)</button>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <label style={{ color: 'var(--muted)', fontSize: 13 }}>¿Con cuánto pagó? (opcional):</label>
+                        <input inputMode="numeric" value={recibido} onChange={(e) => setRecibido(e.target.value)} placeholder="$" style={{ width: 130 }} />
+                        {vuelto != null && vuelto > 0 && <span>💵 Vuelto (efectivo): <b style={{ color: 'var(--green)' }}>{money(vuelto)}</b></span>}
+                        {excedente > 0 && propNum === 0 && (
+                          <span style={{ color: 'var(--muted)', fontSize: 13 }}>Si paga con tarjeta/transf, los {money(excedente)} de más se registran como <b>propina</b>.</span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>Repartí el total en varios medios. Deben sumar {money(total)} (la propina va aparte, arriba).</p>
+                      {pagos.map((row, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                          <select value={row.medio} onChange={(e) => setPagoRow(i, 'medio', e.target.value)} style={{ flex: 1 }}>
+                            {MEDIOS.map((m) => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                          <input inputMode="numeric" placeholder="$" value={row.importe} onChange={(e) => setPagoRow(i, 'importe', e.target.value)} style={{ width: 110 }} />
+                          {pagos.length > 1 && <button className="btn-red" onClick={() => setPagos((ps) => ps.filter((_, j) => j !== i))}>✕</button>}
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                        <button onClick={() => setPagos((ps) => [...ps, { medio: 'TARJETA DÉBITO', importe: String(Math.max(0, faltaMixto)) }])}>+ Agregar medio</button>
+                        <span style={{ color: Math.abs(faltaMixto) > 1 ? 'var(--orange)' : 'var(--green)', fontSize: 14, fontWeight: 700 }}>
+                          {Math.abs(faltaMixto) <= 1 ? '✓ Asignado' : (faltaMixto > 0 ? `Falta ${money(faltaMixto)}` : `Sobra ${money(-faltaMixto)}`)}
+                        </span>
+                      </div>
+                      {hayFiadoMixto && (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                          <select value={cuentaId} onChange={(e) => setCuentaId(e.target.value)} style={{ flex: 1, minWidth: 180 }}>
+                            <option value="">— empresa del fiado —</option>
+                            {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre} (debe {money(c.saldo)})</option>)}
+                          </select>
+                          <button onClick={nuevaEmpresaMesa}>+ Nueva empresa</button>
+                        </div>
+                      )}
+                      <button className="btn-green" style={{ width: '100%', padding: 12 }} onClick={cobrarMixtoMesa}>✅ Cobrar mixto {money(total)}</button>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
@@ -253,7 +346,7 @@ export default function Mozo() {
               )}
               <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className="spacer" />
-                <button onClick={() => { setCobrando(false); setModoFiado(false); setRecibido(''); }}>Cancelar</button>
+                <button onClick={cerrarCobro}>Cancelar</button>
               </div>
             </div>
           );
