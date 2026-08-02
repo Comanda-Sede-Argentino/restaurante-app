@@ -18,6 +18,7 @@ export default function Mozo() {
   const [modoFiado, setModoFiado] = useState(false);   // sub-pantalla para elegir empresa (fiado)
   const [cuentas, setCuentas] = useState([]);          // empresas / cuentas corrientes
   const [cuentaId, setCuentaId] = useState('');        // empresa elegida para el fiado
+  const [buscarMesa, setBuscarMesa] = useState('');    // buscador de mesas (número / nombre / mozo)
 
   const cargarMesas = () => api.mesas().then(setMesas);
   const cargarCuentas = () => api.cuentas().then(setCuentas).catch(() => {});
@@ -159,6 +160,21 @@ export default function Mozo() {
 
   const mesasLibres = mesas.filter((m) => !m.pedido);
   const mesasOcupadas = mesas.filter((m) => m.pedido && m.pedido.id !== pedido?.id);
+
+  // Poner/cambiar el nombre de una mesa (etiqueta para identificarla rápido)
+  const renombrarMesa = async (e, m) => {
+    e.stopPropagation();
+    const nombre = await preguntar('Nombre de la mesa (ej. Ventana, Barra 1). Dejalo vacío para usar solo el número:', m.nombre || '');
+    if (nombre === null) return;
+    try { await api.renombrarMesa(m.id, nombre.trim()); cargarMesas(); }
+    catch (err) { toast('No se pudo renombrar: ' + err.message, 'error'); }
+  };
+  // Minutos desde que se abrió la mesa (para saber cuál lleva más tiempo esperando)
+  const minutosDesde = (ts) => {
+    if (!ts) return null;
+    const min = Math.round((Date.now() - new Date(ts.replace(' ', 'T')).getTime()) / 60000);
+    return min >= 0 && min < 1440 ? min : null;
+  };
   const abrirAccion = (a) => { setAccionMesa(a); setMesaDestino(''); };
 
   const mover = async () => {
@@ -281,7 +297,7 @@ export default function Mozo() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <h1 className="h1" style={{ margin: 0 }}>Elegí una mesa</h1>
         <span className="badge warn">{mesas.filter((m) => m.pedido).length} ocupadas / {mesas.length}</span>
         <span className="spacer" />
@@ -298,16 +314,29 @@ export default function Mozo() {
           {!mozos.length && <> (No hay mozos cargados — pedile al encargado que los cargue en <b>Ajustes → Mozos</b>.)</>}
         </div>
       )}
+      <input value={buscarMesa} onChange={(e) => setBuscarMesa(e.target.value)}
+        placeholder="🔎 Buscar mesa por número, nombre o mozo..." style={{ width: '100%', maxWidth: 420, marginBottom: 12 }} />
       <div className="mesas">
-        {mesas.map((m) => (
-          <div key={m.id} className={'mesa ' + (m.pedido ? 'ocupada' : 'libre')} onClick={() => abrirMesa(m.id)}>
-            <div className="num">{m.numero}</div>
-            <div className="est">{m.sala}</div>
-            {m.pedido
-              ? <><div className="tot">{money(m.pedido.total)}</div><div className="est">{m.pedido.mozo_nombre || ''}</div></>
-              : <div className="est">libre</div>}
-          </div>
-        ))}
+        {mesas
+          .filter((m) => {
+            const q = buscarMesa.trim().toLowerCase();
+            if (!q) return true;
+            return String(m.numero).includes(q) || (m.nombre || '').toLowerCase().includes(q) || (m.pedido?.mozo_nombre || '').toLowerCase().includes(q);
+          })
+          .map((m) => {
+            const mins = m.pedido ? minutosDesde(m.pedido.abierto_en) : null;
+            return (
+              <div key={m.id} className={'mesa ' + (m.pedido ? 'ocupada' : 'libre')} style={{ position: 'relative' }} onClick={() => abrirMesa(m.id)}>
+                <button onClick={(e) => renombrarMesa(e, m)} title="Poner nombre a la mesa"
+                  style={{ position: 'absolute', top: 3, right: 3, padding: '2px 6px', fontSize: 12, background: 'transparent' }}>✏</button>
+                <div className="num" style={m.nombre ? { fontSize: 18, lineHeight: 1.1 } : undefined}>{m.nombre || m.numero}</div>
+                <div className="est">{m.nombre ? 'Mesa ' + m.numero : m.sala}</div>
+                {m.pedido
+                  ? <><div className="tot">{money(m.pedido.total)}</div><div className="est">{m.pedido.mozo_nombre || ''}{mins != null ? ` · ${mins}m` : ''}</div></>
+                  : <div className="est">libre</div>}
+              </div>
+            );
+          })}
       </div>
     </div>
   );

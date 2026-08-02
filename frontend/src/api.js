@@ -33,6 +33,7 @@ export const api = {
   editarUsuario: (id, data) => req('/usuarios/' + id, { method: 'PUT', body: data }),
   borrarUsuario: (id) => req('/usuarios/' + id, { method: 'DELETE' }),
   mesas: () => req('/mesas'),
+  renombrarMesa: (id, nombre) => req('/mesas/' + id, { method: 'PUT', body: { nombre } }),
   pedidos: (estado) => req('/pedidos' + (estado ? '?estado=' + estado : '')),
   deliveryPendientes: () => req('/pedidos?pendienteEntrega=1'),
   entregar: (id, entregado = true) => req('/pedidos/' + id + '/entregar', { method: 'POST', body: { entregado } }),

@@ -282,6 +282,14 @@ app.get('/api/mesas', (req, res) => {
   res.json(mesas);
 });
 
+// Renombrar una mesa (etiqueta opcional para identificarla, ej. "Ventana", "Barra 1")
+app.put('/api/mesas/:id', (req, res) => {
+  const nombre = (req.body.nombre || '').trim() || null;
+  db.prepare('UPDATE mesa SET nombre=? WHERE id=?').run(nombre, req.params.id);
+  io.emit('mesa:actualizada', { id: Number(req.params.id), nombre });
+  res.json(db.prepare('SELECT * FROM mesa WHERE id=?').get(req.params.id));
+});
+
 // ================= PEDIDOS =================
 app.get('/api/pedidos', (req, res) => {
   const { estado, pendienteEntrega } = req.query;
