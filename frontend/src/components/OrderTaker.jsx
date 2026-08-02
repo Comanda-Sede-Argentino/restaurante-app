@@ -25,9 +25,10 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const [puntoItem, setPuntoItem] = useState({}); // plato_id -> [punto de cocción por unidad]
   const [enviando, setEnviando] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [elegir, setElegir] = useState(null); // selector rápido al tocar un plato con guarnición/salsa/punto: { plato, cantidad, guarnicion, salsa, punto }
 
   const [frecuentes, setFrecuentes] = useState([]);
-  const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Ensalada mixta', 'Rúcula con queso', 'Puré mixto']);
+  const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Puré de calabaza', 'Puré mixto', 'Ensalada mixta', 'Rúcula con queso']);
   const [salsas, setSalsas] = useState(['Salsa roja', 'Salsa mixta', 'Bolognesa', 'Crema y queso']);
   const cargarMenu = () => {
     api.platos({}).then(setTodos);
@@ -109,6 +110,30 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const dec = (id) =>
     setCart((c) => c.flatMap((x) => (x.plato_id !== id ? [x] : x.cantidad > 1 ? [{ ...x, cantidad: x.cantidad - 1 }] : [])));
 
+  // Al tocar un plato: si lleva guarnición/salsa/punto, abre el selector rápido; si no, lo agrega
+  // y limpia el buscador (así queda listo para escribir el próximo plato).
+  const tocar = (p) => {
+    if (p.disponible === 0) return;
+    if (porUnidad(p.id)) { setElegir({ plato: p, cantidad: 1, guarnicion: '', salsa: '', punto: '' }); return; }
+    add(p); setQ('');
+  };
+  // Confirmar el selector rápido: agrega N unidades con la guarnición/salsa/punto elegidos (reusa el estado por unidad)
+  const confirmarElegir = () => {
+    const { plato: p, cantidad, guarnicion, salsa, punto } = elegir;
+    const n = Math.max(1, cantidad || 1);
+    const start = cart.find((x) => x.plato_id === p.id)?.cantidad || 0;
+    const fill = (setter, val) => setter((o) => { const a = (o[p.id] || []).slice(); for (let i = 0; i < n; i++) a[start + i] = val; return { ...o, [p.id]: a }; });
+    if (catGuarnDe[p.id] && guarnicion) fill(setGuarnItem, guarnicion);
+    if (catSalsaDe[p.id] && salsa) fill(setSalsaItem, salsa);
+    if (puntoDe[p.id] && punto) fill(setPuntoItem, punto);
+    setCart((c) => {
+      const ex = c.find((x) => x.plato_id === p.id);
+      if (ex) return c.map((x) => (x.plato_id === p.id ? { ...x, cantidad: x.cantidad + n } : x));
+      return [...c, { plato_id: p.id, nombre: p.nombre, precio_unit: p.precio, cantidad: n }];
+    });
+    setElegir(null); setQ('');
+  };
+
   // Agregar un pedido ESPECIAL / fuera de carta (VARIOS): nombre + precio libres. Va a la comanda de cocina.
   const agregarVarios = () => {
     const nombre = (varios?.nombre || '').trim();
@@ -189,12 +214,15 @@ export default function OrderTaker({ pedido, onEnviado }) {
     <div className="taker">
       {/* Selección de platos */}
       <div className="menu">
-        <input
-          placeholder="🔎 Buscar bebidas y cualquier otro plato..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ width: '100%', marginBottom: 8 }}
-        />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          <input
+            placeholder="🔎 Buscar bebidas y cualquier otro plato..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ flex: 1 }}
+          />
+          {q && <button onClick={() => setQ('')} title="Borrar búsqueda">✕</button>}
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 2px 8px', color: 'var(--muted)', fontSize: 13 }}>
           {buscando ? (
             <span>Resultados de "{q}"</span>
@@ -283,6 +311,43 @@ export default function OrderTaker({ pedido, onEnviado }) {
             </div>
           </div>
         )}
+        {elegir && (
+          <div className="card" style={{ marginBottom: 10, borderColor: 'var(--accent)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              <b style={{ fontSize: 16 }}>{elegir.plato.nombre}</b>
+              <span className="spacer" />
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>Cantidad:</span>
+              <div className="qty">
+                <button onClick={() => setElegir((e) => ({ ...e, cantidad: Math.max(1, e.cantidad - 1) }))}>−</button>
+                <b>{elegir.cantidad}</b>
+                <button onClick={() => setElegir((e) => ({ ...e, cantidad: e.cantidad + 1 }))}>+</button>
+              </div>
+            </div>
+            {puntoDe[elegir.plato.id] ? (
+              <div className="obs-chips" style={{ marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🔥 Punto:</span>
+                {PUNTOS.map((pt) => <span key={pt} className={'obs-chip' + (elegir.punto === pt ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, punto: e.punto === pt ? '' : pt }))}>{pt}</span>)}
+              </div>
+            ) : null}
+            {catGuarnDe[elegir.plato.id] ? (
+              <div className="obs-chips" style={{ marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍟 Guarnición:</span>
+                {guarniciones.map((g) => <span key={g} className={'obs-chip' + (elegir.guarnicion === g ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === g ? '' : g }))}>{g}</span>)}
+                <span className={'obs-chip' + (elegir.guarnicion === 'SIN' ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === 'SIN' ? '' : 'SIN' }))}>Sin</span>
+              </div>
+            ) : null}
+            {catSalsaDe[elegir.plato.id] ? (
+              <div className="obs-chips" style={{ marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍝 Salsa:</span>
+                {salsas.map((s) => <span key={s} className={'obs-chip' + (elegir.salsa === s ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, salsa: e.salsa === s ? '' : s }))}>{s}</span>)}
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn-green" style={{ flex: 1, padding: 12 }} onClick={confirmarElegir}>➕ Agregar{elegir.cantidad > 1 ? ` (${elegir.cantidad})` : ''}</button>
+              <button onClick={() => setElegir(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
         <div className="cards">
           {platosFiltrados.map((p) => {
             const qty = cart.find((x) => x.plato_id === p.id)?.cantidad || 0;
@@ -293,8 +358,8 @@ export default function OrderTaker({ pedido, onEnviado }) {
                 role="button"
                 tabIndex={0}
                 className={'plato-btn' + (qty ? ' has-qty' : '') + (agotado ? ' agotado' : '')}
-                onClick={() => add(p)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); add(p); } }}
+                onClick={() => tocar(p)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tocar(p); } }}
               >
                 {qty > 0 && !agotado && <span className="plato-badge">{qty}</span>}
                 {qty > 0 && !agotado && (

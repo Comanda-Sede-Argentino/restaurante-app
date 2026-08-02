@@ -19,6 +19,7 @@ export default function Mozo() {
   const [cuentas, setCuentas] = useState([]);          // empresas / cuentas corrientes
   const [cuentaId, setCuentaId] = useState('');        // empresa elegida para el fiado
   const [buscarMesa, setBuscarMesa] = useState('');    // buscador de mesas (número / nombre / mozo)
+  const [soloMias, setSoloMias] = useState(() => localStorage.getItem('soloMisMesas') === '1'); // ver solo mis mesas (+ libres)
 
   const cargarMesas = () => api.mesas().then(setMesas);
   const cargarCuentas = () => api.cuentas().then(setCuentas).catch(() => {});
@@ -314,11 +315,21 @@ export default function Mozo() {
           {!mozos.length && <> (No hay mozos cargados — pedile al encargado que los cargue en <b>Ajustes → Mozos</b>.)</>}
         </div>
       )}
-      <input value={buscarMesa} onChange={(e) => setBuscarMesa(e.target.value)}
-        placeholder="🔎 Buscar mesa por número, nombre o mozo..." style={{ width: '100%', maxWidth: 420, marginBottom: 12 }} />
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+        <input value={buscarMesa} onChange={(e) => setBuscarMesa(e.target.value)}
+          placeholder="🔎 Buscar mesa por número, nombre o mozo..." style={{ flex: 1, minWidth: 220, maxWidth: 420 }} />
+        {mozo && (
+          <button className={soloMias ? 'btn-accent' : ''}
+            onClick={() => { const v = !soloMias; setSoloMias(v); localStorage.setItem('soloMisMesas', v ? '1' : '0'); }}
+            title="Ver solo tus mesas (y las libres). Ideal para noches movidas.">
+            {soloMias ? '👤 Solo mis mesas ✓' : '👤 Solo mis mesas'}
+          </button>
+        )}
+      </div>
       <div className="mesas">
         {mesas
           .filter((m) => {
+            if (soloMias && mozo && m.pedido && m.pedido.mozo_nombre !== mozo) return false; // ocupadas de otros mozos
             const q = buscarMesa.trim().toLowerCase();
             if (!q) return true;
             return String(m.numero).includes(q) || (m.nombre || '').toLowerCase().includes(q) || (m.pedido?.mozo_nombre || '').toLowerCase().includes(q);

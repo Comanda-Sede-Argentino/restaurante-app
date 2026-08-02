@@ -198,8 +198,10 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
     padding: 10px 12px; font-size: 15px;
   }
   .cart-bar .btn-accent { padding: 12px 16px; }
-  .cards { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .plato-btn { min-height: 64px; }
+  .cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .plato-btn { min-height: 76px; padding: 14px; }
+  .plato-btn .pn { font-size: 15px; }
+  .plato-btn .pp { font-size: 15px; margin-top: 8px; }
   /* Barra de navegación más compacta para que entren más módulos por fila */
   .topbar { padding: 8px 10px; gap: 4px; }
   .brand { margin-right: 6px; font-size: 16px; }
