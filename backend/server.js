@@ -311,9 +311,10 @@ app.get('/api/clientes', (req, res) => {
   const rows = db.prepare(
     `SELECT cliente_telefono telefono, cliente_nombre nombre, cliente_direccion direccion, MAX(id) mid
      FROM pedido
-     WHERE tipo IN ('delivery','vianda') AND cliente_telefono IS NOT NULL AND TRIM(cliente_telefono)<>''
+     WHERE tipo IN ('delivery','vianda') AND TRIM(COALESCE(cliente_nombre,'')) <> ''
        AND (cliente_telefono LIKE ? OR cliente_nombre LIKE ?)
-     GROUP BY cliente_telefono
+     GROUP BY CASE WHEN TRIM(COALESCE(cliente_telefono,'')) <> '' THEN cliente_telefono
+                   ELSE lower(cliente_nombre) END
      ORDER BY mid DESC LIMIT 8`
   ).all(q, q);
   res.json(rows);
