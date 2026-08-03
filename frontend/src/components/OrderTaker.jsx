@@ -317,39 +317,41 @@ export default function OrderTaker({ pedido, onEnviado }) {
           </div>
         )}
         {elegir && (
-          <div className="card" style={{ marginBottom: 10, borderColor: 'var(--accent)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-              <b style={{ fontSize: 16 }}>{elegir.plato.nombre}</b>
-              <span className="spacer" />
-              <span style={{ color: 'var(--muted)', fontSize: 13 }}>Cantidad:</span>
-              <div className="qty">
-                <button onClick={() => setElegir((e) => ({ ...e, cantidad: Math.max(1, e.cantidad - 1) }))}>−</button>
-                <b>{elegir.cantidad}</b>
-                <button onClick={() => setElegir((e) => ({ ...e, cantidad: e.cantidad + 1 }))}>+</button>
+          <div className="modal-backdrop" onClick={() => setElegir(null)}>
+            <div className="modal" style={{ maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', borderColor: 'var(--accent)' }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <b style={{ fontSize: 19 }}>{elegir.plato.nombre}</b>
+                <span className="spacer" />
+                <span style={{ color: 'var(--muted)', fontSize: 13 }}>Cantidad:</span>
+                <div className="qty">
+                  <button onClick={() => setElegir((e) => ({ ...e, cantidad: Math.max(1, e.cantidad - 1) }))}>−</button>
+                  <b style={{ fontSize: 19, minWidth: 24, textAlign: 'center', display: 'inline-block' }}>{elegir.cantidad}</b>
+                  <button onClick={() => setElegir((e) => ({ ...e, cantidad: e.cantidad + 1 }))}>+</button>
+                </div>
               </div>
-            </div>
-            {puntoDe[elegir.plato.id] ? (
-              <div className="obs-chips" style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🔥 Punto:</span>
-                {PUNTOS.map((pt) => <span key={pt} className={'obs-chip' + (elegir.punto === pt ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, punto: e.punto === pt ? '' : pt }))}>{pt}</span>)}
+              {puntoDe[elegir.plato.id] ? (
+                <div className="obs-chips" style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 14, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🔥 Punto:</span>
+                  {PUNTOS.map((pt) => <span key={pt} className={'obs-chip' + (elegir.punto === pt ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, punto: e.punto === pt ? '' : pt }))}>{pt}</span>)}
+                </div>
+              ) : null}
+              {catGuarnDe[elegir.plato.id] ? (
+                <div className="obs-chips" style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 14, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍟 Guarnición:</span>
+                  {guarniciones.map((g) => <span key={g} className={'obs-chip' + (elegir.guarnicion === g ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === g ? '' : g }))}>{g}</span>)}
+                  <span className={'obs-chip' + (elegir.guarnicion === 'SIN' ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === 'SIN' ? '' : 'SIN' }))}>Sin</span>
+                </div>
+              ) : null}
+              {catSalsaDe[elegir.plato.id] ? (
+                <div className="obs-chips" style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 14, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍝 Salsa:</span>
+                  {salsas.map((s) => <span key={s} className={'obs-chip' + (elegir.salsa === s ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, salsa: e.salsa === s ? '' : s }))}>{s}</span>)}
+                </div>
+              ) : null}
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <button className="btn-green" style={{ flex: 1, padding: 14, fontSize: 16 }} onClick={confirmarElegir}>➕ Agregar{elegir.cantidad > 1 ? ` (${elegir.cantidad})` : ''}</button>
+                <button style={{ padding: 14 }} onClick={() => setElegir(null)}>Cancelar</button>
               </div>
-            ) : null}
-            {catGuarnDe[elegir.plato.id] ? (
-              <div className="obs-chips" style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍟 Guarnición:</span>
-                {guarniciones.map((g) => <span key={g} className={'obs-chip' + (elegir.guarnicion === g ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === g ? '' : g }))}>{g}</span>)}
-                <span className={'obs-chip' + (elegir.guarnicion === 'SIN' ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === 'SIN' ? '' : 'SIN' }))}>Sin</span>
-              </div>
-            ) : null}
-            {catSalsaDe[elegir.plato.id] ? (
-              <div className="obs-chips" style={{ marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍝 Salsa:</span>
-                {salsas.map((s) => <span key={s} className={'obs-chip' + (elegir.salsa === s ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, salsa: e.salsa === s ? '' : s }))}>{s}</span>)}
-              </div>
-            ) : null}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="btn-green" style={{ flex: 1, padding: 12 }} onClick={confirmarElegir}>➕ Agregar{elegir.cantidad > 1 ? ` (${elegir.cantidad})` : ''}</button>
-              <button onClick={() => setElegir(null)}>Cancelar</button>
             </div>
           </div>
         )}
