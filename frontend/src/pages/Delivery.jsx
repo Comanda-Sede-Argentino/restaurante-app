@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, socket, money } from '../api';
+import { api, socket, money, getOperador } from '../api';
 import OrderTaker from '../components/OrderTaker.jsx';
 import { toast, confirmar, preguntar } from '../ui.jsx';
 
@@ -62,7 +62,7 @@ export default function Delivery() {
 
   const crear = async () => {
     if (!cli.cliente_nombre.trim()) return toast('Ingresá al menos el nombre del cliente.', 'error');
-    const p = await api.crearPedido({ tipo: 'delivery', mozo_nombre: 'Delivery', ...cli });
+    const p = await api.crearPedido({ tipo: 'delivery', mozo_nombre: getOperador() || 'Delivery', ...cli });
     await api.envio(p.id, { cobrar: true }); // envío por defecto ($3.000); se puede sacar si retira
     setPedido(await api.pedido(p.id));
   };
