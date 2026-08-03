@@ -62,7 +62,7 @@ export const api = {
   crearCuenta: (data) => req('/cuentas', { method: 'POST', body: data }),
   editarCuenta: (id, data) => req('/cuentas/' + id, { method: 'PUT', body: data }),
   pagoCuenta: (id, data) => req('/cuentas/' + id + '/pago', { method: 'POST', body: data }),
-  imprimirEstadoCuenta: (id) => req('/cuentas/' + id + '/imprimir', { method: 'POST', body: { operador: operador() } }),
+  imprimirEstadoCuenta: (id, periodo) => req('/cuentas/' + id + '/imprimir', { method: 'POST', body: { operador: operador(), periodo: periodo || null } }),
   // Cierre de caja
   cajaResumen: () => req('/caja/resumen'),
   cajaCerrar: (data) => req('/caja/cerrar', { method: 'POST', body: { ...data, usuario: (data && data.usuario) || operador() } }),

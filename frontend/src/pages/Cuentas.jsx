@@ -34,13 +34,15 @@ export default function Cuentas() {
     abrir(sel.id); cargar();
   };
 
-  const imprimirEstado = async () => {
+  // periodo opcional 'YYYY-MM' para imprimir un solo mes; sin periodo imprime toda la cuenta
+  const imprimirEstado = async (periodo) => {
     try {
-      const r = await api.imprimirEstadoCuenta(sel.id);
+      const r = await api.imprimirEstadoCuenta(sel.id, periodo);
       const m = r.resultado?.modo;
-      toast(m === 'impreso' ? '🖨 Estado de cuenta enviado a la impresora.'
-        : m === 'archivo' ? '🖨 Estado de cuenta generado (sin impresora, guardado en archivo).'
-        : 'No se pudo imprimir el estado de cuenta.', m === 'impreso' ? 'ok' : 'info');
+      const que = periodo ? 'Estado del mes' : 'Estado de cuenta';
+      toast(m === 'impreso' ? `🖨 ${que} enviado a la impresora.`
+        : m === 'archivo' ? `🖨 ${que} generado (sin impresora, guardado en archivo).`
+        : 'No se pudo imprimir.', m === 'impreso' ? 'ok' : 'info');
     } catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
   };
 
@@ -84,7 +86,7 @@ export default function Cuentas() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <h2 className="h2" style={{ marginTop: 0, marginBottom: 0 }}>{sel.nombre}</h2>
                 <span className="spacer" />
-                <button onClick={imprimirEstado}>🖨 Imprimir estado de cuenta</button>
+                <button onClick={() => imprimirEstado()}>🖨 Imprimir cuenta completa</button>
               </div>
               <div className="total-row"><span>Saldo total (debe)</span><span style={{ color: sel.saldo > 0 ? 'var(--orange)' : 'var(--green)' }}>{money(sel.saldo)}</span></div>
 
@@ -97,6 +99,7 @@ export default function Cuentas() {
                       {m.pendiente > 0
                         ? <b style={{ color: 'var(--orange)' }}>debe {money(m.pendiente)}</b>
                         : <b style={{ color: 'var(--green)' }}>✓ saldado</b>}
+                      <button style={{ padding: '4px 10px' }} title={`Imprimir solo ${m.etiqueta}`} onClick={() => imprimirEstado(m.mes)}>🖨</button>
                     </div>
                   ))}
                   {sel.credito > 0 && (

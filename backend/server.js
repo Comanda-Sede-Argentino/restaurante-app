@@ -1387,6 +1387,7 @@ app.post('/api/cuentas/:id/imprimir', async (req, res) => {
     "SELECT COALESCE(SUM(CASE WHEN tipo='cargo' THEN importe ELSE -importe END),0) s FROM cuenta_mov WHERE cuenta_id=?"
   ).get(c.id).s;
   const fecha = new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const periodo = (req.body.periodo || '').trim(); // 'YYYY-MM' para un solo mes; vacío = toda la cuenta
   const lineas = [];
   lineas.push('Empresa: ' + c.nombre);
   if (c.telefono) lineas.push('Tel: ' + c.telefono);
@@ -1396,32 +1397,48 @@ app.post('/api/cuentas/:id/imprimir', async (req, res) => {
   const dg = desgloseMensual(c.id);
   const cargos = movs.filter((m) => m.tipo === 'cargo');
   const pagos = movs.filter((m) => m.tipo === 'pago');
-  if (!movs.length) lineas.push('Sin movimientos.');
-  // Consumos agrupados por mes, con subtotal de cada mes
-  const meses = [...new Set(cargos.map((m) => (m.fecha || '').slice(0, 7)))].sort();
-  for (const ym of meses) {
-    lineas.push(nombreMes(ym).toUpperCase());
-    let sub = 0;
-    for (const m of cargos.filter((x) => (x.fecha || '').slice(0, 7) === ym)) {
-      lineas.push(' ' + fdmy(m) + ' Consumo' + (m.pedido_id ? ' #' + m.pedido_id : '') + (m.detalle ? ' ' + m.detalle : '') + '  +' + moneyTxt(m.importe));
-      sub += m.importe;
-    }
-    lineas.push('   Subtotal ' + nombreMes(ym) + ': ' + moneyTxt(sub));
-  }
-  if (pagos.length) {
+  const titulo = periodo ? 'ESTADO DE CUENTA - ' + nombreMes(periodo) : 'ESTADO DE CUENTA';
+
+  if (periodo) {
+    // ----- Un solo mes -----
+    const mesItem = dg.porMes.find((m) => m.mes === periodo) || { cargos: 0, pagado: 0, pendiente: 0 };
+    lineas.push('PERIODO: ' + nombreMes(periodo));
     lineas.push('----------------------------------------');
-    lineas.push('PAGOS RECIBIDOS');
-    for (const m of pagos) lineas.push(' ' + fdmy(m) + ' Pago' + (m.medio ? ' ' + m.medio : '') + '  -' + moneyTxt(m.importe));
+    const delMes = cargos.filter((m) => (m.fecha || '').slice(0, 7) === periodo);
+    if (!delMes.length) lineas.push('Sin consumos en este periodo.');
+    for (const m of delMes) lineas.push(' ' + fdmy(m) + ' Consumo' + (m.pedido_id ? ' #' + m.pedido_id : '') + (m.detalle ? ' ' + m.detalle : '') + '  +' + moneyTxt(m.importe));
+    lineas.push('----------------------------------------');
+    lineas.push('Consumos del mes: ' + moneyTxt(mesItem.cargos));
+    if (mesItem.pagado > 0) lineas.push('Pagado a cuenta:  -' + moneyTxt(mesItem.pagado));
+    lineas.push('PENDIENTE DEL MES: ' + moneyTxt(mesItem.pendiente));
+  } else {
+    // ----- Toda la cuenta, agrupada por mes -----
+    if (!movs.length) lineas.push('Sin movimientos.');
+    const meses = [...new Set(cargos.map((m) => (m.fecha || '').slice(0, 7)))].sort();
+    for (const ym of meses) {
+      lineas.push(nombreMes(ym).toUpperCase());
+      let sub = 0;
+      for (const m of cargos.filter((x) => (x.fecha || '').slice(0, 7) === ym)) {
+        lineas.push(' ' + fdmy(m) + ' Consumo' + (m.pedido_id ? ' #' + m.pedido_id : '') + (m.detalle ? ' ' + m.detalle : '') + '  +' + moneyTxt(m.importe));
+        sub += m.importe;
+      }
+      lineas.push('   Subtotal ' + nombreMes(ym) + ': ' + moneyTxt(sub));
+    }
+    if (pagos.length) {
+      lineas.push('----------------------------------------');
+      lineas.push('PAGOS RECIBIDOS');
+      for (const m of pagos) lineas.push(' ' + fdmy(m) + ' Pago' + (m.medio ? ' ' + m.medio : '') + '  -' + moneyTxt(m.importe));
+    }
+    lineas.push('----------------------------------------');
+    lineas.push('PENDIENTE POR MES (se cobra del mas viejo al mas nuevo):');
+    for (const m of dg.porMes) lineas.push(' ' + m.etiqueta + ': ' + (m.pendiente <= 0 ? 'SALDADO' : 'debe ' + moneyTxt(m.pendiente)));
+    if (dg.credito > 0) lineas.push(' A favor (credito): ' + moneyTxt(dg.credito));
+    lineas.push('----------------------------------------');
+    lineas.push('TOTAL A PAGAR: ' + moneyTxt(Math.max(0, saldo)));
   }
-  lineas.push('----------------------------------------');
-  lineas.push('PENDIENTE POR MES (se cobra del mas viejo al mas nuevo):');
-  for (const m of dg.porMes) lineas.push(' ' + m.etiqueta + ': ' + (m.pendiente <= 0 ? 'SALDADO' : 'debe ' + moneyTxt(m.pendiente)));
-  if (dg.credito > 0) lineas.push(' A favor (credito): ' + moneyTxt(dg.credito));
-  lineas.push('----------------------------------------');
-  lineas.push('TOTAL A PAGAR: ' + moneyTxt(Math.max(0, saldo)));
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let r;
-  try { r = await imprimirTextoPlano('ESTADO DE CUENTA', lineas, impresora, req.body.operador); }
+  try { r = await imprimirTextoPlano(titulo, lineas, impresora, req.body.operador); }
   catch (e) { r = { ok: false, error: e.message }; }
   res.json({ ok: true, resultado: r });
 });
