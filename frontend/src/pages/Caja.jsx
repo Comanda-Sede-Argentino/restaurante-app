@@ -130,7 +130,11 @@ export default function Caja() {
   const guardarMov = async () => {
     const imp = numAR(mov.importe);
     if (!(imp > 0)) { toast('Importe inválido', 'error'); return; }
-    await api.cajaMovimiento({ tipo: mov.tipo, importe: imp, detalle: mov.detalle || null });
+    // En los egresos la descripción es OBLIGATORIA (para saber en qué se usó la plata; sale en el cierre).
+    if (mov.tipo === 'egreso' && !(mov.detalle || '').trim()) {
+      toast('Poné para qué es el egreso (obligatorio). Sale detallado en el ticket de cierre.', 'error'); return;
+    }
+    await api.cajaMovimiento({ tipo: mov.tipo, importe: imp, detalle: (mov.detalle || '').trim() || null });
     setMov(null);
     if (verCierre) setResumen(await api.cajaResumen());
     toast('✅ Movimiento registrado.');
@@ -194,7 +198,11 @@ export default function Caja() {
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input autoFocus placeholder="Importe $" value={mov.importe} onChange={(e) => setMov({ ...mov, importe: e.target.value })} style={{ width: 140 }} />
-            <input placeholder="Detalle (opcional)" value={mov.detalle} onChange={(e) => setMov({ ...mov, detalle: e.target.value })} style={{ flex: 1, minWidth: 160 }} />
+            <input
+              placeholder={mov.tipo === 'egreso' ? '¿Para qué es? (OBLIGATORIO)' : 'Detalle (opcional)'}
+              value={mov.detalle}
+              onChange={(e) => setMov({ ...mov, detalle: e.target.value })}
+              style={{ flex: 1, minWidth: 160, borderColor: mov.tipo === 'egreso' && !mov.detalle.trim() ? 'var(--orange)' : '' }} />
             <button className="btn-green" onClick={guardarMov}>Registrar</button>
             <button onClick={() => setMov(null)}>Cancelar</button>
           </div>

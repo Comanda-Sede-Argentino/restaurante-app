@@ -1491,7 +1491,12 @@ async function imprimirCierre(cierre, r) {
   if (r.fiadoCobradoEfectivo > 0) L.push(' Fiado cobrado efvo: ' + moneyTxt(r.fiadoCobradoEfectivo));
   if (r.propinaRetiradaEfectivo > 0) L.push(' (-) Propinas tarjeta/transf (mozo retira efvo): ' + moneyTxt(r.propinaRetiradaEfectivo));
   if (r.ingresos > 0) L.push(' Ingresos: ' + moneyTxt(r.ingresos));
-  if (r.egresos > 0) L.push(' Egresos: -' + moneyTxt(r.egresos));
+  if (r.egresos > 0) {
+    L.push(' Egresos: -' + moneyTxt(r.egresos));
+    // Detalle de cada egreso (para qué se usó la plata), del más viejo al más nuevo
+    const egresos = (r.movimientos || []).filter((m) => m.tipo === 'egreso').slice().reverse();
+    for (const e of egresos) L.push('   - ' + (e.detalle || 'sin detalle') + ': ' + moneyTxt(e.importe));
+  }
   L.push(' ESPERADO: ' + moneyTxt(r.esperado));
   if (cierre.contado != null) {
     L.push(' Contado: ' + moneyTxt(cierre.contado));
@@ -1507,7 +1512,10 @@ app.post('/api/caja/movimiento', (req, res) => {
   const importe = Math.round(Number(req.body.importe) || 0);
   if (!['apertura', 'egreso', 'ingreso'].includes(tipo)) return res.status(400).json({ error: 'Tipo inválido' });
   if (!(importe > 0)) return res.status(400).json({ error: 'Importe inválido' });
-  db.prepare('INSERT INTO caja_mov (tipo, importe, detalle) VALUES (?,?,?)').run(tipo, importe, req.body.detalle || null);
+  const detalle = (req.body.detalle || '').trim();
+  // En los egresos la descripción es obligatoria (se detalla en el ticket de cierre)
+  if (tipo === 'egreso' && !detalle) return res.status(400).json({ error: 'El egreso necesita una descripción (para qué se usó).' });
+  db.prepare('INSERT INTO caja_mov (tipo, importe, detalle) VALUES (?,?,?)').run(tipo, importe, detalle || null);
   emitDashboard();
   res.json({ ok: true });
 });
