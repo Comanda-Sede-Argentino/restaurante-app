@@ -200,7 +200,7 @@ export function construirTicketTexto(pedido, items, w = 42, cuenta = false, firm
   L.push(centrar('*** ' + (cuenta ? 'CUENTA - ' + origen : origen) + ' ***', w));
   L.push(linea(w));
   L.push('Pedido #' + pedido.id + '   ' + new Date().toLocaleString('es-AR'));
-  if (!cuenta && pedido.mozo_nombre) L.push('Mozo: ' + pedido.mozo_nombre);
+  if (pedido.mozo_nombre) L.push((cuenta ? 'Atendio: ' : 'Mozo: ') + pedido.mozo_nombre);
   if (!cuenta && pedido.hora_entrega) L.push('>>> ENTREGAR: ' + pedido.hora_entrega + ' <<<');
   if (pedido.tipo === 'delivery') {
     if (pedido.cliente_nombre) L.push('Cliente: ' + pedido.cliente_nombre);
@@ -263,7 +263,7 @@ function construirTicketEscpos(pedido, items, cuenta = false, ancho = 32, titulo
   if (titulo || cuenta) { txt(origenDe(pedido)); nl(); }
   NORMAL(); align(0);
   txt('Pedido #' + pedido.id + '  ' + new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })); nl();
-  if (!cuenta && pedido.mozo_nombre) { ALTO(); txt('Mozo: ' + pedido.mozo_nombre); NORMAL(); nl(); }
+  if (pedido.mozo_nombre) { ALTO(); txt((cuenta ? 'Atendio: ' : 'Mozo: ') + pedido.mozo_nombre); NORMAL(); nl(); }
   if (pedido.tipo === 'delivery') {
     if (pedido.cliente_nombre) { ALTO(); txt(pedido.cliente_nombre); NORMAL(); nl(); }
     if (pedido.cliente_direccion) { BOLD(); txt('Dir: ' + pedido.cliente_direccion); NORMAL(); nl(); }
@@ -455,13 +455,15 @@ export async function imprimirBebidas(pedido, bebidas) {
 // Imprime texto libre (ej. arqueo / cierre de caja, resumen de cocina). Título centrado y líneas tal cual.
 // Cada línea puede ser un string (tamaño normal) o un objeto { t: 'texto', big: true } para imprimirla
 // GRANDE (doble alto y ancho) en las impresoras térmicas — útil para leer de un pantallazo en la cocina.
-export async function imprimirTextoPlano(titulo, lineas, impresoraOverride) {
+export async function imprimirTextoPlano(titulo, lineas, impresoraOverride, operador) {
   const { impresion } = getConfig();
   const w = impresion.anchoColumnas || 42;
   // Normalizar: string -> { t, big:false }
   const norm = (lineas || []).map((l) => (l && typeof l === 'object') ? { t: String(l.t ?? ''), big: !!l.big } : { t: String(l), big: false });
   const head = [linea(w), centrar(titulo, w), linea(w)];
+  // Al pie, quién mandó a imprimir (si se informó)
   const foot = [linea(w)];
+  if (operador && String(operador).trim()) foot.push('Impreso por: ' + String(operador).trim());
   // Versión en texto plano (para el respaldo en archivo y para el modo GDI)
   const cuerpo = [...head, ...norm.map((l) => l.t), ...foot].join('\r\n');
   const archivo = path.join(OUT_DIR, `cierre_${Date.now()}.txt`);

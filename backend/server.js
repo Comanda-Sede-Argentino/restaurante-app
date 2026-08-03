@@ -404,7 +404,7 @@ app.post('/api/delivery/cierre-imprimir', async (req, res) => {
   L.push('EN EFECTIVO: ' + moneyTxt(efectivo));
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let r;
-  try { r = await imprimirTextoPlano('CIERRE DE DELIVERY', L, impresora); }
+  try { r = await imprimirTextoPlano('CIERRE DE DELIVERY', L, impresora, req.body.operador); }
   catch (e) { r = { ok: false, error: e.message }; }
   res.json({ ok: true, resultado: r, totalVendido, efectivo, n: pedidos.length, domicilios: domic.length, retiros: retiros.length });
 });
@@ -1029,7 +1029,7 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   L.push('');
   L.push({ t: ' TOTAL: ' + totalViandas, big: true });
   L.push(' Pedidos: ' + totalPedidos);
-  const resultado = await imprimirTextoPlano('COCINA - VIANDAS ' + fecha, L);
+  const resultado = await imprimirTextoPlano('COCINA - VIANDAS ' + fecha, L, undefined, req.body.operador);
   res.json({ resultado, porMenu, cartaItems, totalViandas, totalPedidos });
 });
 
@@ -1072,7 +1072,7 @@ app.post('/api/viandas/reparto-imprimir', async (req, res) => {
   });
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let resultado;
-  try { resultado = await imprimirTextoPlano('HOJA DE REPARTO - VIANDAS', L, impresora); }
+  try { resultado = await imprimirTextoPlano('HOJA DE REPARTO - VIANDAS', L, impresora, req.body.operador); }
   catch (e) { resultado = { ok: false, error: e.message }; }
   res.json({ ok: true, resultado, n: peds.length });
 });
@@ -1134,7 +1134,7 @@ app.post('/api/viandas/cierre-imprimir', async (req, res) => {
   if (pend.n > 0) { L.push('----------------------------------------'); L.push('  OJO: ' + pend.n + ' pedido(s) SIN COBRAR (' + moneyTxt(pend.total) + ')'); }
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let resultado;
-  try { resultado = await imprimirTextoPlano('CIERRE DE VIANDAS', L, impresora); }
+  try { resultado = await imprimirTextoPlano('CIERRE DE VIANDAS', L, impresora, req.body.operador); }
   catch (e) { resultado = { ok: false, error: e.message }; }
   res.json({ ok: true, resultado, fecha, totalVendido: tot.total, efectivo, totalViandas, pedidos: tot.n, sinCobrar: pend.n });
 });
@@ -1421,7 +1421,7 @@ app.post('/api/cuentas/:id/imprimir', async (req, res) => {
   lineas.push('TOTAL A PAGAR: ' + moneyTxt(Math.max(0, saldo)));
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let r;
-  try { r = await imprimirTextoPlano('ESTADO DE CUENTA', lineas, impresora); }
+  try { r = await imprimirTextoPlano('ESTADO DE CUENTA', lineas, impresora, req.body.operador); }
   catch (e) { r = { ok: false, error: e.message }; }
   res.json({ ok: true, resultado: r });
 });
@@ -1545,7 +1545,7 @@ async function imprimirCierre(cierre, r) {
     const d = cierre.diferencia;
     L.push(' DIFERENCIA: ' + (d === 0 ? 'OK' : (d > 0 ? 'SOBRA ' + moneyTxt(d) : 'FALTA ' + moneyTxt(-d))));
   }
-  return imprimirTextoPlano('CIERRE DE CAJA', L);
+  return imprimirTextoPlano('CIERRE DE CAJA', L, undefined, cierre.usuario);
 }
 
 // Registrar un movimiento de caja: apertura (fondo) | egreso (retiro/pago) | ingreso (extra)

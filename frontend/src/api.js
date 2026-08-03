@@ -2,6 +2,9 @@ import { io } from 'socket.io-client';
 
 const base = '/api';
 
+// Nombre elegido en este dispositivo (para imprimir "quién mandó a imprimir" en cierres/estados)
+const operador = () => { try { return localStorage.getItem('mozo') || ''; } catch { return ''; } };
+
 async function req(path, opts = {}) {
   const res = await fetch(base + path, {
     headers: { 'Content-Type': 'application/json' },
@@ -39,7 +42,7 @@ export const api = {
   entregar: (id, entregado = true) => req('/pedidos/' + id + '/entregar', { method: 'POST', body: { entregado } }),
   deliveryEntregarTodos: (soloDomicilio) => req('/delivery/entregar-todos', { method: 'POST', body: { soloDomicilio: !!soloDomicilio } }),
   deliveryCobrarEntregados: (soloDomicilio) => req('/delivery/cobrar-entregados', { method: 'POST', body: { soloDomicilio: !!soloDomicilio } }),
-  deliveryCierreImprimir: () => req('/delivery/cierre-imprimir', { method: 'POST', body: {} }),
+  deliveryCierreImprimir: () => req('/delivery/cierre-imprimir', { method: 'POST', body: { operador: operador() } }),
   buscarClientes: (q) => req('/clientes?q=' + encodeURIComponent(q || '')),
   pedido: (id) => req('/pedidos/' + id),
   crearPedido: (data) => req('/pedidos', { method: 'POST', body: data }),
@@ -54,10 +57,10 @@ export const api = {
   crearCuenta: (data) => req('/cuentas', { method: 'POST', body: data }),
   editarCuenta: (id, data) => req('/cuentas/' + id, { method: 'PUT', body: data }),
   pagoCuenta: (id, data) => req('/cuentas/' + id + '/pago', { method: 'POST', body: data }),
-  imprimirEstadoCuenta: (id) => req('/cuentas/' + id + '/imprimir', { method: 'POST' }),
+  imprimirEstadoCuenta: (id) => req('/cuentas/' + id + '/imprimir', { method: 'POST', body: { operador: operador() } }),
   // Cierre de caja
   cajaResumen: () => req('/caja/resumen'),
-  cajaCerrar: (data) => req('/caja/cerrar', { method: 'POST', body: data }),
+  cajaCerrar: (data) => req('/caja/cerrar', { method: 'POST', body: { ...data, usuario: (data && data.usuario) || operador() } }),
   cajaCierres: () => req('/caja/cierres'),
   cajaCierreImprimir: (id) => req('/caja/cierres/' + id + '/imprimir', { method: 'POST' }),
   cajaMovimiento: (data) => req('/caja/movimiento', { method: 'POST', body: data }),
@@ -96,10 +99,10 @@ export const api = {
   viandas: (fecha) => req('/viandas' + (fecha ? '?fecha=' + fecha : '')),
   crearVianda: (data) => req('/viandas', { method: 'POST', body: data }),
   editarVianda: (id, data) => req('/viandas/' + id, { method: 'PUT', body: data }),
-  viandasCocinaImprimir: (fecha) => req('/viandas/cocina-imprimir', { method: 'POST', body: { fecha: fecha || null } }),
-  viandasCierreImprimir: (fecha) => req('/viandas/cierre-imprimir', { method: 'POST', body: { fecha: fecha || null } }),
+  viandasCocinaImprimir: (fecha) => req('/viandas/cocina-imprimir', { method: 'POST', body: { fecha: fecha || null, operador: operador() } }),
+  viandasCierreImprimir: (fecha) => req('/viandas/cierre-imprimir', { method: 'POST', body: { fecha: fecha || null, operador: operador() } }),
   viandasEntregarTodos: (fecha) => req('/viandas/entregar-todos', { method: 'POST', body: { fecha: fecha || null } }),
-  viandasRepartoImprimir: (fecha) => req('/viandas/reparto-imprimir', { method: 'POST', body: { fecha: fecha || null } }),
+  viandasRepartoImprimir: (fecha) => req('/viandas/reparto-imprimir', { method: 'POST', body: { fecha: fecha || null, operador: operador() } }),
   viandasFijos: () => req('/viandas/fijos'),
   crearFijo: (data) => req('/viandas/fijos', { method: 'POST', body: data }),
   editarFijo: (id, data) => req('/viandas/fijos/' + id, { method: 'PUT', body: data }),
