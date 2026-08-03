@@ -26,6 +26,9 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const [enviando, setEnviando] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [elegir, setElegir] = useState(null); // selector rápido al tocar un plato con guarnición/salsa/punto: { plato, cantidad, guarnicion, salsa, punto }
+  const [pulse, setPulse] = useState(0);      // contador para animar el 🛒 cada vez que se agrega algo
+  // Aviso de "se agregó": destello en el carrito + vibración corta en el celu
+  const pulseCart = () => { setPulse((n) => n + 1); try { navigator.vibrate?.(25); } catch { /* sin vibración */ } };
 
   const [frecuentes, setFrecuentes] = useState([]);
   const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Puré de calabaza', 'Puré mixto', 'Ensalada mixta', 'Rúcula con queso']);
@@ -110,16 +113,16 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const dec = (id) =>
     setCart((c) => c.flatMap((x) => (x.plato_id !== id ? [x] : x.cantidad > 1 ? [{ ...x, cantidad: x.cantidad - 1 }] : [])));
 
-  // Al tocar un plato: si lleva guarnición/salsa/punto, abre el selector rápido; si no, lo agrega
-  // y limpia el buscador (así queda listo para escribir el próximo plato).
+  // Al tocar un plato: si lleva guarnición/salsa/punto, abre el selector rápido; si no, lo agrega.
+  // Las bebidas / platos sin guarnición NO limpian el buscador, así podés tocar de nuevo para sumar varias.
   const tocar = (p) => {
     if (p.disponible === 0) return;
     if (porUnidad(p.id)) { setElegir({ plato: p, cantidad: 1, guarnicion: '', salsa: '', punto: '' }); return; }
-    add(p); setQ('');
+    add(p); pulseCart();
   };
-  // Confirmar el selector rápido: agrega N unidades con la guarnición/salsa/punto elegidos (reusa el estado por unidad)
-  const confirmarElegir = () => {
-    const { plato: p, cantidad, guarnicion, salsa, punto } = elegir;
+  // Agrega N unidades del plato del selector con la guarnición/salsa/punto elegidos (reusa el estado por unidad)
+  const agregarElegido = (sel) => {
+    const { plato: p, cantidad, guarnicion, salsa, punto } = sel;
     const n = Math.max(1, cantidad || 1);
     const start = cart.find((x) => x.plato_id === p.id)?.cantidad || 0;
     const fill = (setter, val) => setter((o) => { const a = (o[p.id] || []).slice(); for (let i = 0; i < n; i++) a[start + i] = val; return { ...o, [p.id]: a }; });
@@ -131,7 +134,16 @@ export default function OrderTaker({ pedido, onEnviado }) {
       if (ex) return c.map((x) => (x.plato_id === p.id ? { ...x, cantidad: x.cantidad + n } : x));
       return [...c, { plato_id: p.id, nombre: p.nombre, precio_unit: p.precio, cantidad: n }];
     });
-    setElegir(null); setQ('');
+    setElegir(null); setQ(''); pulseCart();
+  };
+  const confirmarElegir = () => agregarElegido(elegir);
+  // ¿El plato del selector SOLO pide guarnición? (sin punto ni salsa) -> tocar la guarnición agrega directo
+  const soloGuarnicion = (id) => catGuarnDe[id] && !puntoDe[id] && !catSalsaDe[id];
+  // Tocar una guarnición en el selector: si es cantidad 1 y solo pide guarnición, agrega de una (2 toques);
+  // si no, solo la marca (para elegir cantidad / punto / salsa y confirmar con el botón).
+  const tocarGuarnicion = (g) => {
+    if (elegir.cantidad === 1 && soloGuarnicion(elegir.plato.id)) { agregarElegido({ ...elegir, guarnicion: g }); return; }
+    setElegir((e) => ({ ...e, guarnicion: e.guarnicion === g ? '' : g }));
   };
 
   // Agregar un pedido ESPECIAL / fuera de carta (VARIOS): nombre + precio libres. Va a la comanda de cocina.
@@ -142,7 +154,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
     const id = -Date.now(); // id negativo único: solo identifica la línea en el carrito (va como fuera de carta)
     setCart((c) => [...c, { plato_id: id, libre: true, nombre, precio_unit: precio, cantidad: 1 }]);
     setVarios(null);
-    setCartOpen(true);
+    setCartOpen(true); pulseCart();
   };
 
   // Media pizza (media porción de una variedad). Cobra el precio de media (o ~60% si no está cargado).
@@ -153,7 +165,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
     const id = -Date.now();
     setCart((c) => [...c, { plato_id: id, libre: true, nombre: '1/2 ' + cortoPizza(p.nombre), precio_unit: precioMediaDe(p), cantidad: 1 }]);
     setMedia(null);
-    setCartOpen(true);
+    setCartOpen(true); pulseCart();
   };
 
   // Pizza mitad y mitad: elegís dos variedades -> una sola pizza con las 2 mitades. Cobra la más cara.
@@ -166,7 +178,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
     const id = -Date.now();
     setCart((c) => [...c, { plato_id: id, libre: true, nombre, precio_unit: precio, cantidad: 1 }]);
     setMitad(null);
-    setCartOpen(true);
+    setCartOpen(true); pulseCart();
   };
 
 
@@ -219,7 +231,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
     <div className="taker">
       {/* Selección de platos */}
       <div className="menu">
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <div className="taker-search" style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           <input
             placeholder="🔎 Buscar bebidas y cualquier otro plato..."
             value={q}
@@ -338,8 +350,11 @@ export default function OrderTaker({ pedido, onEnviado }) {
               {catGuarnDe[elegir.plato.id] ? (
                 <div className="obs-chips" style={{ marginBottom: 8 }}>
                   <span style={{ fontSize: 14, color: 'var(--muted)', alignSelf: 'center', marginRight: 2 }}>🍟 Guarnición:</span>
-                  {guarniciones.map((g) => <span key={g} className={'obs-chip' + (elegir.guarnicion === g ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === g ? '' : g }))}>{g}</span>)}
-                  <span className={'obs-chip' + (elegir.guarnicion === 'SIN' ? ' active' : '')} onClick={() => setElegir((e) => ({ ...e, guarnicion: e.guarnicion === 'SIN' ? '' : 'SIN' }))}>Sin</span>
+                  {guarniciones.map((g) => <span key={g} className={'obs-chip' + (elegir.guarnicion === g ? ' active' : '')} onClick={() => tocarGuarnicion(g)}>{g}</span>)}
+                  <span className={'obs-chip' + (elegir.guarnicion === 'SIN' ? ' active' : '')} onClick={() => tocarGuarnicion('SIN')}>Sin</span>
+                  {elegir.cantidad === 1 && soloGuarnicion(elegir.plato.id) && (
+                    <span style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center', marginLeft: 4 }}>· tocá una y se agrega</span>
+                  )}
                 </div>
               ) : null}
               {catSalsaDe[elegir.plato.id] ? (
@@ -464,7 +479,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
       {cart.length > 0 && (
         <div className="cart-bar">
           <div style={{ flex: 1 }} onClick={() => setCartOpen(true)}>
-            🛒 <b>{totalCount}</b> ítem(s) · <b>{money(total)}</b>
+            <span className="cart-pop" key={pulse}>🛒 <b>{totalCount}</b> ítem(s) · <b>{money(total)}</b></span>
           </div>
           <button onClick={() => setCartOpen(true)}>Ver</button>
           <button className="btn-accent" disabled={enviando} onClick={() => enviar(false)}>{enviando ? '...' : '🍳 Enviar'}</button>

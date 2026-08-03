@@ -141,6 +141,9 @@ input, select, textarea {
 .cart-item .qty { display: flex; align-items: center; gap: 6px; }
 .cart-item .qty button { padding: 2px 10px; }
 .total-row { display: flex; justify-content: space-between; font-size: 20px; font-weight: 800; margin: 12px 0; }
+/* Destello del carrito al agregar algo (aviso visual) */
+.cart-pop { display: inline-block; animation: cart-pop .28s ease; }
+@keyframes cart-pop { 0% { transform: scale(1); } 35% { transform: scale(1.18); color: var(--accent); } 100% { transform: scale(1); } }
 
 /* mesas / salon */
 .mesas { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 12px; }
@@ -230,4 +233,9 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
     box-shadow: 0 12px 24px rgba(0,0,0,.45);
   }
   .nav.open a { padding: 13px 14px; font-size: 16px; }
+  /* Buscador de platos fijo arriba al scrollear la lista (queda debajo de la barra superior) */
+  .taker-search {
+    position: sticky; top: 48px; z-index: 9;
+    background: var(--bg); padding: 8px 0; margin-bottom: 6px;
+  }
 }
