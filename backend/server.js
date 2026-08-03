@@ -2266,7 +2266,7 @@ const HERR_ASISTENTE = [
     input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' }, limite: { type: 'integer' }, orden: { type: 'string', description: '"mas" (por defecto) o "menos"' } } } },
   { name: 'ventas_de_producto', description: 'Cantidad y monto vendido de un producto puntual (búsqueda por nombre) en el rango.',
     input_schema: { type: 'object', properties: { nombre: { type: 'string' }, desde: { type: 'string' }, hasta: { type: 'string' } }, required: ['nombre'] } },
-  { name: 'ventas_por_modulo', description: 'Total por módulo (Salón mediodía, Viandas, Salón noche, Delivery noche) en el rango. Cuenta por fecha del pedido.',
+  { name: 'ventas_por_modulo', description: 'Total por módulo (Salón mediodía, Viandas, Delivery mediodía, Salón noche, Delivery noche) en el rango. Cuenta por fecha del pedido; delivery separado por la hora de corte.',
     input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
   { name: 'ventas_por_hora', description: 'Total vendido y tickets por hora del día (para saber el horario pico) en el rango.',
     input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
@@ -2332,11 +2332,11 @@ function ejecutarHerramientaAsistente(name, input = {}) {
   }
   if (name === 'ventas_por_modulo') {
     const corte = (getConfig().caja || {}).corteNoche || '17:00';
-    const MOD = `CASE WHEN o.tipo='vianda' THEN 'Viandas' WHEN o.tipo='delivery' THEN 'Delivery noche' WHEN time(o.abierto_en) < ? THEN 'Salon mediodia' ELSE 'Salon noche' END`;
+    const MOD = `CASE WHEN o.tipo='vianda' THEN 'Viandas' WHEN o.tipo='delivery' AND time(o.abierto_en) < ? THEN 'Delivery mediodia' WHEN o.tipo='delivery' THEN 'Delivery noche' WHEN time(o.abierto_en) < ? THEN 'Salon mediodia' ELSE 'Salon noche' END`;
     const modulos = db.prepare(
       `SELECT ${MOD} modulo, SUM(pg.importe) total, COUNT(DISTINCT pg.pedido_id) tickets
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY modulo ORDER BY total DESC`
-    ).all(corte, d, h);
+    ).all(corte, corte, d, h);
     return { desde: d, hasta: h, modulos };
   }
   if (name === 'viandas') {

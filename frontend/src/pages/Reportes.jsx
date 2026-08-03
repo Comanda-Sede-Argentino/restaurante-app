@@ -178,7 +178,7 @@ export default function Reportes() {
 
       {/* ---- Ventas por MÓDULO ---- */}
       {mod && mod.totMod?.length > 0 && (() => {
-        const ORDER = ['Salón mediodía', 'Viandas', 'Salón noche', 'Delivery noche'];
+        const ORDER = ['Salón mediodía', 'Viandas', 'Delivery mediodía', 'Salón noche', 'Delivery noche'];
         const nombres = ORDER.filter((n) => mod.totMod.some((m) => m.modulo === n))
           .concat(mod.totMod.map((m) => m.modulo).filter((n) => !ORDER.includes(n)));
         const dias = [...new Set(mod.porDia.map((x) => x.dia))];

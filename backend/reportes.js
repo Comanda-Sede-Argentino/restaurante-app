@@ -186,11 +186,12 @@ export function registrarReportes(app) {
     corte = corte || '17:00';
     const rango = [desde, hasta];
     // Clasificación de cada venta en un módulo. Se usa la fecha/hora en que se TOMÓ el pedido
-    // (abierto_en), NO cuándo se cobró: así un delivery de anoche cobrado a la mañana igual cuenta
-    // en la noche que corresponde. El salón se parte por la hora de corte.
-    // (Viandas ya incluye el delivery de la mañana; el delivery propio es solo el de la noche.)
+    // (abierto_en), NO cuándo se cobró: así un delivery del mediodía cobrado a la noche igual cuenta
+    // en el turno que corresponde. El salón y el delivery se parten por la hora de corte.
+    // (Viandas es su propio módulo; el delivery se separa en mediodía/noche por el corte.)
     const MOD = `CASE
       WHEN o.tipo='vianda' THEN 'Viandas'
+      WHEN o.tipo='delivery' AND time(o.abierto_en) < ? THEN 'Delivery mediodía'
       WHEN o.tipo='delivery' THEN 'Delivery noche'
       WHEN time(o.abierto_en) < ? THEN 'Salón mediodía'
       ELSE 'Salón noche' END`;
@@ -198,17 +199,17 @@ export function registrarReportes(app) {
       `SELECT ${MOD} modulo, COALESCE(SUM(pg.importe),0) total, COUNT(DISTINCT pg.pedido_id) tickets
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
        WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY modulo ORDER BY total DESC`
-    ).all(corte, ...rango);
+    ).all(corte, corte, ...rango);
     const filas = db.prepare(
       `SELECT ${MOD} modulo, pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
        WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY modulo, pg.medio`
-    ).all(corte, ...rango);
+    ).all(corte, corte, ...rango);
     const porDia = db.prepare(
       `SELECT date(o.abierto_en) dia, ${MOD} modulo, COALESCE(SUM(pg.importe),0) total
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
        WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY dia, modulo ORDER BY dia`
-    ).all(corte, ...rango);
+    ).all(corte, corte, ...rango);
     const totalGeneral = totMod.reduce((a, m) => a + m.total, 0);
     res.json({ desde, hasta, corte, totMod, filas, porDia, totalGeneral });
   });
