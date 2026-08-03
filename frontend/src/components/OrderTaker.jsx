@@ -11,7 +11,6 @@ const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,
 export default function OrderTaker({ pedido, onEnviado }) {
   const [todos, setTodos] = useState([]); // catálogo completo (para buscar en todo el menú)
   const [q, setQ] = useState('');
-  const [cat, setCat] = useState('');     // categoría elegida ('' = frecuentes)
   const draftKey = pedido?.id ? 'cart_draft_' + pedido.id : null;
   const [cart, setCart] = useState(() => {
     try { return draftKey ? JSON.parse(localStorage.getItem(draftKey)) || [] : []; } catch { return []; }
@@ -76,27 +75,15 @@ export default function OrderTaker({ pedido, onEnviado }) {
     else localStorage.removeItem(draftKey);
   }, [cart, draftKey]);
 
-  // Categorías (de todos los platos activos) para los botones rápidos, ordenadas alfabéticamente
-  const categorias = useMemo(() => {
-    const map = new Map();
-    for (const p of todos) { if (p.activo !== 0 && p.categoria_id && !map.has(p.categoria_id)) map.set(p.categoria_id, p.categoria || 'Otros'); }
-    return [...map.entries()].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
-  }, [todos]);
-
-  // Qué platos mostrar: al buscar, busca en TODO; con una categoría elegida, esa categoría;
-  // por defecto (sin buscar ni categoría), los MÁS PEDIDOS.
+  // Qué platos mostrar: al buscar, busca en TODO el menú; por defecto, los MÁS PEDIDOS.
   const buscando = q.trim().length > 0;
   const platosFiltrados = useMemo(() => {
     if (buscando) {
       const qq = norm(q);
       return todos.filter((p) => norm(p.nombre).includes(qq));
     }
-    if (cat) {
-      return todos.filter((p) => p.categoria_id === cat && p.activo !== 0)
-        .sort((a, b) => (b.favorito ? 1 : 0) - (a.favorito ? 1 : 0) || a.nombre.localeCompare(b.nombre));
-    }
     return frecuentes;
-  }, [todos, frecuentes, q, buscando, cat]);
+  }, [todos, frecuentes, q, buscando]);
 
   const add = (p) => {
     if (p.disponible === 0) return; // sin stock: no se puede agregar
@@ -267,14 +254,6 @@ export default function OrderTaker({ pedido, onEnviado }) {
             ➕ Varios
           </button>
         </div>
-        {!buscando && categorias.length > 0 && (
-          <div className="cats" style={{ marginBottom: 10 }}>
-            <span className={'chip' + (!cat ? ' active' : '')} onClick={() => setCat('')}>⭐ Frecuentes</span>
-            {categorias.map((c) => (
-              <span key={c.id} className={'chip' + (cat === c.id ? ' active' : '')} onClick={() => { setCat(c.id); setQ(''); }}>{c.nombre}</span>
-            ))}
-          </div>
-        )}
         {media && (
           <div className="card" style={{ marginBottom: 8, borderColor: 'var(--accent)' }}>
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>🍕 <b>Media pizza</b> — elegí la variedad. Cobra el precio de media.</div>
