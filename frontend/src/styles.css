@@ -50,6 +50,20 @@ input, select, textarea {
 .nav a.active { background: var(--panel2); color: var(--text); }
 /* Botón ☰ del menú: oculto en compu/tablet, aparece solo en teléfono */
 .nav-toggle { display: none; background: var(--panel2); padding: 6px 13px; font-size: 20px; line-height: 1; border-radius: 8px; }
+/* Chip de operador (quién usa el dispositivo) en la barra superior */
+.operador-chip { position: relative; margin: 0 4px; }
+.op-btn { background: var(--panel2); font-weight: 700; padding: 7px 12px; font-size: 14px; white-space: nowrap; }
+.op-btn.warn { background: var(--orange); color: #1a1200; animation: op-pulse 1.3s ease-in-out infinite; }
+@keyframes op-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(251,146,60,.7); } 50% { box-shadow: 0 0 0 6px rgba(251,146,60,0); } }
+.op-backdrop { position: fixed; inset: 0; z-index: 40; }
+.op-menu { position: absolute; right: 0; top: 100%; margin-top: 6px; z-index: 41; min-width: 200px;
+  background: var(--panel); border: 1px solid var(--panel2); border-radius: 12px; padding: 8px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.5); max-height: 70vh; overflow-y: auto; }
+.op-menu-title { color: var(--muted); font-size: 12px; padding: 4px 8px 8px; }
+.op-item { display: block; width: 100%; text-align: left; background: transparent; padding: 11px 12px; margin-bottom: 2px; font-size: 15px; }
+.op-item:hover { background: var(--panel2); }
+.op-item.active { background: var(--accent); color: #1a1200; font-weight: 700; }
+.op-item.op-salir { color: var(--muted); font-size: 13px; margin-top: 4px; border-top: 1px solid var(--panel2); border-radius: 0; }
 .content { flex: 1; padding: 16px; }
 .spacer { flex: 1; }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--green); }

@@ -2,8 +2,13 @@ import { io } from 'socket.io-client';
 
 const base = '/api';
 
-// Nombre elegido en este dispositivo (para imprimir "quién mandó a imprimir" en cierres/estados)
-const operador = () => { try { return localStorage.getItem('mozo') || ''; } catch { return ''; } };
+// Nombre elegido en este dispositivo (para imprimir "quién mandó a imprimir" y para el chip de la barra)
+export const getOperador = () => { try { return localStorage.getItem('mozo') || ''; } catch { return ''; } };
+export const setOperador = (name) => {
+  try { if (name && name.trim()) localStorage.setItem('mozo', name.trim()); else localStorage.removeItem('mozo'); } catch { /* nada */ }
+  try { window.dispatchEvent(new CustomEvent('operador-change', { detail: (name || '').trim() })); } catch { /* nada */ }
+};
+const operador = getOperador;
 
 async function req(path, opts = {}) {
   const res = await fetch(base + path, {

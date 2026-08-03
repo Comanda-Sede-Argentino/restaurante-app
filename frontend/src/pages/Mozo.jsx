@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, money } from '../api';
+import { api, money, setOperador } from '../api';
 import OrderTaker from '../components/OrderTaker.jsx';
 import { toast, confirmar, preguntar } from '../ui.jsx';
 
@@ -33,6 +33,10 @@ export default function Mozo() {
     cargarMesas();
     cargarCuentas();
     api.usuarios().then((u) => setMozos(u.filter((x) => x.rol === 'mozo' || x.rol === 'admin')));
+    // Mantener sincronizado con el chip de nombre de la barra superior
+    const onOp = (e) => setMozo(e.detail ?? (localStorage.getItem('mozo') || ''));
+    window.addEventListener('operador-change', onOp);
+    return () => window.removeEventListener('operador-change', onOp);
   }, []);
 
   useEffect(() => {
@@ -396,7 +400,7 @@ export default function Mozo() {
         <span className="badge warn">{mesas.filter((m) => m.pedido).length} ocupadas / {mesas.length}</span>
         <span className="spacer" />
         <label style={{ fontWeight: 700 }}>👤 Tu nombre:</label>
-        <select value={mozo} onChange={(e) => { setMozo(e.target.value); localStorage.setItem('mozo', e.target.value); }}
+        <select value={mozo} onChange={(e) => { setMozo(e.target.value); setOperador(e.target.value); }}
           style={{ padding: 8, borderColor: mozo ? '' : 'var(--orange)', fontWeight: 700 }}>
           <option value="">— elegí tu nombre —</option>
           {mozos.map((m) => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}

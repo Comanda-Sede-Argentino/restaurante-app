@@ -1,6 +1,6 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { socket, api } from './api';
+import { socket, api, getOperador, setOperador } from './api';
 import Home from './pages/Home.jsx';
 import Mozo from './pages/Mozo.jsx';
 import Cafeteria from './pages/Cafeteria.jsx';
@@ -25,6 +25,17 @@ export default function App() {
   const [turnoMsg, setTurnoMsg] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false); // menú ☰ desplegable (solo teléfono)
   const [snoozeCaja, setSnoozeCaja] = useState(() => Number(localStorage.getItem('snoozeCaja') || 0));
+  // Quién está usando este dispositivo (para las comandas/cierres). Chip siempre visible en la barra.
+  const [operador, setOperadorState] = useState(getOperador());
+  const [mozos, setMozos] = useState([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  useEffect(() => {
+    api.usuarios().then((u) => setMozos(u.filter((x) => x.rol === 'mozo' || x.rol === 'admin'))).catch(() => {});
+    const onOp = (e) => setOperadorState(e.detail ?? getOperador());
+    window.addEventListener('operador-change', onOp);
+    window.addEventListener('storage', onOp); // sincroniza entre pestañas
+    return () => { window.removeEventListener('operador-change', onOp); window.removeEventListener('storage', onOp); };
+  }, []);
   useEffect(() => {
     const on = () => setOnline(true);
     const off = () => setOnline(false);
@@ -68,6 +79,28 @@ export default function App() {
           <NavLink to="/ajustes" className={link}>Ajustes</NavLink>
         </nav>
         <div className="spacer" />
+        <div className="operador-chip">
+          <button className={'op-btn' + (operador ? '' : ' warn')} onClick={() => setPickerOpen((o) => !o)}
+            title="Quién está usando este dispositivo (sale en las comandas y cierres)">
+            {operador ? '👤 ' + operador : '⚠ Elegí tu nombre'}
+          </button>
+          {pickerOpen && (
+            <>
+              <div className="op-backdrop" onClick={() => setPickerOpen(false)} />
+              <div className="op-menu">
+                <div className="op-menu-title">¿Quién sos? (para tu turno)</div>
+                {!mozos.length && <div style={{ color: 'var(--muted)', fontSize: 13, padding: '6px 8px' }}>No hay mozos cargados (Ajustes → Mozos).</div>}
+                {mozos.map((m) => (
+                  <button key={m.id} className={'op-item' + (m.nombre === operador ? ' active' : '')}
+                    onClick={() => { setOperador(m.nombre); setPickerOpen(false); }}>
+                    {m.nombre === operador ? '✓ ' : ''}{m.nombre}
+                  </button>
+                ))}
+                {operador && <button className="op-item op-salir" onClick={() => { setOperador(''); setPickerOpen(false); }}>Salir (borrar nombre)</button>}
+              </div>
+            </>
+          )}
+        </div>
         <button className="nav-toggle" onClick={() => setMenuOpen((o) => !o)} aria-label="Menú">{menuOpen ? '✕' : '☰'}</button>
         <span className={'dot' + (online ? '' : ' off')} title={online ? 'En línea' : 'Sin conexión'} />
       </div>
