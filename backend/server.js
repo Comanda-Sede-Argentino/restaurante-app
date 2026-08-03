@@ -1316,8 +1316,33 @@ app.post('/api/pedidos/:id/anular', (req, res) => {
 // ================= CUENTAS CORRIENTES (fiado) =================
 const saldoSql = "COALESCE((SELECT SUM(CASE WHEN tipo='cargo' THEN importe ELSE -importe END) FROM cuenta_mov WHERE cuenta_id=c.id),0)";
 
+const MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+// 'YYYY-MM' -> 'Julio 2026'
+const nombreMes = (ym) => { const [a, m] = (ym || '').split('-'); return (MESES_ES[Number(m)] || ym) + ' ' + a; };
+
+// Desglose de la cuenta POR MES de consumo, con los pagos aplicados FIFO (primero el mes más viejo).
+// Así julio no se mezcla con agosto: cada mes queda con su pendiente hasta que se salda.
+function desgloseMensual(cuentaId) {
+  const cargos = db.prepare(
+    "SELECT substr(fecha,1,7) mes, SUM(importe) total FROM cuenta_mov WHERE cuenta_id=? AND tipo='cargo' GROUP BY mes ORDER BY mes"
+  ).all(cuentaId);
+  const totalPagos = db.prepare("SELECT COALESCE(SUM(importe),0) t FROM cuenta_mov WHERE cuenta_id=? AND tipo='pago'").get(cuentaId).t;
+  let restante = totalPagos;
+  const porMes = cargos.map((c) => {
+    const pagado = Math.min(restante, c.total);
+    restante -= pagado;
+    return { mes: c.mes, etiqueta: nombreMes(c.mes), cargos: c.total, pagado, pendiente: Math.round(c.total - pagado) };
+  });
+  const credito = Math.round(restante); // pago a favor si pagaron de más
+  const totalCargos = cargos.reduce((a, c) => a + c.total, 0);
+  return { porMes, credito, totalPagos, saldo: Math.round(totalCargos - totalPagos) };
+}
+
 app.get('/api/cuentas', (req, res) => {
-  res.json(db.prepare(`SELECT c.*, ${saldoSql} saldo FROM cuenta c WHERE c.activo=1 ORDER BY c.nombre`).all());
+  const rows = db.prepare(`SELECT c.*, ${saldoSql} saldo FROM cuenta c WHERE c.activo=1 ORDER BY c.nombre`).all();
+  // Adjuntar el desglose por mes (para mostrar julio/agosto separados en la lista)
+  for (const c of rows) c.porMes = desgloseMensual(c.id).porMes.filter((m) => m.pendiente > 0);
+  res.json(rows);
 });
 
 app.post('/api/cuentas', (req, res) => {
@@ -1344,9 +1369,10 @@ app.get('/api/cuentas/:id', (req, res) => {
     `SELECT m.*, p.tipo pedido_tipo FROM cuenta_mov m LEFT JOIN pedido p ON p.id=m.pedido_id
      WHERE m.cuenta_id=? ORDER BY m.id DESC LIMIT 300`
   ).all(c.id);
-  c.saldo = db.prepare(
-    "SELECT COALESCE(SUM(CASE WHEN tipo='cargo' THEN importe ELSE -importe END),0) s FROM cuenta_mov WHERE cuenta_id=?"
-  ).get(c.id).s;
+  const dg = desgloseMensual(c.id);
+  c.saldo = dg.saldo;
+  c.porMes = dg.porMes;
+  c.credito = dg.credito;
   res.json(c);
 });
 
@@ -1366,17 +1392,33 @@ app.post('/api/cuentas/:id/imprimir', async (req, res) => {
   if (c.telefono) lineas.push('Tel: ' + c.telefono);
   lineas.push('Emitido: ' + fecha);
   lineas.push('----------------------------------------');
+  const fdmy = (m) => (m.fecha || '').slice(0, 10).split('-').reverse().join('/'); // aaaa-mm-dd -> dd/mm/aaaa
+  const dg = desgloseMensual(c.id);
+  const cargos = movs.filter((m) => m.tipo === 'cargo');
+  const pagos = movs.filter((m) => m.tipo === 'pago');
   if (!movs.length) lineas.push('Sin movimientos.');
-  for (const m of movs) {
-    const f = (m.fecha || '').slice(0, 10).split('-').reverse().join('/'); // aaaa-mm-dd -> dd/mm/aaaa
-    const etiqueta = m.tipo === 'cargo'
-      ? ('Consumo' + (m.pedido_id ? ' #' + m.pedido_id : ''))
-      : ('Pago' + (m.medio ? ' ' + m.medio : ''));
-    const signo = m.tipo === 'cargo' ? '+' : '-';
-    lineas.push(`${f} ${etiqueta}  ${signo}${moneyTxt(m.importe)}`);
+  // Consumos agrupados por mes, con subtotal de cada mes
+  const meses = [...new Set(cargos.map((m) => (m.fecha || '').slice(0, 7)))].sort();
+  for (const ym of meses) {
+    lineas.push(nombreMes(ym).toUpperCase());
+    let sub = 0;
+    for (const m of cargos.filter((x) => (x.fecha || '').slice(0, 7) === ym)) {
+      lineas.push(' ' + fdmy(m) + ' Consumo' + (m.pedido_id ? ' #' + m.pedido_id : '') + (m.detalle ? ' ' + m.detalle : '') + '  +' + moneyTxt(m.importe));
+      sub += m.importe;
+    }
+    lineas.push('   Subtotal ' + nombreMes(ym) + ': ' + moneyTxt(sub));
+  }
+  if (pagos.length) {
+    lineas.push('----------------------------------------');
+    lineas.push('PAGOS RECIBIDOS');
+    for (const m of pagos) lineas.push(' ' + fdmy(m) + ' Pago' + (m.medio ? ' ' + m.medio : '') + '  -' + moneyTxt(m.importe));
   }
   lineas.push('----------------------------------------');
-  lineas.push('SALDO (DEBE): ' + moneyTxt(saldo));
+  lineas.push('PENDIENTE POR MES (se cobra del mas viejo al mas nuevo):');
+  for (const m of dg.porMes) lineas.push(' ' + m.etiqueta + ': ' + (m.pendiente <= 0 ? 'SALDADO' : 'debe ' + moneyTxt(m.pendiente)));
+  if (dg.credito > 0) lineas.push(' A favor (credito): ' + moneyTxt(dg.credito));
+  lineas.push('----------------------------------------');
+  lineas.push('TOTAL A PAGAR: ' + moneyTxt(Math.max(0, saldo)));
   const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
   let r;
   try { r = await imprimirTextoPlano('ESTADO DE CUENTA', lineas, impresora); }

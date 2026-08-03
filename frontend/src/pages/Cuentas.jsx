@@ -67,6 +67,11 @@ export default function Cuentas() {
                 <b>{c.nombre}</b>
                 <b style={{ color: c.saldo > 0 ? 'var(--orange)' : 'var(--green)' }}>{money(c.saldo)}</b>
               </div>
+              {c.porMes?.length > 0 && (
+                <div style={{ color: 'var(--orange)', fontSize: 12, marginTop: 2 }}>
+                  {c.porMes.map((m) => `${m.etiqueta}: ${money(m.pendiente)}`).join('  ·  ')}
+                </div>
+              )}
               <div style={{ color: 'var(--muted)', fontSize: 13 }}>{c.tipo}{c.telefono ? ' · ' + c.telefono : ''}</div>
             </div>
           ))}
@@ -81,9 +86,27 @@ export default function Cuentas() {
                 <span className="spacer" />
                 <button onClick={imprimirEstado}>🖨 Imprimir estado de cuenta</button>
               </div>
-              <div className="total-row"><span>Saldo (debe)</span><span style={{ color: sel.saldo > 0 ? 'var(--orange)' : 'var(--green)' }}>{money(sel.saldo)}</span></div>
+              <div className="total-row"><span>Saldo total (debe)</span><span style={{ color: sel.saldo > 0 ? 'var(--orange)' : 'var(--green)' }}>{money(sel.saldo)}</span></div>
+
+              {sel.porMes?.length > 0 && (
+                <div style={{ margin: '4px 0 10px' }}>
+                  <div className="h2" style={{ marginBottom: 6 }}>📅 Deuda por mes</div>
+                  {sel.porMes.map((m) => (
+                    <div key={m.mes} className="cart-item">
+                      <span style={{ flex: 1 }}>{m.etiqueta}</span>
+                      {m.pendiente > 0
+                        ? <b style={{ color: 'var(--orange)' }}>debe {money(m.pendiente)}</b>
+                        : <b style={{ color: 'var(--green)' }}>✓ saldado</b>}
+                    </div>
+                  ))}
+                  {sel.credito > 0 && (
+                    <div className="cart-item"><span style={{ flex: 1 }}>A favor (crédito)</span><b style={{ color: 'var(--green)' }}>{money(sel.credito)}</b></div>
+                  )}
+                </div>
+              )}
 
               <h2 className="h2" style={{ marginTop: 14 }}>Registrar pago de la empresa</h2>
+              <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0 }}>El pago se aplica primero al <b>mes más viejo</b> con deuda; cuando se salda, sigue con el siguiente.</p>
               <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                 <input placeholder="Importe $" value={pagoImp} onChange={(e) => setPagoImp(e.target.value)} style={{ flex: 1 }} />
                 <select value={pagoMedio} onChange={(e) => setPagoMedio(e.target.value)}>
