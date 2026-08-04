@@ -491,28 +491,33 @@ function PropuestaCard({ msg, onDone }) {
       <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', marginBottom: 6 }}>💬 "{msg.texto}"</div>
       <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre" style={{ width: '100%', marginBottom: 6, fontWeight: 700 }} />
       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>📞 {p.cliente_telefono || msg.telefono}</div>
-      {items.map((x, i) => (
-        <div key={i} style={{ borderBottom: '1px solid var(--panel)', padding: '6px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ flex: 1 }}>
-              {x.nombre}
-              {x.libre && <span style={{ color: 'var(--orange)', fontSize: 11 }}> · extra {x.precio > 0 ? '' : '(poné precio)'}</span>}
-              {x.deCarta && <span style={{ color: 'var(--muted)', fontSize: 11 }}> · agregado (de la carta)</span>}
-            </span>
-            <div className="qty">
-              <button onClick={() => cambiar(i, -1)}>−</button>
-              <b>{x.cantidad}</b>
-              <button onClick={() => cambiar(i, 1)}>+</button>
+      {items.map((x, i) => {
+        const tieneCambio = !!(x.observacion || '').trim() && !x.libre; // menú con una variante pedida
+        const precioAlerta = !(x.precio > 0) || tieneCambio;            // resaltar si falta precio o hay cambio a revisar
+        return (
+          <div key={i} style={{ borderBottom: '1px solid var(--panel)', padding: '6px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ flex: 1 }}>
+                {x.nombre}
+                {x.libre && <span style={{ color: 'var(--orange)', fontSize: 11 }}> · extra {x.precio > 0 ? '' : '(poné precio)'}</span>}
+                {x.deCarta && <span style={{ color: 'var(--muted)', fontSize: 11 }}> · agregado (de la carta)</span>}
+                {tieneCambio && <span style={{ color: 'var(--orange)', fontSize: 11 }}> · con cambio (revisá el precio)</span>}
+              </span>
+              <div className="qty">
+                <button onClick={() => cambiar(i, -1)}>−</button>
+                <b>{x.cantidad}</b>
+                <button onClick={() => cambiar(i, 1)}>+</button>
+              </div>
+              <input inputMode="numeric" value={x.precio || ''} onChange={(e) => setPrecio(i, e.target.value)}
+                placeholder="$" title="Precio unitario"
+                style={{ width: 74, textAlign: 'right', borderColor: precioAlerta ? 'var(--orange)' : '' }} />
             </div>
-            <input inputMode="numeric" value={x.precio || ''} onChange={(e) => setPrecio(i, e.target.value)}
-              placeholder="$" title="Precio unitario"
-              style={{ width: 74, textAlign: 'right', borderColor: x.precio > 0 ? '' : 'var(--orange)' }} />
+            <input value={x.observacion || ''} onChange={(e) => setObs(i, e.target.value)}
+              placeholder="Cambio/aclaración (ej. con ensalada en vez de puré)"
+              style={{ width: '100%', fontSize: 12, marginTop: 4, borderColor: tieneCambio ? 'var(--orange)' : '' }} />
           </div>
-          <input value={x.observacion || ''} onChange={(e) => setObs(i, e.target.value)}
-            placeholder="Cambio/aclaración (ej. con ensalada en vez de puré)"
-            style={{ width: '100%', fontSize: 12, marginTop: 4 }} />
-        </div>
-      ))}
+        );
+      })}
       <div className="total-row"><span>Total</span><span>{money(total)}</span></div>
       <div style={{ display: 'flex', gap: 6, margin: '8px 0 6px' }}>
         <button className={entrega === 'domicilio' ? 'btn-accent' : ''} style={{ flex: 1 }} onClick={() => setEntrega('domicilio')}>🛵 Domicilio</button>
