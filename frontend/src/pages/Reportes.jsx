@@ -114,6 +114,7 @@ export default function Reportes() {
   const [error, setError] = useState('');
   const [cierres, setCierres] = useState([]);
   const [cierreAbierto, setCierreAbierto] = useState(null);
+  const [grupoProd, setGrupoProd] = useState(''); // filtro de "más/menos vendidos" por grupo ('' = todos)
 
   useEffect(() => { api.cajaCierres().then(setCierres).catch(() => {}); }, []);
   const reimprimirCierre = async (c) => {
@@ -138,6 +139,12 @@ export default function Reportes() {
     ['hoy', 'Hoy'], ['ayer', 'Ayer'], ['ult7', 'Últimos 7'],
     ['ult30', 'Últimos 30'], ['mes', 'Este mes'], ['mespasado', 'Mes pasado'],
   ];
+  const GRUPOS = [['', 'Todos'], ['comida', '🍽 Comida'], ['bebidas', '🥤 Bebidas'], ['cafeteria', '☕ Cafetería']];
+
+  // "Más/menos vendidos" derivados de la lista completa de productos, filtrando por grupo (sin mezclar)
+  const prodsFiltrados = ((d && d.productos) || []).filter((p) => !grupoProd || p.grupo === grupoProd);
+  const prodTop = [...prodsFiltrados].sort((a, b) => b.cant - a.cant).slice(0, 20);
+  const prodBottom = [...prodsFiltrados].sort((a, b) => a.cant - b.cant || a.total - b.total).slice(0, 15);
 
   return (
     <div>
@@ -333,18 +340,28 @@ export default function Reportes() {
               )}
             </div>
 
+            {/* Filtro de grupo para las listas de productos (para que no se mezclen) */}
+            <div className="card" style={{ gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <b style={{ color: 'var(--muted)' }}>Más/menos vendidos —</b>
+                {GRUPOS.map(([k, l]) => (
+                  <span key={k} className={'chip' + (grupoProd === k ? ' active' : '')} onClick={() => setGrupoProd(k)}>{l}</span>
+                ))}
+              </div>
+            </div>
+
             {/* Top productos */}
             <div className="card">
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                <h2 className="h2" style={{ margin: 0 }}>Más vendidos</h2>
+                <h2 className="h2" style={{ margin: 0 }}>Más vendidos{grupoProd ? ' · ' + (GRUPOS.find(([k]) => k === grupoProd)?.[1] || '') : ''}</h2>
                 <span className="spacer" />
-                <button onClick={() => descargarCSV(`top_productos_${desde}_a_${hasta}.csv`,
-                  [['Producto', 'Cantidad', 'Total'], ...d.productosTop.map((p) => [p.nombre, p.cant, p.total])])}>⬇ CSV</button>
+                <button onClick={() => descargarCSV(`top_productos_${grupoProd || 'todos'}_${desde}_a_${hasta}.csv`,
+                  [['Producto', 'Grupo', 'Cantidad', 'Total'], ...prodTop.map((p) => [p.nombre, p.grupo, p.cant, p.total])])}>⬇ CSV</button>
               </div>
-              {!d.productosTop.length && <p style={{ color: 'var(--muted)' }}>Sin ventas de productos en el período.</p>}
+              {!prodTop.length && <p style={{ color: 'var(--muted)' }}>Sin ventas de productos en el período.</p>}
               <table style={{ width: '100%' }}>
                 <tbody>
-                  {d.productosTop.map((p, i) => (
+                  {prodTop.map((p, i) => (
                     <tr key={i}>
                       <td style={{ color: 'var(--muted)', width: 24 }}>{i + 1}</td>
                       <td>{p.nombre}</td>
@@ -358,11 +375,11 @@ export default function Reportes() {
 
             {/* Productos que menos salen */}
             <div className="card">
-              <h2 className="h2">Los que menos salen</h2>
-              {!d.productosBottom.length && <p style={{ color: 'var(--muted)' }}>Sin datos.</p>}
+              <h2 className="h2">Los que menos salen{grupoProd ? ' · ' + (GRUPOS.find(([k]) => k === grupoProd)?.[1] || '') : ''}</h2>
+              {!prodBottom.length && <p style={{ color: 'var(--muted)' }}>Sin datos.</p>}
               <table style={{ width: '100%' }}>
                 <tbody>
-                  {d.productosBottom.map((p, i) => (
+                  {prodBottom.map((p, i) => (
                     <tr key={i}>
                       <td>{p.nombre}</td>
                       <td style={{ textAlign: 'right' }}><b>{p.cant}</b></td>

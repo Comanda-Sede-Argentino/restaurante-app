@@ -74,16 +74,14 @@ export function registrarReportes(app) {
     // ---- Productos: pedidos cobrados en el rango (por cerrado_en), sin anulados ni la línea "Envío" ----
     const wProd = "WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado' AND i.plato_id IS NOT NULL";
 
-    const productosTop = db.prepare(
-      `SELECT i.nombre, SUM(i.cantidad) cant, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
-       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id ${wProd}
-       GROUP BY i.nombre ORDER BY cant DESC LIMIT 20`
-    ).all(...rango);
-
-    const productosBottom = db.prepare(
-      `SELECT i.nombre, SUM(i.cantidad) cant, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
-       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id ${wProd}
-       GROUP BY i.nombre ORDER BY cant ASC, total ASC LIMIT 15`
+    // Todos los productos vendidos con su GRUPO (comida/bebidas/cafeteria). El front arma
+    // "más vendidos" y "menos vendidos" y permite filtrar por grupo sin mezclar.
+    const productos = db.prepare(
+      `SELECT i.nombre, COALESCE(c.grupo,'comida') grupo,
+              SUM(i.cantidad) cant, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+       LEFT JOIN plato pl ON pl.id=i.plato_id LEFT JOIN categoria c ON c.id=pl.categoria_id
+       ${wProd} GROUP BY i.nombre, c.grupo ORDER BY cant DESC`
     ).all(...rango);
 
     const porCategoria = db.prepare(
@@ -119,7 +117,7 @@ export function registrarReportes(app) {
     res.json({
       desde, hasta, group,
       totales, serie, porMedio, porTipo, porMozo, propinasMozo, porHora, porDiaSemana,
-      productosTop, productosBottom, porCategoria, porGrupo, anulaciones, fiadoCobrado,
+      productos, porCategoria, porGrupo, anulaciones, fiadoCobrado,
     });
   });
 
