@@ -197,11 +197,11 @@ const HERR_VIANDA = {
       },
       cliente_nombre: { type: 'string', description: 'Nombre si lo menciona; si no, vacío' },
       direccion: { type: 'string', description: 'Dirección de entrega si la menciona; si no, vacío' },
-      entrega: { type: 'string', enum: ['domicilio', 'retiro'], description: 'domicilio si hay que llevarlo o da dirección; retiro si dice que lo pasa a buscar. Por defecto domicilio.' },
+      entrega: { type: 'string', enum: ['domicilio', 'retiro'], description: '"retiro" si el CLIENTE lo pasa a buscar/lo retira/lo busca él ("lo retiro", "lo paso a buscar", "paso yo", "lo busco", "para llevar"). "domicilio" si hay que LLEVÁRSELO o da una dirección ("mandámelo", "llevámelo", "acercámelo", "traémelo", "a tal dirección"). Si no queda claro, "domicilio".' },
       hora_entrega: { type: 'string', description: 'Hora en HH:MM si la menciona; si no, vacío' },
       nota: { type: 'string', description: 'Aclaración general si la hay (ej. "sin sal"); si no, vacío' },
     },
-    required: ['es_vianda', 'items'],
+    required: ['es_vianda', 'items', 'entrega'],
   },
 };
 
@@ -216,7 +216,11 @@ REGLAS:
 - EXTRAS (fuera del menú): si pide algo ADEMÁS del menú del día que NO es uno de los menús (ej. "y sumame una milanesa de carne", "con una coca"), ponelo en "extras" con su nombre y cantidad. El local le pone el precio.
 - No confundas un CAMBIO (variante de un menú, va en items[].cambio) con un EXTRA (ítem aparte, va en extras). Ejemplo combinado: "quiero el omelette y sumale una milanesa de carne" -> items: [omelette], extras: [milanesa de carne].
 - es_vianda = true SOLO si pide al menos uno de los menús del día. Si es un saludo suelto ("hola"), una consulta ("hasta qué hora entregan?"), o algo que claramente NO es uno de los menús del día, poné es_vianda = false y items vacío.
-- entrega: "domicilio" por defecto, o si da una dirección o dice "llevar/mandar/enviar a...". "retiro" SOLO si dice que lo pasa a buscar o lo retira.
+- ENTREGA (¡siempre poné una!): decidí "retiro" o "domicilio" según QUIÉN traslada la vianda:
+  · "retiro" = el CLIENTE la pasa a buscar. Frases típicas: "lo retiro", "lo retiro yo", "lo paso a buscar", "paso yo (a buscarla)", "lo busco", "la voy a buscar", "paso por el local", "para llevar".
+  · "domicilio" = hay que LLEVÁRSELA, o el cliente da una dirección. Frases: "mandámela", "llevámela", "acercámela", "traémela", "me la traés?", "envialo a...", "a San Martín 450".
+  · Fijate quién hace la acción: si el cliente dice que ÉL la busca/pasa/retira => retiro; si pide que se la lleven/manden/acerquen => domicilio.
+  · Si de verdad no aclara nada, poné "domicilio".
 - NOMBRE (¡OJO!): el nombre que a veces aparece al inicio del mensaje ("Hola Mati", "Buenas Mati", "Mati te encargo") es a QUIEN le escriben (el local/dueño), NO el cliente. NUNCA lo tomes como cliente_nombre. Poné cliente_nombre SOLO si el cliente dice claramente SU propio nombre ("soy Cecilia", "de parte de Cecilia", "para Cecilia", "habla Juan"). Si tenés dudas, dejá cliente_nombre vacío.
 - Si no aclara su propio nombre o la dirección, dejá esos campos vacíos (el sistema los completa con los datos guardados del cliente).`;
 
