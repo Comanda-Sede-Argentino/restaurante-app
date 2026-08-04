@@ -196,6 +196,7 @@ function NuevoPedido({ menus, pedidos, editPedido, onDone, irAMenus }) {
   const [verCarta, setVerCarta] = useState(false);
   const [platos, setPlatos] = useState([]);
   const [buscar, setBuscar] = useState('');
+  const [varios, setVarios] = useState(null); // pedido fuera de carta: { nombre, precio }
   const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Ensalada mixta', 'Rúcula con queso']);
   const [salsas, setSalsas] = useState(['Salsa roja', 'Salsa mixta', 'Bolognesa', 'Crema y queso']);
   const timer = useRef(null);
@@ -241,6 +242,14 @@ function NuevoPedido({ menus, pedidos, editPedido, onDone, irAMenus }) {
     }
     return [...c, { key: 'p' + p.id + '_' + (seq.current++), tipo: 'plato', plato_id: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1, obs: '', guarnicion: '', salsa: '', catGuarnicion: p.cat_guarnicion, catSalsa: p.cat_salsa }];
   });
+  // Agregar un pedido FUERA DE CARTA (ej. "arroz con lentejas y huevo duro"): nombre + precio libres
+  const addVarios = () => {
+    const nom = (varios?.nombre || '').trim();
+    if (!nom) { toast('Escribí qué pidió el cliente.', 'error'); return; }
+    const precio = Number(String(varios.precio).replace(/[^\d]/g, '')) || 0;
+    setCart((c) => [...c, { key: 'v' + (seq.current++), tipo: 'plato', plato_id: undefined, libre: true, nombre: nom, precio, cantidad: 1, obs: '', guarnicion: '', salsa: '', catGuarnicion: 0, catSalsa: 0 }]);
+    setVarios(null);
+  };
   const cambiarCant = (key, delta) => setCart((c) => c
     .map((x) => (x.key === key ? { ...x, cantidad: x.cantidad + delta } : x))
     .filter((x) => x.cantidad > 0));
@@ -329,7 +338,30 @@ function NuevoPedido({ menus, pedidos, editPedido, onDone, irAMenus }) {
           </div>
 
           <div style={{ marginTop: 12 }}>
-            <button onClick={abrirCarta}>{verCarta ? '▲ Ocultar carta' : '➕ Agregar de la carta'}</button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={abrirCarta}>{verCarta ? '▲ Ocultar carta' : '➕ Agregar de la carta'}</button>
+              <button onClick={() => setVarios(varios ? null : { nombre: '', precio: '' })}
+                title="Algo que no está en el sistema (ej. arroz con lentejas y huevo duro)">➕ Varios (fuera de carta)</button>
+            </div>
+            {varios && (
+              <div className="card" style={{ marginTop: 8, borderColor: 'var(--accent)' }}>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>
+                  Pedido fuera de carta (ej. <i>arroz con lentejas y huevo duro</i>). Va igual a la cocina.
+                </div>
+                <input autoFocus placeholder="¿Qué pidió el cliente?" value={varios.nombre}
+                  onChange={(e) => setVarios((v) => ({ ...v, nombre: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addVarios(); }}
+                  style={{ width: '100%', marginBottom: 6 }} />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input inputMode="numeric" placeholder="Precio $" value={varios.precio}
+                    onChange={(e) => setVarios((v) => ({ ...v, precio: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addVarios(); }}
+                    style={{ width: 120 }} />
+                  <button className="btn-green" onClick={addVarios}>Agregar</button>
+                  <button onClick={() => setVarios(null)}>Cancelar</button>
+                </div>
+              </div>
+            )}
             {verCarta && (
               <div className="card" style={{ marginTop: 8 }}>
                 <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar plato de la carta..." style={{ width: '100%', marginBottom: 8 }} />
