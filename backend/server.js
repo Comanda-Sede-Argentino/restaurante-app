@@ -983,10 +983,11 @@ app.get('/api/viandas', (req, res) => {
   // Cantidad e importe vendidos por cada menú del día
   const porMenu = db.prepare(
     `SELECT md.id, md.opcion, md.nombre, md.precio,
-            COALESCE(SUM(i.cantidad),0) cantidad,
-            COALESCE(SUM(i.cantidad*i.precio_unit),0) importe
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad ELSE 0 END),0) cantidad,
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad*i.precio_unit ELSE 0 END),0) importe
      FROM menu_dia md
      LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
+     LEFT JOIN pedido o ON o.id=i.pedido_id
      WHERE md.fecha=? AND md.activo=1
      GROUP BY md.id ORDER BY md.opcion ASC`
   ).all(fecha);
@@ -1003,8 +1004,8 @@ app.get('/api/viandas/cocina-estado', (req, res) => {
   const fecha = req.query.fecha || fechaHoy();
   const porMenu = db.prepare(
     `SELECT md.opcion, md.nombre,
-            COALESCE(SUM(i.cantidad),0) vendidas,
-            COALESCE(SUM(CASE WHEN o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad ELSE 0 END),0) vendidas,
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' AND o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
      FROM menu_dia md
      LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
      LEFT JOIN pedido o ON o.id=i.pedido_id
@@ -1030,8 +1031,8 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   const fecha = req.body.fecha || fechaHoy();
   const porMenu = db.prepare(
     `SELECT md.opcion, md.nombre,
-            COALESCE(SUM(i.cantidad),0) vendidas,
-            COALESCE(SUM(CASE WHEN o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad ELSE 0 END),0) vendidas,
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' AND o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
      FROM menu_dia md
      LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
      LEFT JOIN pedido o ON o.id=i.pedido_id
