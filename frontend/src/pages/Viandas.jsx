@@ -526,7 +526,12 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
   const recargarCuentas = () => api.cuentas().then(setCuentas).catch(() => {});
 
   const entregar = async (p) => {
-    try { await api.entregar(p.id, true); recargar(); toast('📦 Entregado.'); }
+    try { await api.entregar(p.id, true); recargar(); toast(p.entrega === 'retiro' ? '🏪 Retirado.' : '📦 Entregado.'); }
+    catch (e) { toast('No se pudo: ' + e.message, 'error'); }
+  };
+  // Deshacer: marcar que todavía NO salió (vuelve a "faltan")
+  const desentregar = async (p) => {
+    try { await api.entregar(p.id, false); recargar(); toast('↩ Marcado como que todavía no salió.'); }
     catch (e) { toast('No se pudo: ' + e.message, 'error'); }
   };
   const cobrar = async (p, medio) => {
@@ -618,7 +623,8 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
 
   // Separación visual: por entregar (domicilios sin entregar) / a cobrar / cobrados
   const orden = (a, b) => (a.hora_entrega || '~').localeCompare(b.hora_entrega || '~') || a.id - b.id;
-  const faltaEntregar = (p) => p.entrega !== 'retiro' && !p.entregado_en;
+  // "Por salir": todavía no se entregó (domicilio) ni se retiró (retiro). Cuando sale, baja de "faltan".
+  const faltaEntregar = (p) => !p.entregado_en;
   const q = buscar.trim().toLowerCase();
   const coincide = (p) => !q || (p.cliente_nombre || '').toLowerCase().includes(q) || (p.cliente_telefono || '').includes(q);
   const visibles = pedidos.filter(coincide);
@@ -660,11 +666,14 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
         {p.observacion && <div style={{ fontSize: 12, color: 'var(--orange)', marginBottom: 4 }}>📝 {p.observacion}</div>}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '6px 0', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: pagado ? 'var(--green)' : 'var(--orange)' }}>{pagado ? '✅ Pagado' : '🕒 A cobrar'}</span>
-          {dom && <span style={{ fontSize: 12, fontWeight: 700, color: entregado ? 'var(--green)' : 'var(--muted)' }}>{entregado ? '📦 Entregado' : '🛵 Sin entregar'}</span>}
+          <span style={{ fontSize: 12, fontWeight: 700, color: entregado ? 'var(--green)' : 'var(--muted)' }}>
+            {entregado ? (dom ? '📦 Entregado' : '🏪 Retirado') : (dom ? '🛵 Sin entregar' : '🏪 Sin retirar')}
+          </span>
           {tel && <a href={'tel:' + tel} className="btn-green" style={{ padding: '3px 10px', textDecoration: 'none', marginLeft: 'auto' }}>📞</a>}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {dom && !entregado && <button style={{ flex: 1, padding: 9 }} onClick={() => entregar(p)}>📦 Entregado</button>}
+          {!entregado && <button style={{ flex: 1, padding: 9 }} onClick={() => entregar(p)}>{dom ? '📦 Entregado' : '🏪 Retirado'}</button>}
+          {entregado && <button style={{ flex: 1, padding: 9 }} onClick={() => desentregar(p)} title="Marcar que todavía no salió">↩ {dom ? 'Sin entregar' : 'Sin retirar'}</button>}
           {!pagado && cobrarId !== p.id && fiadoId !== p.id && <button className="btn-green" style={{ flex: 1, padding: 9 }} onClick={() => { setCobrarId(p.id); setFiadoId(null); }}>💵 Cobrar</button>}
           <button style={{ padding: 9 }} onClick={() => editar(p)} title={pagado ? 'Editar (reabre el cobro)' : 'Editar pedido'}>✏</button>
           <button style={{ padding: 9 }} onClick={() => imprimir(p)} title="Imprimir ticket">🖨</button>
@@ -739,10 +748,10 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
           placeholder="🔎 Buscar por nombre o teléfono..." style={{ width: '100%', maxWidth: 360, marginBottom: 12 }} />
       )}
 
-      {grupo('🛵 Por entregar', gPorEntregar, 'var(--orange)', (
+      {grupo('🛵 Por salir (entregar / retirar)', gPorEntregar, 'var(--orange)', (
         <>
           <button onClick={hojaReparto} title="Imprimir la lista de domicilios para el cadete">🧾 Hoja de reparto</button>
-          <button onClick={entregarTodos} title="Marcar todos entregados (no cobra)">📦 Marcar todos entregados</button>
+          <button onClick={entregarTodos} title="Marca entregados SOLO los domicilios (los retiros se marcan uno por uno al pasarlos a buscar)">📦 Domicilios entregados</button>
         </>
       ))}
       {grupo('🕒 A cobrar', gACobrar, 'var(--orange)')}
