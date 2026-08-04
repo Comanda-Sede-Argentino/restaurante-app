@@ -104,6 +104,7 @@ export const api = {
   viandas: (fecha) => req('/viandas' + (fecha ? '?fecha=' + fecha : '')),
   crearVianda: (data) => req('/viandas', { method: 'POST', body: data }),
   editarVianda: (id, data) => req('/viandas/' + id, { method: 'PUT', body: data }),
+  viandasCocinaEstado: (fecha) => req('/viandas/cocina-estado' + (fecha ? '?fecha=' + fecha : '')),
   viandasCocinaImprimir: (fecha) => req('/viandas/cocina-imprimir', { method: 'POST', body: { fecha: fecha || null, operador: operador() } }),
   viandasCierreImprimir: (fecha) => req('/viandas/cierre-imprimir', { method: 'POST', body: { fecha: fecha || null, operador: operador() } }),
   viandasEntregarTodos: (fecha) => req('/viandas/entregar-todos', { method: 'POST', body: { fecha: fecha || null } }),

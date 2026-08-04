@@ -66,6 +66,8 @@ export default function KDS() {
   const [verStock, setVerStock] = useState(false);
   const [platosDisp, setPlatosDisp] = useState([]);
   const [qStock, setQStock] = useState('');
+  const [vista, setVista] = useState('comandas'); // pestaña: 'comandas' | 'viandas'
+  const [viandas, setViandas] = useState(null);   // estado EN VIVO de viandas (vendidas/entregadas/faltan)
 
   const cargar = useCallback(() => { api.kds(sector).then(setItems); }, [sector]);
   const cargarPlatos = () => api.platos({}).then(setPlatosDisp);
@@ -96,6 +98,22 @@ export default function KDS() {
       clearInterval(tick);
     };
   }, [cargar, beep]);
+
+  // Viandas EN VIVO: se refresca cuando entran/entregan/cobran viandas (el delivery marca entregado)
+  const cargarViandas = useCallback(() => { api.viandasCocinaEstado().then(setViandas).catch(() => {}); }, []);
+  useEffect(() => {
+    cargarViandas();
+    const r = () => cargarViandas();
+    socket.on('pedido:actualizado', r);
+    socket.on('pedido:nuevo', r);
+    socket.on('pedido:cobrado', r);
+    socket.on('connect', r);
+    return () => { socket.off('pedido:actualizado', r); socket.off('pedido:nuevo', r); socket.off('pedido:cobrado', r); socket.off('connect', r); };
+  }, [cargarViandas]);
+  const imprimirViandas = async () => {
+    try { const r = await api.viandasCocinaImprimir(); toast('🖨 Pasado a cocina' + (r.totalViandas != null ? ` (${r.totalViandas} viandas)` : '') + '.'); }
+    catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
+  };
 
   const toggleDisp = async (p, disp) => { await api.setDisponible(p.id, disp); cargarPlatos(); };
   const sinStock = platosDisp.filter((p) => !p.disponible);
@@ -139,8 +157,19 @@ export default function KDS() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <h1 className="h1" style={{ margin: 0 }}>👨‍🍳 Cocina</h1>
+        <div className={'chip' + (vista === 'comandas' ? ' active' : '')} onClick={() => setVista('comandas')}>🍳 Comandas</div>
+        <div className={'chip' + (vista === 'viandas' ? ' active' : '')} onClick={() => setVista('viandas')}>
+          🍱 Viandas{viandas?.faltan ? ` · faltan ${viandas.faltan}` : ''}
+        </div>
+      </div>
+
+      {vista === 'viandas' && <ViandasCocina data={viandas} onImprimir={imprimirViandas} />}
+
+      {vista === 'comandas' && (
+      <>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <button className={sonido ? 'btn-green' : ''} onClick={toggleSonido} title="Aviso sonoro al entrar una comanda">
           {sonido ? '🔔 Sonido ON' : '🔕 Sonido OFF'}
         </button>
@@ -227,6 +256,50 @@ export default function KDS() {
           );
         })}
       </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+// Pestaña de VIANDAS dentro de Cocina: cuántas faltan hacer por menú (se descuentan al entregar)
+function ViandasCocina({ data, onImprimir }) {
+  if (!data) return <p style={{ color: 'var(--muted)' }}>Cargando viandas…</p>;
+  const { porMenu = [], cartaItems = [], vendidas = 0, entregadas = 0, faltan = 0 } = data;
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+        <span className="badge warn">Vendidas: {vendidas}</span>
+        <span className="badge warn">Entregadas: {entregadas}</span>
+        <b style={{ fontSize: 18, color: faltan > 0 ? 'var(--accent)' : 'var(--green)' }}>FALTAN HACER: {faltan}</b>
+        <span className="spacer" />
+        <button onClick={onImprimir} title="Imprimir el resumen para la cocina">🖨 Pasar a cocina</button>
+      </div>
+      {!porMenu.length && <p style={{ color: 'var(--muted)' }}>Todavía no hay menús cargados para hoy (cargalos en Viandas → Menús).</p>}
+      <div className="kds-grid">
+        {porMenu.map((m) => (
+          <div key={m.opcion} className="comanda" style={{ borderLeftColor: m.faltan > 0 ? 'var(--orange)' : 'var(--green)' }}>
+            <div className="ch">
+              <span>Menú {m.n}</span>
+              <span className="badge warn">{m.vendidas} vend.</span>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{m.nombre}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <div style={{ fontSize: 46, fontWeight: 800, lineHeight: 1, color: m.faltan > 0 ? 'var(--accent)' : 'var(--green)' }}>{m.faltan}</div>
+              <div style={{ color: 'var(--muted)' }}>faltan hacer</div>
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6 }}>Entregadas: {m.entregadas} de {m.vendidas}</div>
+          </div>
+        ))}
+      </div>
+      {cartaItems.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="h2">De la carta (junto con las viandas)</div>
+          {cartaItems.map((c) => (
+            <div key={c.nombre} className="cart-item"><span style={{ flex: 1 }}>{c.nombre}</span><b>{c.cantidad}</b></div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -994,6 +994,33 @@ app.get('/api/viandas', (req, res) => {
   res.json({ fecha, pedidos, menus, porMenu, totalDia, sinCobrar });
 });
 
+// Estado EN VIVO para la pantalla de cocina: por cada menú, cuántas se vendieron, cuántas
+// ya entregó el delivery y cuántas FALTAN hacer. Se refresca solo cuando entran/entregan viandas.
+app.get('/api/viandas/cocina-estado', (req, res) => {
+  const fecha = req.query.fecha || fechaHoy();
+  const porMenu = db.prepare(
+    `SELECT md.opcion, md.nombre,
+            COALESCE(SUM(i.cantidad),0) vendidas,
+            COALESCE(SUM(CASE WHEN o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
+     FROM menu_dia md
+     LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
+     LEFT JOIN pedido o ON o.id=i.pedido_id
+     WHERE md.fecha=? AND md.activo=1
+     GROUP BY md.id ORDER BY md.opcion ASC`
+  ).all(fecha).map((m, i) => ({ ...m, n: i + 1, faltan: Math.max(0, m.vendidas - m.entregadas) }));
+  // Ítems de carta pedidos junto con las viandas (sin seguimiento de entrega por ítem)
+  const cartaItems = db.prepare(
+    `SELECT i.nombre, SUM(i.cantidad) cantidad
+     FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+     WHERE o.tipo='vianda' AND date(o.abierto_en)=? AND o.estado<>'anulado'
+       AND i.estado<>'anulado' AND i.menu_dia_id IS NULL
+     GROUP BY i.nombre ORDER BY cantidad DESC`
+  ).all(fecha);
+  const vendidas = porMenu.reduce((a, m) => a + m.vendidas, 0);
+  const entregadas = porMenu.reduce((a, m) => a + m.entregadas, 0);
+  res.json({ fecha, porMenu, cartaItems, vendidas, entregadas, faltan: Math.max(0, vendidas - entregadas) });
+});
+
 // Resumen ACUMULADO para pasar a la cocina: cuántas de cada menú van hasta ahora (12x Menú 1, 6x Menú 2...)
 // Sale por la impresora de comandas. Se puede imprimir varias veces a medida que entran pedidos.
 app.post('/api/viandas/cocina-imprimir', async (req, res) => {
