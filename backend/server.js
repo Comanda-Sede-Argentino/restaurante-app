@@ -1026,10 +1026,14 @@ app.get('/api/viandas/cocina-estado', (req, res) => {
 app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   const fecha = req.body.fecha || fechaHoy();
   const porMenu = db.prepare(
-    `SELECT md.opcion, md.nombre, COALESCE(SUM(i.cantidad),0) cantidad
-     FROM menu_dia md LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
+    `SELECT md.opcion, md.nombre,
+            COALESCE(SUM(i.cantidad),0) vendidas,
+            COALESCE(SUM(CASE WHEN o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
+     FROM menu_dia md
+     LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
+     LEFT JOIN pedido o ON o.id=i.pedido_id
      WHERE md.fecha=? AND md.activo=1 GROUP BY md.id ORDER BY md.opcion ASC`
-  ).all(fecha);
+  ).all(fecha).map((m) => ({ ...m, faltan: Math.max(0, m.vendidas - m.entregadas) }));
   // Ítems de carta pedidos junto con las viandas (agrupados)
   const cartaItems = db.prepare(
     `SELECT i.nombre, SUM(i.cantidad) cantidad
@@ -1041,23 +1045,26 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   const totalPedidos = db.prepare(
     "SELECT COUNT(*) c FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado<>'anulado'"
   ).get(fecha).c;
-  const totalViandas = porMenu.reduce((a, m) => a + m.cantidad, 0);
+  const totalVendidas = porMenu.reduce((a, m) => a + m.vendidas, 0);
+  const totalEntregadas = porMenu.reduce((a, m) => a + m.entregadas, 0);
+  const totalFaltan = Math.max(0, totalVendidas - totalEntregadas);
   const hora = db.prepare("SELECT time('now','localtime') t").get().t.slice(0, 5);
-  // Las cantidades por menú y el total van en LETRA GRANDE para leerlas de un pantallazo.
-  const L = ['Actualizado: ' + hora + '  (TOTAL del dia)', ''];
+  // El número GRANDE es lo que FALTA preparar (vendidas - entregadas). Debajo, en chico, el detalle.
+  const L = ['Actualizado: ' + hora, ' FALTAN PREPARAR:', ''];
   porMenu.forEach((m, i) => {
-    L.push({ t: ' ' + String(m.cantidad).padStart(2) + '  Menu ' + (i + 1), big: true });
-    L.push('     (' + m.nombre + ')');
+    L.push({ t: ' ' + String(m.faltan).padStart(2) + '  Menu ' + (i + 1), big: true });
+    L.push('     (' + m.nombre + ')  vend ' + m.vendidas + ' / entreg ' + m.entregadas);
   });
   if (cartaItems.length) {
     L.push('', ' --- De la carta ---');
     cartaItems.forEach((c) => L.push({ t: ' ' + String(c.cantidad).padStart(2) + '  ' + c.nombre.slice(0, 14), big: true }));
   }
   L.push('');
-  L.push({ t: ' TOTAL: ' + totalViandas, big: true });
+  L.push({ t: ' FALTAN: ' + totalFaltan, big: true });
+  L.push(' Vendidas: ' + totalVendidas + '   Entregadas: ' + totalEntregadas);
   L.push(' Pedidos: ' + totalPedidos);
   const resultado = await imprimirTextoPlano('COCINA - VIANDAS ' + fecha, L, undefined, req.body.operador);
-  res.json({ resultado, porMenu, cartaItems, totalViandas, totalPedidos });
+  res.json({ resultado, porMenu, cartaItems, totalViandas: totalVendidas, totalFaltan, totalEntregadas, totalPedidos });
 });
 
 // Marcar como ENTREGADOS todos los domicilios de vianda que faltan (no toca el cobro)

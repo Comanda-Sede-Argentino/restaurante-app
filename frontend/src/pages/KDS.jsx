@@ -111,7 +111,7 @@ export default function KDS() {
     return () => { socket.off('pedido:actualizado', r); socket.off('pedido:nuevo', r); socket.off('pedido:cobrado', r); socket.off('connect', r); };
   }, [cargarViandas]);
   const imprimirViandas = async () => {
-    try { const r = await api.viandasCocinaImprimir(); toast('🖨 Pasado a cocina' + (r.totalViandas != null ? ` (${r.totalViandas} viandas)` : '') + '.'); }
+    try { const r = await api.viandasCocinaImprimir(); toast('🖨 Pasado a cocina' + (r.totalFaltan != null ? ` (faltan ${r.totalFaltan})` : '') + '.'); }
     catch (e) { toast('No se pudo imprimir: ' + e.message, 'error'); }
   };
 

@@ -471,7 +471,10 @@ export async function imprimirTextoPlano(titulo, lineas, impresoraOverride, oper
   if (!impresion.habilitada) return { ok: true, modo: 'archivo', archivo };
 
   // ESC/POS: init + texto (con tamaño por línea) + avance + corte
-  const GRANDE = [GS, 0x21, 0x11], NORMAL = [GS, 0x21, 0x00]; // GS ! : doble alto+ancho / normal
+  // OJO: la TM-T58 es finicky con la fuente; hay que mandar ESC ! y GS ! JUNTOS (como en la comanda),
+  // si no, con GS ! solo no agranda. 0x38 = negrita+doble alto+doble ancho.
+  const GRANDE = [ESC, 0x21, 0x38, GS, 0x21, 0x11, ESC, 0x45, 1];
+  const NORMAL = [ESC, 0x21, 0x00, GS, 0x21, 0x00, ESC, 0x45, 0];
   const b = [ESC, 0x40];
   const push = (s) => { for (const c of Buffer.from(sinAcentos(s), 'latin1')) b.push(c); };
   for (const s of head) { push(s); b.push(0x0a); }
