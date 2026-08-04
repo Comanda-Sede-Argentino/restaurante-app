@@ -497,6 +497,7 @@ function PropuestaCard({ msg, onDone }) {
             <span style={{ flex: 1 }}>
               {x.nombre}
               {x.libre && <span style={{ color: 'var(--orange)', fontSize: 11 }}> · extra {x.precio > 0 ? '' : '(poné precio)'}</span>}
+              {x.deCarta && <span style={{ color: 'var(--muted)', fontSize: 11 }}> · agregado (de la carta)</span>}
             </span>
             <div className="qty">
               <button onClick={() => cambiar(i, -1)}>−</button>

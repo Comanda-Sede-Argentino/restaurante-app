@@ -1763,11 +1763,25 @@ wa.setHandlers({
               const m = menus.find((x) => x.opcion === op) || menus[op - 1];
               return m ? { menu_dia_id: m.id, opcion: m.opcion, nombre: m.nombre, precio: m.precio, cantidad: Math.max(1, Math.trunc(Number(it.cantidad) || 1)), observacion: (it.cambio || '').trim() } : null;
             }).filter(Boolean);
-            // EXTRAS fuera del menú (el local les pone el precio en la bandeja antes de confirmar)
-            const extras = (Array.isArray(v.extras) ? v.extras : []).map((e) => ({
-              libre: true, precioPendiente: true, nombre: (e.nombre || '').trim(),
-              precio: 0, cantidad: Math.max(1, Math.trunc(Number(e.cantidad) || 1)), observacion: '',
-            })).filter((e) => e.nombre);
+            // EXTRAS fuera del menú: intento ponerles el precio buscándolos en el CATÁLOGO.
+            // Si lo encuentro, uso ese plato y su precio; si no, queda libre y el local le pone precio.
+            const platosCat = db.prepare("SELECT id, nombre, precio FROM plato WHERE activo=1").all();
+            const matchExtra = (nombre) => {
+              const q = normalizar(nombre); if (!q) return null;
+              const exacto = platosCat.find((p) => normalizar(p.nombre) === q);
+              if (exacto) return exacto;
+              const cont = platosCat.map((p) => ({ p, n: normalizar(p.nombre) }))
+                .filter(({ n }) => n && (q.includes(n) || n.includes(q)))
+                .sort((a, b) => b.n.length - a.n.length);
+              return cont.length ? cont[0].p : null;
+            };
+            const extras = (Array.isArray(v.extras) ? v.extras : []).map((e) => {
+              const nombre = (e.nombre || '').trim();
+              const cant = Math.max(1, Math.trunc(Number(e.cantidad) || 1));
+              const pl = nombre ? matchExtra(nombre) : null;
+              if (pl) return { plato_id: pl.id, nombre: pl.nombre, precio: Math.round(pl.precio), cantidad: cant, observacion: '', deCarta: true };
+              return { libre: true, precioPendiente: true, nombre, precio: 0, cantidad: cant, observacion: '' };
+            }).filter((e) => e.nombre);
             if (items.length) {
               items.push(...extras);
               // Prioridad del nombre: guardado de pedidos anteriores > nombre del contacto de WhatsApp
