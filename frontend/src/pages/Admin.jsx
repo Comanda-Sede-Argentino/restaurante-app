@@ -29,6 +29,14 @@ export default function Admin() {
   const [verSalsa, setVerSalsa] = useState(false);
   const [verCafe, setVerCafe] = useState(false);
   const [verPizza, setVerPizza] = useState(false);
+  const [verGrupos, setVerGrupos] = useState(false);
+
+  // Grupo de la categoría para los reportes (comida / bebidas / cafeteria)
+  const setGrupo = async (c, grupo) => {
+    setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, grupo } : x)));
+    try { await api.editarCategoria(c.id, { grupo }); }
+    catch { setCats((prev) => prev.map((x) => (x.id === c.id ? { ...x, grupo: c.grupo } : x))); toast('No se pudo guardar el grupo.', 'error'); }
+  };
 
   // Abrir edición cargando la receta completa (insumos que descuenta del stock)
   const abrirEdit = async (p) => {
@@ -377,6 +385,34 @@ export default function Admin() {
                   <input type="checkbox" checked={c.en_comanda === 0} onChange={() => toggleExcluirComanda(c)} />
                   {c.nombre}
                 </label>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h2 className="h2" style={{ margin: 0 }}>📊 Grupo de cada categoría (para los reportes)</h2>
+          <span className="spacer" />
+          <button onClick={() => setVerGrupos((v) => !v)}>{verGrupos ? 'Ocultar' : 'Configurar'}</button>
+        </div>
+        {verGrupos && (
+          <>
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>
+              Elegí a qué grupo pertenece cada categoría. En <b>Reportes</b> vas a ver las ventas separadas en
+              <b> 🍽 Comida</b>, <b>🥤 Bebidas</b> y <b>☕ Cafetería</b>.
+            </p>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 6 }}>
+              {cats.map((c) => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                  <span style={{ flex: 1 }}>{c.nombre}</span>
+                  <select value={c.grupo || 'comida'} onChange={(e) => setGrupo(c, e.target.value)}>
+                    <option value="comida">🍽 Comida</option>
+                    <option value="bebidas">🥤 Bebidas</option>
+                    <option value="cafeteria">☕ Cafetería</option>
+                  </select>
+                </div>
               ))}
             </div>
           </>

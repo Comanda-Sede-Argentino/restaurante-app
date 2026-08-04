@@ -373,6 +373,22 @@ export default function Reportes() {
               </table>
             </div>
 
+            {/* Por grupo: Comida / Bebidas / Cafetería */}
+            <div className="card" style={{ gridColumn: '1 / -1' }}>
+              <h2 className="h2">🍽 Comida · 🥤 Bebidas · ☕ Cafetería</h2>
+              {(() => {
+                const GR = [{ k: 'comida', l: '🍽 Comida' }, { k: 'bebidas', l: '🥤 Bebidas' }, { k: 'cafeteria', l: '☕ Cafetería' }];
+                const find = (k) => (d.porGrupo || []).find((g) => g.grupo === k) || { total: 0, cant: 0 };
+                return (
+                  <div className="kpis" style={{ marginBottom: 0 }}>
+                    {GR.map((g) => { const x = find(g.k); return (
+                      <div className="kpi" key={g.k}><div className="v">{money(x.total)}</div><div className="l">{g.l} · {x.cant || 0} u.</div></div>
+                    ); })}
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Por categoría */}
             <div className="card">
               <h2 className="h2">Por categoría</h2>

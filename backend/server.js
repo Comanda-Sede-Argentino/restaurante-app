@@ -204,16 +204,19 @@ app.post('/api/categorias', (req, res) => {
 });
 
 app.put('/api/categorias/:id', (req, res) => {
-  const { nombre, orden, guarnicion, en_comanda, salsa, cafeteria, pizza } = req.body;
+  const { nombre, orden, guarnicion, en_comanda, salsa, cafeteria, pizza, grupo } = req.body;
+  const grupoOk = ['comida', 'bebidas', 'cafeteria'].includes(grupo) ? grupo : null;
   db.prepare(
     `UPDATE categoria SET nombre=COALESCE(?,nombre), orden=COALESCE(?,orden),
-       guarnicion=COALESCE(?,guarnicion), en_comanda=COALESCE(?,en_comanda), salsa=COALESCE(?,salsa), cafeteria=COALESCE(?,cafeteria), pizza=COALESCE(?,pizza) WHERE id=?`
+       guarnicion=COALESCE(?,guarnicion), en_comanda=COALESCE(?,en_comanda), salsa=COALESCE(?,salsa), cafeteria=COALESCE(?,cafeteria), pizza=COALESCE(?,pizza),
+       grupo=COALESCE(?,grupo) WHERE id=?`
   ).run(nombre ?? null, orden ?? null,
         guarnicion == null ? null : (guarnicion ? 1 : 0),
         en_comanda == null ? null : (en_comanda ? 1 : 0),
         salsa == null ? null : (salsa ? 1 : 0),
         cafeteria == null ? null : (cafeteria ? 1 : 0),
         pizza == null ? null : (pizza ? 1 : 0),
+        grupoOk,
         req.params.id);
   res.json(db.prepare('SELECT * FROM categoria WHERE id=?').get(req.params.id));
 });

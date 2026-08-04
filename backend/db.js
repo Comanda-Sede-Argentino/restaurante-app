@@ -211,6 +211,14 @@ addCol("ALTER TABLE categoria ADD COLUMN salsa INTEGER DEFAULT 0");
 addCol("ALTER TABLE categoria ADD COLUMN cafeteria INTEGER DEFAULT 0");
 // Categorías de PIZZA: sus platos se pueden combinar como "media y media" desde el tomador de pedidos
 addCol("ALTER TABLE categoria ADD COLUMN pizza INTEGER DEFAULT 0");
+// GRUPO para los reportes: 'comida' | 'bebidas' | 'cafeteria' (editable en el Catálogo)
+addCol("ALTER TABLE categoria ADD COLUMN grupo TEXT");
+// Valor inicial automático para las que todavía no tienen grupo (después se ajusta a mano)
+addCol(`UPDATE categoria SET grupo = CASE
+          WHEN cafeteria=1 OR lower(nombre) LIKE '%cafeter%' OR lower(nombre) LIKE '%cafe%' THEN 'cafeteria'
+          WHEN en_comanda=0 OR lower(nombre) LIKE '%bebida%' THEN 'bebidas'
+          ELSE 'comida' END
+        WHERE grupo IS NULL`);
 // Precio de MEDIA porción (para pizzas): si está seteado, el botón "Media" cobra este precio
 addCol("ALTER TABLE plato ADD COLUMN precio_media REAL");
 // Nombre/etiqueta opcional para la mesa (ej. "Ventana", "Barra 1") — ayuda a identificarla rápido

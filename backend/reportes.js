@@ -94,6 +94,15 @@ export function registrarReportes(app) {
        ${wProd} GROUP BY categoria ORDER BY total DESC`
     ).all(...rango);
 
+    // Ventas agrupadas en Comida / Bebidas / Cafetería (según el grupo de cada categoría)
+    const porGrupo = db.prepare(
+      `SELECT COALESCE(c.grupo,'comida') grupo, SUM(i.cantidad) cant,
+              COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+       LEFT JOIN plato pl ON pl.id=i.plato_id LEFT JOIN categoria c ON c.id=pl.categoria_id
+       ${wProd} GROUP BY grupo ORDER BY total DESC`
+    ).all(...rango);
+
     // ---- Anulaciones en el rango (control de pérdidas) ----
     const anulaciones = db.prepare(
       `SELECT COUNT(*) n, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
@@ -110,7 +119,7 @@ export function registrarReportes(app) {
     res.json({
       desde, hasta, group,
       totales, serie, porMedio, porTipo, porMozo, propinasMozo, porHora, porDiaSemana,
-      productosTop, productosBottom, porCategoria, anulaciones, fiadoCobrado,
+      productosTop, productosBottom, porCategoria, porGrupo, anulaciones, fiadoCobrado,
     });
   });
 
