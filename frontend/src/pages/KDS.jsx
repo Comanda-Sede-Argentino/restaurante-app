@@ -265,7 +265,7 @@ export default function KDS() {
 // Pestaña de VIANDAS dentro de Cocina: cuántas faltan por salir por menú (se descuentan al entregar/retirar)
 function ViandasCocina({ data, onImprimir }) {
   if (!data) return <p style={{ color: 'var(--muted)' }}>Cargando viandas…</p>;
-  const { porMenu = [], cartaItems = [], vendidas = 0, entregadas = 0, faltan = 0, faltanDom = 0, faltanRet = 0 } = data;
+  const { porMenu = [], cartaItems = [], cambios = [], vendidas = 0, entregadas = 0, faltan = 0, faltanDom = 0, faltanRet = 0 } = data;
   const todoDespachado = vendidas > 0 && faltan === 0;
   return (
     <div>
@@ -310,6 +310,20 @@ function ViandasCocina({ data, onImprimir }) {
               <span style={{ flex: 1 }}>{c.nombre}</span>
               <b style={{ color: c.faltan > 0 ? 'var(--accent)' : 'var(--green)' }}>{c.faltan}</b>
               <span style={{ color: 'var(--muted)', fontSize: 12 }}>de {c.vendidas}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {cambios.length > 0 && (
+        <div className="card" style={{ marginTop: 12, borderColor: 'var(--orange)' }}>
+          <div className="h2">📝 Cambios / aclaraciones</div>
+          {cambios.map((c, i) => (
+            <div key={i} className="cart-item">
+              <span style={{ flex: 1 }}>
+                {c.cantidad}× Menú {c.opcion}: <b style={{ color: 'var(--orange)' }}>{c.observacion}</b>
+                {c.nombre ? <span style={{ color: 'var(--muted)' }}> · {c.nombre}</span> : ''}
+              </span>
+              {c.salio ? <span style={{ color: 'var(--green)', fontSize: 12 }}>✓ salió</span> : null}
             </div>
           ))}
         </div>

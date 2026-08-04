@@ -172,14 +172,27 @@ const HERR_VIANDA = {
       es_vianda: { type: 'boolean', description: 'true SOLO si el mensaje pide al menos uno de los menús del día. false si es un saludo, una consulta, o algo que no corresponde a los menús del día.' },
       items: {
         type: 'array',
-        description: 'Menús del día pedidos',
+        description: 'Menús del día pedidos (con su cambio si el cliente pidió una variante)',
         items: {
           type: 'object',
           properties: {
             opcion: { type: 'integer', description: 'Número de opción del menú del día (1, 2, ...) que pidió' },
             cantidad: { type: 'integer', description: 'Cantidad de ese menú (1 si no aclara)' },
+            cambio: { type: 'string', description: 'Cambio o aclaración SOBRE ese menú, si el cliente pidió una variante: cambiar/quitar/sumar un componente (ej. "con ensalada mixta en vez de puré", "el repollo cambialo por zanahoria rallada", "sin cebolla"). Vacío si lo pidió tal cual.' },
           },
           required: ['opcion', 'cantidad'],
+        },
+      },
+      extras: {
+        type: 'array',
+        description: 'Cosas que el cliente pide ADEMÁS del menú del día y que NO son uno de los menús (ej. "sumame una milanesa de carne aparte", "con una coca"). NO pongas acá los cambios a un menú (esos van en items[].cambio).',
+        items: {
+          type: 'object',
+          properties: {
+            nombre: { type: 'string', description: 'Qué pidió, tal cual lo dijo (ej. "milanesa de carne", "coca 500")' },
+            cantidad: { type: 'integer', description: 'Cantidad (1 si no aclara)' },
+          },
+          required: ['nombre', 'cantidad'],
         },
       },
       cliente_nombre: { type: 'string', description: 'Nombre si lo menciona; si no, vacío' },
@@ -199,6 +212,9 @@ REGLAS:
 - Cada MENÚ es: "Opción N: nombre ($precio)". El cliente puede pedir por número ("el 1", "quiero 2 del menú 1", "dos del primero") o por nombre ("una milanesa", "la tarta").
 - Mapeá cada cosa pedida a la OPCIÓN (número) que corresponda. Match por nombre ignorando acentos y mayúsculas y por parecido razonable ("milanga" = "Milanesa con puré" si ese es un menú del día).
 - Interpretá cantidades en palabras ("dos" = 2, "una" = 1). Si no aclara cantidad, es 1.
+- CAMBIOS a un menú: si pide un menú del día pero con una VARIANTE (cambiar, quitar o sumar un componente), igual va en "items" con su opcion, y describís el cambio en "cambio". NO lo saques del menú por tener un cambio. Ejemplos: si el menú es "Omelette con batata y ensalada de repollo" y pide "el omelette pero con zanahoria rallada en vez de repollo" -> opcion del omelette, cambio: "con zanahoria rallada en vez de repollo". Si el menú es "Milanesa con puré" y pide "la milanesa pero con ensalada mixta" -> esa opcion, cambio: "con ensalada mixta en vez de puré".
+- EXTRAS (fuera del menú): si pide algo ADEMÁS del menú del día que NO es uno de los menús (ej. "y sumame una milanesa de carne", "con una coca"), ponelo en "extras" con su nombre y cantidad. El local le pone el precio.
+- No confundas un CAMBIO (variante de un menú, va en items[].cambio) con un EXTRA (ítem aparte, va en extras). Ejemplo combinado: "quiero el omelette y sumale una milanesa de carne" -> items: [omelette], extras: [milanesa de carne].
 - es_vianda = true SOLO si pide al menos uno de los menús del día. Si es un saludo suelto ("hola"), una consulta ("hasta qué hora entregan?"), o algo que claramente NO es uno de los menús del día, poné es_vianda = false y items vacío.
 - entrega: "domicilio" por defecto, o si da una dirección o dice "llevar/mandar/enviar a...". "retiro" SOLO si dice que lo pasa a buscar o lo retira.
 - NOMBRE (¡OJO!): el nombre que a veces aparece al inicio del mensaje ("Hola Mati", "Buenas Mati", "Mati te encargo") es a QUIEN le escriben (el local/dueño), NO el cliente. NUNCA lo tomes como cliente_nombre. Poné cliente_nombre SOLO si el cliente dice claramente SU propio nombre ("soy Cecilia", "de parte de Cecilia", "para Cecilia", "habla Juan"). Si tenés dudas, dejá cliente_nombre vacío.

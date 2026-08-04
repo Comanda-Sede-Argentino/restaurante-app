@@ -1027,11 +1027,19 @@ app.get('/api/viandas/cocina-estado', (req, res) => {
        AND i.estado<>'anulado' AND i.menu_dia_id IS NULL
      GROUP BY i.nombre ORDER BY vendidas DESC`
   ).all(fecha).map((c) => ({ ...c, faltan: Math.max(0, c.vendidas - c.entregadas) }));
+  // Cambios/aclaraciones de menús (ej. "con ensalada en vez de puré"): para que la cocina los prepare bien
+  const cambios = db.prepare(
+    `SELECT i.cantidad, md.opcion, i.observacion, o.cliente_nombre nombre, (o.entregado_en IS NOT NULL) salio
+     FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id JOIN menu_dia md ON md.id=i.menu_dia_id
+     WHERE o.tipo='vianda' AND date(o.abierto_en)=? AND o.estado<>'anulado' AND i.estado<>'anulado'
+       AND i.observacion IS NOT NULL AND TRIM(i.observacion)<>''
+     ORDER BY i.id`
+  ).all(fecha);
   const vendidas = porMenu.reduce((a, m) => a + m.vendidas, 0);
   const entregadas = porMenu.reduce((a, m) => a + m.entregadas, 0);
   const faltanDom = porMenu.reduce((a, m) => a + m.faltanDom, 0);
   const faltanRet = porMenu.reduce((a, m) => a + m.faltanRet, 0);
-  res.json({ fecha, porMenu, cartaItems, vendidas, entregadas, faltanDom, faltanRet, faltan: Math.max(0, vendidas - entregadas) });
+  res.json({ fecha, porMenu, cartaItems, cambios, vendidas, entregadas, faltanDom, faltanRet, faltan: Math.max(0, vendidas - entregadas) });
 });
 
 // Resumen ACUMULADO para pasar a la cocina: cuántas de cada menú van hasta ahora (12x Menú 1, 6x Menú 2...)
@@ -1059,6 +1067,14 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
        AND i.estado<>'anulado' AND i.menu_dia_id IS NULL
      GROUP BY i.nombre ORDER BY vendidas DESC`
   ).all(fecha).map((c) => ({ ...c, faltan: Math.max(0, c.vendidas - c.entregadas) }));
+  // Cambios/aclaraciones de menús (para prepararlos bien)
+  const cambios = db.prepare(
+    `SELECT i.cantidad, md.opcion, i.observacion, o.cliente_nombre nombre
+     FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id JOIN menu_dia md ON md.id=i.menu_dia_id
+     WHERE o.tipo='vianda' AND date(o.abierto_en)=? AND o.estado<>'anulado' AND i.estado<>'anulado'
+       AND i.observacion IS NOT NULL AND TRIM(i.observacion)<>''
+     ORDER BY i.id`
+  ).all(fecha);
   const totalPedidos = db.prepare(
     "SELECT COUNT(*) c FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado<>'anulado'"
   ).get(fecha).c;
@@ -1077,6 +1093,10 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   if (cartaItems.length) {
     L.push('', ' --- De la carta ---');
     cartaItems.forEach((c) => L.push({ t: ' ' + String(c.faltan).padStart(2) + '  ' + c.nombre.slice(0, 14), big: true }));
+  }
+  if (cambios.length) {
+    L.push('', ' --- CAMBIOS ---');
+    cambios.forEach((c) => L.push(' ' + c.cantidad + 'x Menu ' + c.opcion + ': ' + c.observacion + (c.nombre ? ' (' + c.nombre + ')' : '')));
   }
   L.push('');
   L.push({ t: ' FALTAN: ' + totalFaltan, big: true });
@@ -1206,9 +1226,12 @@ app.post('/api/viandas/inbox/:id/confirmar', (req, res) => {
   if (!msg) return res.status(404).json({ error: 'No existe' });
   let prop = {}; try { prop = JSON.parse(msg.propuesta || '{}') || {}; } catch { prop = {}; }
   const data = (req.body && Array.isArray(req.body.items)) ? req.body : prop;
-  const items = (data.items || []).map((x) => x.menu_dia_id
-    ? { menu_dia_id: x.menu_dia_id, nombre: x.nombre, precio_unit: x.precio ?? x.precio_unit, cantidad: x.cantidad }
-    : { plato_id: x.plato_id, nombre: x.nombre, precio_unit: x.precio ?? x.precio_unit, cantidad: x.cantidad });
+  const items = (data.items || []).map((x) => {
+    const base = { nombre: x.nombre, precio_unit: x.precio ?? x.precio_unit ?? 0, cantidad: x.cantidad, observacion: (x.observacion || '').trim() || null };
+    if (x.menu_dia_id) return { ...base, menu_dia_id: x.menu_dia_id };
+    if (x.plato_id) return { ...base, plato_id: x.plato_id };
+    return base; // ítem libre / extra fuera del menú
+  });
   if (!items.length) return res.status(400).json({ error: 'La propuesta no tiene ítems' });
   const p = crearViandaPedido({
     cliente_nombre: data.cliente_nombre, cliente_telefono: data.cliente_telefono || msg.telefono,
@@ -1221,7 +1244,8 @@ app.post('/api/viandas/inbox/:id/confirmar', (req, res) => {
   // Avisar al cliente (recién ahora, ya confirmado por el local)
   const w = getConfig().whatsapp || {};
   const money = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
-  const det = items.map((i) => `${i.cantidad}× ${i.nombre}`).join(', ');
+  // Detalle adaptado a LO QUE PIDIÓ: incluye el cambio/aclaración de cada ítem y los extras
+  const det = items.map((i) => `${i.cantidad}× ${i.nombre}${i.observacion ? ' (' + i.observacion + ')' : ''}`).join(', ');
   let txt = (w.textoViandaOK || '¡Anotado! 🍱 {detalle}. Total {total}. ¡Gracias! 🙌').replace('{detalle}', det).replace('{total}', money(p.total));
   if ((data.entrega || 'domicilio') !== 'retiro') {
     // ETA según la hora: pasadas las 12:30 el "mediodía" ya no aplica, avisamos "cerca de las 13 hs"
@@ -1737,9 +1761,15 @@ wa.setHandlers({
             const items = v.items.map((it) => {
               const op = Number(it.opcion) || 1;
               const m = menus.find((x) => x.opcion === op) || menus[op - 1];
-              return m ? { menu_dia_id: m.id, opcion: m.opcion, nombre: m.nombre, precio: m.precio, cantidad: Math.max(1, Math.trunc(Number(it.cantidad) || 1)) } : null;
+              return m ? { menu_dia_id: m.id, opcion: m.opcion, nombre: m.nombre, precio: m.precio, cantidad: Math.max(1, Math.trunc(Number(it.cantidad) || 1)), observacion: (it.cambio || '').trim() } : null;
             }).filter(Boolean);
+            // EXTRAS fuera del menú (el local les pone el precio en la bandeja antes de confirmar)
+            const extras = (Array.isArray(v.extras) ? v.extras : []).map((e) => ({
+              libre: true, precioPendiente: true, nombre: (e.nombre || '').trim(),
+              precio: 0, cantidad: Math.max(1, Math.trunc(Number(e.cantidad) || 1)), observacion: '',
+            })).filter((e) => e.nombre);
             if (items.length) {
+              items.push(...extras);
               // Prioridad del nombre: guardado de pedidos anteriores > nombre del contacto de WhatsApp
               // (pushName) > lo que la IA haya extraído del texto. Así un "Hola Mati" no pisa al cliente real.
               const pushName = (nombre && nombre !== telefono) ? nombre : '';

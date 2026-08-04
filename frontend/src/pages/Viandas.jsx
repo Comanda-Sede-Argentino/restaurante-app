@@ -462,10 +462,14 @@ function PropuestaCard({ msg, onDone }) {
   const [ocupado, setOcupado] = useState(false);
 
   const cambiar = (i, delta) => setItems((its) => its.map((x, k) => (k === i ? { ...x, cantidad: x.cantidad + delta } : x)).filter((x) => x.cantidad > 0));
+  const setPrecio = (i, v) => setItems((its) => its.map((x, k) => (k === i ? { ...x, precio: Number(String(v).replace(/[^\d]/g, '')) || 0, precioPendiente: false } : x)));
+  const setObs = (i, v) => setItems((its) => its.map((x, k) => (k === i ? { ...x, observacion: v } : x)));
   const total = items.reduce((a, x) => a + (x.precio || 0) * x.cantidad, 0);
+  const faltaPrecio = items.some((x) => !(x.precio > 0));
 
   const aceptar = async () => {
     if (!items.length) { toast('La propuesta quedó sin ítems.', 'error'); return; }
+    if (faltaPrecio && !(await confirmar('Hay ítems SIN precio (los extras fuera del menú). ¿Confirmar igual? Podés cargarles el precio arriba.', { ok: 'Confirmar igual', cancelar: 'Volver a cargar' }))) return;
     setOcupado(true);
     try {
       await api.viandasInboxConfirmar(msg.id, {
@@ -488,14 +492,24 @@ function PropuestaCard({ msg, onDone }) {
       <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre" style={{ width: '100%', marginBottom: 6, fontWeight: 700 }} />
       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>📞 {p.cliente_telefono || msg.telefono}</div>
       {items.map((x, i) => (
-        <div key={i} className="cart-item">
-          <span style={{ flex: 1 }}>{x.nombre}</span>
-          <div className="qty">
-            <button onClick={() => cambiar(i, -1)}>−</button>
-            <b>{x.cantidad}</b>
-            <button onClick={() => cambiar(i, 1)}>+</button>
+        <div key={i} style={{ borderBottom: '1px solid var(--panel)', padding: '6px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flex: 1 }}>
+              {x.nombre}
+              {x.libre && <span style={{ color: 'var(--orange)', fontSize: 11 }}> · extra {x.precio > 0 ? '' : '(poné precio)'}</span>}
+            </span>
+            <div className="qty">
+              <button onClick={() => cambiar(i, -1)}>−</button>
+              <b>{x.cantidad}</b>
+              <button onClick={() => cambiar(i, 1)}>+</button>
+            </div>
+            <input inputMode="numeric" value={x.precio || ''} onChange={(e) => setPrecio(i, e.target.value)}
+              placeholder="$" title="Precio unitario"
+              style={{ width: 74, textAlign: 'right', borderColor: x.precio > 0 ? '' : 'var(--orange)' }} />
           </div>
-          <span style={{ minWidth: 60, textAlign: 'right' }}>{money(x.cantidad * (x.precio || 0))}</span>
+          <input value={x.observacion || ''} onChange={(e) => setObs(i, e.target.value)}
+            placeholder="Cambio/aclaración (ej. con ensalada en vez de puré)"
+            style={{ width: '100%', fontSize: 12, marginTop: 4 }} />
         </div>
       ))}
       <div className="total-row"><span>Total</span><span>{money(total)}</span></div>
