@@ -984,6 +984,7 @@ app.get('/api/viandas', (req, res) => {
   const porMenu = db.prepare(
     `SELECT md.id, md.opcion, md.nombre, md.precio,
             COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad ELSE 0 END),0) cantidad,
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' AND o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas,
             COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad*i.precio_unit ELSE 0 END),0) importe
      FROM menu_dia md
      LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
@@ -1002,50 +1003,62 @@ app.get('/api/viandas', (req, res) => {
 // ya entregó el delivery y cuántas FALTAN hacer. Se refresca solo cuando entran/entregan viandas.
 app.get('/api/viandas/cocina-estado', (req, res) => {
   const fecha = req.query.fecha || fechaHoy();
+  // Entre las que FALTAN salir, cuántas van a domicilio (delivery) y cuántas son de retiro
+  const NOSALIO = "o.estado<>'anulado' AND o.entregado_en IS NULL";
   const porMenu = db.prepare(
     `SELECT md.opcion, md.nombre,
             COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad ELSE 0 END),0) vendidas,
-            COALESCE(SUM(CASE WHEN o.estado<>'anulado' AND o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' AND o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas,
+            COALESCE(SUM(CASE WHEN ${NOSALIO} AND o.entrega<>'retiro' THEN i.cantidad ELSE 0 END),0) faltanDom,
+            COALESCE(SUM(CASE WHEN ${NOSALIO} AND o.entrega='retiro' THEN i.cantidad ELSE 0 END),0) faltanRet
      FROM menu_dia md
      LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
      LEFT JOIN pedido o ON o.id=i.pedido_id
      WHERE md.fecha=? AND md.activo=1
      GROUP BY md.id ORDER BY md.opcion ASC`
   ).all(fecha).map((m, i) => ({ ...m, n: i + 1, faltan: Math.max(0, m.vendidas - m.entregadas) }));
-  // Ítems de carta pedidos junto con las viandas (sin seguimiento de entrega por ítem)
+  // Ítems de carta pedidos junto con las viandas: mismo criterio (faltan = pedidas - salidas)
   const cartaItems = db.prepare(
-    `SELECT i.nombre, SUM(i.cantidad) cantidad
+    `SELECT i.nombre,
+            SUM(i.cantidad) vendidas,
+            SUM(CASE WHEN o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END) entregadas
      FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
      WHERE o.tipo='vianda' AND date(o.abierto_en)=? AND o.estado<>'anulado'
        AND i.estado<>'anulado' AND i.menu_dia_id IS NULL
-     GROUP BY i.nombre ORDER BY cantidad DESC`
-  ).all(fecha);
+     GROUP BY i.nombre ORDER BY vendidas DESC`
+  ).all(fecha).map((c) => ({ ...c, faltan: Math.max(0, c.vendidas - c.entregadas) }));
   const vendidas = porMenu.reduce((a, m) => a + m.vendidas, 0);
   const entregadas = porMenu.reduce((a, m) => a + m.entregadas, 0);
-  res.json({ fecha, porMenu, cartaItems, vendidas, entregadas, faltan: Math.max(0, vendidas - entregadas) });
+  const faltanDom = porMenu.reduce((a, m) => a + m.faltanDom, 0);
+  const faltanRet = porMenu.reduce((a, m) => a + m.faltanRet, 0);
+  res.json({ fecha, porMenu, cartaItems, vendidas, entregadas, faltanDom, faltanRet, faltan: Math.max(0, vendidas - entregadas) });
 });
 
 // Resumen ACUMULADO para pasar a la cocina: cuántas de cada menú van hasta ahora (12x Menú 1, 6x Menú 2...)
 // Sale por la impresora de comandas. Se puede imprimir varias veces a medida que entran pedidos.
 app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   const fecha = req.body.fecha || fechaHoy();
+  const NOSALIO = "o.estado<>'anulado' AND o.entregado_en IS NULL";
   const porMenu = db.prepare(
     `SELECT md.opcion, md.nombre,
             COALESCE(SUM(CASE WHEN o.estado<>'anulado' THEN i.cantidad ELSE 0 END),0) vendidas,
-            COALESCE(SUM(CASE WHEN o.estado<>'anulado' AND o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas
+            COALESCE(SUM(CASE WHEN o.estado<>'anulado' AND o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END),0) entregadas,
+            COALESCE(SUM(CASE WHEN ${NOSALIO} AND o.entrega<>'retiro' THEN i.cantidad ELSE 0 END),0) faltanDom,
+            COALESCE(SUM(CASE WHEN ${NOSALIO} AND o.entrega='retiro' THEN i.cantidad ELSE 0 END),0) faltanRet
      FROM menu_dia md
      LEFT JOIN pedido_item i ON i.menu_dia_id=md.id AND i.estado<>'anulado'
      LEFT JOIN pedido o ON o.id=i.pedido_id
      WHERE md.fecha=? AND md.activo=1 GROUP BY md.id ORDER BY md.opcion ASC`
   ).all(fecha).map((m) => ({ ...m, faltan: Math.max(0, m.vendidas - m.entregadas) }));
-  // Ítems de carta pedidos junto con las viandas (agrupados)
+  // Ítems de carta pedidos junto con las viandas: faltan = pedidas - salidas
   const cartaItems = db.prepare(
-    `SELECT i.nombre, SUM(i.cantidad) cantidad
+    `SELECT i.nombre, SUM(i.cantidad) vendidas,
+            SUM(CASE WHEN o.entregado_en IS NOT NULL THEN i.cantidad ELSE 0 END) entregadas
      FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
      WHERE o.tipo='vianda' AND date(o.abierto_en)=? AND o.estado<>'anulado'
        AND i.estado<>'anulado' AND i.menu_dia_id IS NULL
-     GROUP BY i.nombre ORDER BY cantidad DESC`
-  ).all(fecha);
+     GROUP BY i.nombre ORDER BY vendidas DESC`
+  ).all(fecha).map((c) => ({ ...c, faltan: Math.max(0, c.vendidas - c.entregadas) }));
   const totalPedidos = db.prepare(
     "SELECT COUNT(*) c FROM pedido WHERE tipo='vianda' AND date(abierto_en)=? AND estado<>'anulado'"
   ).get(fecha).c;
@@ -1054,18 +1067,20 @@ app.post('/api/viandas/cocina-imprimir', async (req, res) => {
   const totalFaltan = Math.max(0, totalVendidas - totalEntregadas);
   const hora = db.prepare("SELECT time('now','localtime') t").get().t.slice(0, 5);
   // El número GRANDE es lo que FALTA preparar (vendidas - entregadas). Debajo, en chico, el detalle.
+  const totalDom = porMenu.reduce((a, m) => a + m.faltanDom, 0);
+  const totalRet = porMenu.reduce((a, m) => a + m.faltanRet, 0);
   const L = ['Actualizado: ' + hora, ' FALTAN PREPARAR:', ''];
   porMenu.forEach((m, i) => {
     L.push({ t: ' ' + String(m.faltan).padStart(2) + '  Menu ' + (i + 1), big: true });
-    L.push('     (' + m.nombre + ')  vend ' + m.vendidas + ' / entreg ' + m.entregadas);
+    L.push('     (' + m.nombre + ')  dom ' + m.faltanDom + ' / ret ' + m.faltanRet);
   });
   if (cartaItems.length) {
     L.push('', ' --- De la carta ---');
-    cartaItems.forEach((c) => L.push({ t: ' ' + String(c.cantidad).padStart(2) + '  ' + c.nombre.slice(0, 14), big: true }));
+    cartaItems.forEach((c) => L.push({ t: ' ' + String(c.faltan).padStart(2) + '  ' + c.nombre.slice(0, 14), big: true }));
   }
   L.push('');
   L.push({ t: ' FALTAN: ' + totalFaltan, big: true });
-  L.push(' Vendidas: ' + totalVendidas + '   Entregadas: ' + totalEntregadas);
+  L.push(' Domicilio: ' + totalDom + '   Retiro: ' + totalRet);
   L.push(' Pedidos: ' + totalPedidos);
   const resultado = await imprimirTextoPlano('COCINA - VIANDAS ' + fecha, L, undefined, req.body.operador);
   res.json({ resultado, porMenu, cartaItems, totalViandas: totalVendidas, totalFaltan, totalEntregadas, totalPedidos });

@@ -724,22 +724,38 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
 
   return (
     <div>
-      {porMenu.length > 0 && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700 }}>Resumen del día {money(totalDia)}</span>
-            <button className="btn-accent" style={{ marginLeft: 'auto' }} onClick={pasarCocina}
-              title="Imprime el acumulado para la cocina (cuántas de cada menú van hasta ahora)">🍳 Pasar a cocina</button>
-            <button className="btn-blue" onClick={cierre}
-              title="Cierre del día: total, formas de pago y efectivo (al terminar el reparto)">🧾 Cierre de viandas</button>
+      {porMenu.length > 0 && (() => {
+        const totV = porMenu.reduce((a, m) => a + m.cantidad, 0);
+        const totE = porMenu.reduce((a, m) => a + (m.entregadas || 0), 0);
+        const totF = Math.max(0, totV - totE);
+        return (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700 }}>Resumen del día {money(totalDia)}</span>
+              <button className="btn-accent" style={{ marginLeft: 'auto' }} onClick={pasarCocina}
+                title="Imprime el acumulado para la cocina (cuántas de cada menú van hasta ahora)">🍳 Pasar a cocina</button>
+              <button className="btn-blue" onClick={cierre}
+                title="Cierre del día: total, formas de pago y efectivo (al terminar el reparto)">🧾 Cierre de viandas</button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+              <span className="badge warn">Pedidas: {totV}</span>
+              <span className="badge warn">Salieron: {totE}</span>
+              <b style={{ color: totF > 0 ? 'var(--orange)' : 'var(--green)' }}>{totF > 0 ? `Faltan salir: ${totF}` : '✅ Salió todo'}</b>
+            </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {porMenu.map((m, i) => {
+                const f = Math.max(0, m.cantidad - (m.entregadas || 0));
+                return (
+                  <div key={m.id}>
+                    <b>Menú {i + 1}</b> ({m.nombre}): <b>{m.cantidad}</b> · {money(m.importe)}
+                    {f > 0 && <span style={{ color: 'var(--orange)' }}> · faltan {f}</span>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {porMenu.map((m, i) => (
-              <div key={m.id}><b>Menú {i + 1}</b> ({m.nombre}): <b>{m.cantidad}</b> · {money(m.importe)}</div>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {!pedidos.length && <p style={{ color: 'var(--muted)' }}>No hay pedidos de viandas cargados hoy.</p>}
 

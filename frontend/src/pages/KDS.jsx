@@ -262,19 +262,26 @@ export default function KDS() {
   );
 }
 
-// Pestaña de VIANDAS dentro de Cocina: cuántas faltan hacer por menú (se descuentan al entregar)
+// Pestaña de VIANDAS dentro de Cocina: cuántas faltan por salir por menú (se descuentan al entregar/retirar)
 function ViandasCocina({ data, onImprimir }) {
   if (!data) return <p style={{ color: 'var(--muted)' }}>Cargando viandas…</p>;
-  const { porMenu = [], cartaItems = [], vendidas = 0, entregadas = 0, faltan = 0 } = data;
+  const { porMenu = [], cartaItems = [], vendidas = 0, entregadas = 0, faltan = 0, faltanDom = 0, faltanRet = 0 } = data;
+  const todoDespachado = vendidas > 0 && faltan === 0;
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <span className="badge warn">Vendidas: {vendidas}</span>
         <span className="badge warn">Entregadas: {entregadas}</span>
-        <b style={{ fontSize: 18, color: faltan > 0 ? 'var(--accent)' : 'var(--green)' }}>FALTAN HACER: {faltan}</b>
+        <b style={{ fontSize: 18, color: faltan > 0 ? 'var(--accent)' : 'var(--green)' }}>FALTAN: {faltan}</b>
+        {faltan > 0 && <span style={{ color: 'var(--muted)', fontSize: 13 }}>(🛵 {faltanDom} domicilio · 🏪 {faltanRet} retiro)</span>}
         <span className="spacer" />
         <button onClick={onImprimir} title="Imprimir el resumen para la cocina">🖨 Pasar a cocina</button>
       </div>
+      {todoDespachado && (
+        <div className="card" style={{ marginBottom: 12, borderColor: 'var(--green)', background: '#0f2a17', color: 'var(--green)', fontWeight: 800, textAlign: 'center', fontSize: 18 }}>
+          ✅ ¡Todo despachado! No falta salir ninguna vianda.
+        </div>
+      )}
       {!porMenu.length && <p style={{ color: 'var(--muted)' }}>Todavía no hay menús cargados para hoy (cargalos en Viandas → Menús).</p>}
       <div className="kds-grid">
         {porMenu.map((m) => (
@@ -286,9 +293,12 @@ function ViandasCocina({ data, onImprimir }) {
             <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>{m.nombre}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
               <div style={{ fontSize: 46, fontWeight: 800, lineHeight: 1, color: m.faltan > 0 ? 'var(--accent)' : 'var(--green)' }}>{m.faltan}</div>
-              <div style={{ color: 'var(--muted)' }}>faltan hacer</div>
+              <div style={{ color: 'var(--muted)' }}>faltan por salir</div>
             </div>
-            <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6 }}>Entregadas: {m.entregadas} de {m.vendidas}</div>
+            {m.faltan > 0 && (
+              <div style={{ fontSize: 13, marginTop: 4 }}>🛵 {m.faltanDom} domicilio · 🏪 {m.faltanRet} retiro</div>
+            )}
+            <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6 }}>Salieron: {m.entregadas} de {m.vendidas}</div>
           </div>
         ))}
       </div>
@@ -296,7 +306,11 @@ function ViandasCocina({ data, onImprimir }) {
         <div className="card" style={{ marginTop: 12 }}>
           <div className="h2">De la carta (junto con las viandas)</div>
           {cartaItems.map((c) => (
-            <div key={c.nombre} className="cart-item"><span style={{ flex: 1 }}>{c.nombre}</span><b>{c.cantidad}</b></div>
+            <div key={c.nombre} className="cart-item">
+              <span style={{ flex: 1 }}>{c.nombre}</span>
+              <b style={{ color: c.faltan > 0 ? 'var(--accent)' : 'var(--green)' }}>{c.faltan}</b>
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}>de {c.vendidas}</span>
+            </div>
           ))}
         </div>
       )}
