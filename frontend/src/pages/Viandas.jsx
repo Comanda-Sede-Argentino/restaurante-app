@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { api, socket, money } from '../api';
 import { toast, confirmar, preguntar } from '../ui.jsx';
+import { dibujarMenuHistoria, CANT_FONDOS } from '../menuImagen.js';
 
 // Módulo de VIANDAS del mediodía: cargar los 2 menús del día, tomar pedidos rápido
 // (el "cuaderno digital") y repartir/cobrar como en el módulo de Reparto.
@@ -84,6 +85,42 @@ function Menus({ fecha, menus, onSaved }) {
   const [historial, setHistorial] = useState([]);
   const [msg, setMsg] = useState('');
   const initFecha = useRef(null);
+  const [variante, setVariante] = useState(0);   // fondo de la imagen para redes
+  const canvasRef = useRef(null);
+
+  // Redibujar la imagen del menú cada vez que cambian los menús o el fondo
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const ms = rows.filter((r) => (r.nombre || '').trim()).map((r) => ({ nombre: r.nombre.trim() }));
+    dibujarMenuHistoria(canvasRef.current, ms, fecha, variante).catch(() => {});
+  }, [rows, fecha, variante]);
+  // Fondo inicial que varía por día (para que no sea siempre el mismo)
+  useEffect(() => {
+    const d = Number((fecha || '').split('-')[2]) || 0;
+    setVariante(d % CANT_FONDOS);
+  }, [fecha]);
+
+  const descargarImg = () => {
+    if (!canvasRef.current) return;
+    canvasRef.current.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `menu-${fecha}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }, 'image/png');
+  };
+  const compartirImg = () => {
+    if (!canvasRef.current) return;
+    canvasRef.current.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `menu-${fecha}.png`, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Menú del día', text: '🍱 Menú del día — CDA Sede Social' }); }
+        catch { /* el usuario canceló */ }
+      } else { toast('Este teléfono no permite compartir directo. Usá "Descargar" y subila a Instagram.', 'info'); }
+    }, 'image/png');
+  };
 
   // Inicializa el editor UNA vez por día (no en cada recarga, para no borrar lo que se está tipeando)
   useEffect(() => {
@@ -135,6 +172,7 @@ function Menus({ fecha, menus, onSaved }) {
   };
 
   return (
+    <>
     <div className="grid" style={{ gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
       <div className="card">
         <div style={{ fontWeight: 700, marginBottom: 8 }}>📋 Menús de hoy <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({fecha})</span></div>
@@ -179,6 +217,21 @@ function Menus({ fecha, menus, onSaved }) {
         )}
       </div>
     </div>
+
+    <div className="card" style={{ marginTop: 16 }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>🖼️ Imagen para redes <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(historia de Instagram)</span></div>
+      <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>Se arma sola con los menús de hoy. Cambiá el fondo si querés, y descargala o compartila desde el celular.</p>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <canvas ref={canvasRef} style={{ width: 230, height: 'auto', maxWidth: '60vw', display: 'block', borderRadius: 14, border: '1px solid var(--panel2)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 180 }}>
+          <button onClick={() => setVariante((v) => v + 1)}>🎨 Cambiar fondo</button>
+          <button className="btn-green" onClick={descargarImg}>⬇ Descargar</button>
+          <button className="btn-blue" onClick={compartirImg}>📲 Compartir</button>
+          <span style={{ color: 'var(--muted)', fontSize: 12 }}>Tip: “Compartir” abre Instagram/WhatsApp directo (en el celu). Guardá los menús primero si querés que quede igual.</span>
+        </div>
+      </div>
+    </div>
+    </>
   );
 }
 
