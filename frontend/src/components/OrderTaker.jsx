@@ -27,7 +27,7 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const [elegir, setElegir] = useState(null); // selector rápido al tocar un plato con guarnición/salsa/punto: { plato, cantidad, guarnicion, salsa, punto }
   const [pulse, setPulse] = useState(0);      // contador para animar el 🛒 cada vez que se agrega algo
   // Aviso de "se agregó": destello en el carrito + vibración corta en el celu
-  const pulseCart = () => { setPulse((n) => n + 1); try { navigator.vibrate?.(25); } catch { /* sin vibración */ } };
+  const pulseCart = () => { setPulse((n) => n + 1); try { navigator.vibrate?.(50); } catch { /* sin vibración */ } };
 
   const [frecuentes, setFrecuentes] = useState([]);
   const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Puré de calabaza', 'Puré mixto', 'Ensalada mixta', 'Rúcula con queso']);

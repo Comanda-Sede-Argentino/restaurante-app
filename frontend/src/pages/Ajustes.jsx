@@ -100,7 +100,22 @@ export default function Ajustes() {
     <div>
       {msg && <div className="card" style={{ marginBottom: 12, borderColor: 'var(--accent)' }}>{msg}</div>}
 
-      <h1 className="h1">Ajustes · Mozos</h1>
+      <h1 className="h1">Ajustes · Este dispositivo</h1>
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h2 className="h2" style={{ marginTop: 0 }}>📳 Probar la vibración</h2>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
+          Tocá el botón. Si el teléfono <b>vibra</b>, la vibración al agregar platos va a funcionar.
+          Si <b>no vibra</b>, este teléfono/navegador no permite vibrar desde la web (avisame y ponemos un “clic” sonoro en su lugar).
+        </p>
+        <button className="btn-accent" onClick={() => {
+          const ok = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+          if (!ok) { setMsg('Este navegador NO tiene la función de vibrar (típico en iPhone).'); return; }
+          try { navigator.vibrate([120, 60, 120]); setMsg('Mandé la orden de vibrar. ¿Se sintió? Si no, el teléfono la está bloqueando.'); }
+          catch (e) { setMsg('No se pudo vibrar: ' + e.message); }
+        }}>📳 Probar vibración</button>
+      </div>
+
+      <h1 className="h1" style={{ marginTop: 24 }}>Ajustes · Mozos</h1>
       <div className="card" style={{ marginBottom: 18 }}>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
           Cargá los nombres reales de los mozos. Cada uno, al abrir el sistema en su celular, elige su nombre arriba
