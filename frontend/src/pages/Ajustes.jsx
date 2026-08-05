@@ -105,7 +105,8 @@ export default function Ajustes() {
         <h2 className="h2" style={{ marginTop: 0 }}>📳 Probar la vibración</h2>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
           Tocá el botón. Si el teléfono <b>vibra</b>, la vibración al agregar platos va a funcionar.
-          Si <b>no vibra</b>, este teléfono/navegador no permite vibrar desde la web (avisame y ponemos un “clic” sonoro en su lugar).
+          Si <b>no vibra</b>, este teléfono/navegador no permite vibrar desde la web (es común por red local sin HTTPS).
+          En ese caso, en el tomador de pedidos tenés el botón <b>🔕/🔔</b> para activar un <b>“clic” sonoro</b> al agregar, que funciona en cualquier teléfono.
         </p>
         <button className="btn-accent" onClick={() => {
           const ok = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';

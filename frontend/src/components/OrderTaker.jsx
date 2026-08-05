@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { api, money, socket } from '../api';
 import { toast, confirmar } from '../ui.jsx';
 
@@ -26,8 +26,33 @@ export default function OrderTaker({ pedido, onEnviado }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [elegir, setElegir] = useState(null); // selector rápido al tocar un plato con guarnición/salsa/punto: { plato, cantidad, guarnicion, salsa, punto }
   const [pulse, setPulse] = useState(0);      // contador para animar el 🛒 cada vez que se agrega algo
-  // Aviso de "se agregó": destello en el carrito + vibración corta en el celu
-  const pulseCart = () => { setPulse((n) => n + 1); try { navigator.vibrate?.(50); } catch { /* sin vibración */ } };
+  const [sonido, setSonido] = useState(() => localStorage.getItem('sonidoAgregar') === '1'); // "clic" al agregar
+  const audioRef = useRef(null);
+  // Clic corto con Web Audio (alternativa a la vibración, que muchos Android bloquean por la web).
+  // force=true suena aunque el toggle todavía no esté guardado (para la prueba al activarlo).
+  const clic = (force) => {
+    if (!force && !sonido) return;
+    try {
+      let ctx = audioRef.current;
+      if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; ctx = audioRef.current = new AC(); }
+      if (ctx.state === 'suspended') ctx.resume();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = 900;
+      o.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      o.start(t); o.stop(t + 0.09);
+    } catch { /* sin sonido */ }
+  };
+  const toggleSonido = () => {
+    const v = !sonido;
+    setSonido(v); localStorage.setItem('sonidoAgregar', v ? '1' : '0');
+    if (v) clic(true); // prueba inmediata (dentro del toque, así arranca el audio)
+  };
+  // Aviso de "se agregó": destello en el carrito + vibración (si el teléfono la permite) + clic sonoro (si está activado)
+  const pulseCart = () => { setPulse((n) => n + 1); try { navigator.vibrate?.(50); } catch { /* sin vibración */ } clic(); };
 
   const [frecuentes, setFrecuentes] = useState([]);
   const [guarniciones, setGuarniciones] = useState(['Papas fritas', 'Puré', 'Puré de calabaza', 'Puré mixto', 'Ensalada mixta', 'Rúcula con queso']);
@@ -226,6 +251,10 @@ export default function OrderTaker({ pedido, onEnviado }) {
             style={{ flex: 1 }}
           />
           {q && <button onClick={() => setQ('')} title="Borrar búsqueda">✕</button>}
+          <button onClick={toggleSonido} className={sonido ? 'btn-green' : ''}
+            title="Clic sonoro al agregar un plato (alternativa a la vibración, que este teléfono no permite)">
+            {sonido ? '🔔' : '🔕'}
+          </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 2px 8px', color: 'var(--muted)', fontSize: 13 }}>
           {buscando ? (
