@@ -103,6 +103,9 @@ export default function App() {
         </div>
         <button className="nav-toggle" onClick={() => setMenuOpen((o) => !o)} aria-label="Menú">{menuOpen ? '✕' : '☰'}</button>
         <span className={'dot' + (online ? '' : ' off')} title={online ? 'En línea' : 'Sin conexión'} />
+        <span style={{ color: 'var(--muted)', fontSize: 10, marginLeft: 6 }} title="Versión (fecha de compilación). Si no coincide con la última actualización, refrescá.">
+          v{typeof __BUILD__ !== 'undefined' ? __BUILD__ : ''}
+        </span>
       </div>
       {!online && (
         <div className="offline-banner">

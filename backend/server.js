@@ -26,9 +26,17 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(cors());
 app.use(express.json());
 
-// Servir el frontend compilado si existe (modo producción / local)
+// Servir el frontend compilado si existe (modo producción / local).
+// Caché: index.html NUNCA se cachea (así el teléfono siempre baja la última versión y sus
+// nuevos bundles); los archivos con hash en /assets se cachean para siempre (su nombre cambia
+// en cada build, así que no hay riesgo de quedar viejo).
 const dist = path.join(__dirname, '..', 'frontend', 'dist');
-app.use(express.static(dist));
+app.use(express.static(dist, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html')) res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    else if (filePath.includes(`${path.sep}assets${path.sep}`)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  },
+}));
 
 const PORT = process.env.PORT || 3001;
 
@@ -2621,8 +2629,9 @@ ${ips.length > 1 ? `<p class="nota">Otras direcciones posibles: ${ips.map((i) =>
 </body></html>`);
 });
 
-// Fallback SPA
+// Fallback SPA (el index.html tampoco se cachea, para que siempre cargue la última versión)
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(dist, 'index.html'), (err) => {
     if (err) res.status(200).send('Backend activo. Compilá el frontend (npm run build) o usá el dev server.');
   });
