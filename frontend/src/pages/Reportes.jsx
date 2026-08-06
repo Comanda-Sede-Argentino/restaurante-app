@@ -252,17 +252,60 @@ export default function Reportes() {
       {d && (
         <>
           {/* KPIs */}
-          <div className="kpis" style={{ marginBottom: 14 }}>
-            <div className="kpi"><div className="v">{money(d.totales.total)}</div><div className="l">Ventas del período</div></div>
-            <div className="kpi"><div className="v">{d.totales.tickets}</div><div className="l">Tickets</div></div>
-            <div className="kpi"><div className="v">{money(d.totales.ticketPromedio)}</div><div className="l">Ticket promedio</div></div>
-            {d.fiadoCobrado?.total > 0 && (
-              <div className="kpi"><div className="v">{money(d.fiadoCobrado.total)}</div><div className="l">Cobros de fiado ({d.fiadoCobrado.n})</div></div>
-            )}
-            {d.anulaciones?.n > 0 && (
-              <div className="kpi"><div className="v" style={{ color: 'var(--orange)' }}>{money(d.anulaciones.total)}</div><div className="l">Anulado ({d.anulaciones.n} ítems)</div></div>
-            )}
-          </div>
+          {(() => {
+            const prev = d.comparativa?.total || 0;
+            const delta = prev > 0 ? Math.round((d.totales.total - prev) / prev * 100) : null;
+            return (
+              <div className="kpis" style={{ marginBottom: 14 }}>
+                <div className="kpi">
+                  <div className="v">{money(d.totales.total)}</div>
+                  <div className="l">Ventas del período</div>
+                  {delta != null && (
+                    <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, color: delta >= 0 ? 'var(--green)' : '#e5484d' }}>
+                      {delta >= 0 ? '▲ +' : '▼ '}{delta}% vs período anterior
+                    </div>
+                  )}
+                </div>
+                <div className="kpi"><div className="v">{d.totales.tickets}</div><div className="l">Tickets</div></div>
+                <div className="kpi"><div className="v">{money(d.totales.ticketPromedio)}</div><div className="l">Ticket promedio</div></div>
+                {d.propinas > 0 && <div className="kpi"><div className="v">{money(d.propinas)}</div><div className="l">Propinas</div></div>}
+                {d.descuentos > 0 && <div className="kpi"><div className="v" style={{ color: 'var(--orange)' }}>{money(d.descuentos)}</div><div className="l">Descuentos</div></div>}
+                {d.fiadoCobrado?.total > 0 && (
+                  <div className="kpi"><div className="v">{money(d.fiadoCobrado.total)}</div><div className="l">Cobros de fiado ({d.fiadoCobrado.n})</div></div>
+                )}
+                {d.anulaciones?.n > 0 && (
+                  <div className="kpi"><div className="v" style={{ color: 'var(--orange)' }}>{money(d.anulaciones.total)}</div><div className="l">Anulado ({d.anulaciones.n} ítems)</div></div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Resumen inteligente */}
+          {(() => {
+            const fdia = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') ? s.slice(8, 10) + '/' + s.slice(5, 7) : s;
+            const serie = d.serie || [];
+            const mejor = serie.reduce((a, x) => (x.total > (a?.total || 0) ? x : a), null);
+            const dowTop = (d.porDiaSemana || []).reduce((a, x) => (x.total > (a?.total || 0) ? x : a), null);
+            const horaTop = (d.porHora || []).reduce((a, x) => (x.total > (a?.total || 0) ? x : a), null);
+            const efectivo = (d.porMedio || []).find((m) => /EFECTIVO/i.test(m.medio));
+            const pctEfvo = d.totales.total ? Math.round((efectivo?.total || 0) / d.totales.total * 100) : 0;
+            if (!serie.length) return null;
+            const items = [];
+            if (mejor) items.push(['📈 Mejor día', fdia(mejor.periodo) + ' · ' + money(mejor.total)]);
+            if (dowTop) items.push(['📅 Día más fuerte', DIAS[Number(dowTop.dow)] + ' · ' + money(dowTop.total)]);
+            if (horaTop) items.push(['🕐 Hora pico', horaTop.hora + ':00 · ' + money(horaTop.total)]);
+            items.push(['💵 En efectivo', pctEfvo + '%']);
+            return (
+              <div className="card" style={{ marginBottom: 14 }}>
+                <h2 className="h2" style={{ marginTop: 0 }}>💡 Resumen del período</h2>
+                <div className="kpis" style={{ marginBottom: 0 }}>
+                  {items.map(([l, v]) => (
+                    <div className="kpi" key={l}><div className="v" style={{ fontSize: 19 }}>{v}</div><div className="l">{l}</div></div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
             {/* Ventas en el tiempo */}

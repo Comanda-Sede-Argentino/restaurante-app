@@ -114,10 +114,29 @@ export function registrarReportes(app) {
        FROM cuenta_mov WHERE tipo='pago' AND date(fecha) BETWEEN ? AND ?`
     ).get(...rango);
 
+    // ---- Descuentos y propinas del período (sobre pedidos cobrados) ----
+    const extra = db.prepare(
+      `SELECT COALESCE(SUM(descuento),0) descuentos, COALESCE(SUM(propina),0) propinas
+       FROM pedido WHERE estado='cobrado' AND date(cerrado_en) BETWEEN ? AND ?`
+    ).get(...rango);
+
+    // ---- Comparación con el período ANTERIOR de igual duración (para ver si subís o bajás) ----
+    const ms = 86400000;
+    const d1 = new Date(desde + 'T00:00:00'), d2 = new Date(hasta + 'T00:00:00');
+    const dias = Math.max(1, Math.round((d2 - d1) / ms) + 1);
+    const prevHasta = fmtFecha(new Date(d1.getTime() - ms));
+    const prevDesde = fmtFecha(new Date(d1.getTime() - dias * ms));
+    const prev = db.prepare(
+      `SELECT COALESCE(SUM(p.importe),0) total, COUNT(DISTINCT p.pedido_id) tickets
+       FROM pago p WHERE date(p.fecha) BETWEEN ? AND ?`
+    ).get(prevDesde, prevHasta);
+    const comparativa = { desde: prevDesde, hasta: prevHasta, dias, total: prev.total, tickets: prev.tickets };
+
     res.json({
       desde, hasta, group,
       totales, serie, porMedio, porTipo, porMozo, propinasMozo, porHora, porDiaSemana,
       productos, porCategoria, porGrupo, anulaciones, fiadoCobrado,
+      descuentos: extra.descuentos, propinas: extra.propinas, comparativa,
     });
   });
 
