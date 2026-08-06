@@ -460,7 +460,12 @@ app.post('/api/delivery/cierre-imprimir', async (req, res) => {
   let r;
   try { r = await imprimirTextoPlano('CIERRE DE DELIVERY', L, impresora, req.body.operador); }
   catch (e) { r = { ok: false, error: e.message }; }
-  enviarResumenCierre(textoResumenCierre('🛵 CIERRE DELIVERY (' + turnoAhora() + ') — ' + ahoraTxt(), totalVendido, pedidos.length, medios, []));
+  const extraD = [];
+  const topD = topProductosPeriodo("o.tipo='delivery'", desde);
+  if (topD.length) extraD.push(topLinea(topD));
+  const fiadoD = fiadoDeMedios(medios);
+  if (fiadoD > 0) extraD.push('📒 Fiado nuevo (a cobrar): ' + moneyTxt(fiadoD));
+  enviarResumenCierre(textoResumenCierre('🛵 CIERRE DELIVERY (' + turnoAhora() + ') — ' + ahoraTxt(), totalVendido, pedidos.length, medios, extraD));
   res.json({ ok: true, resultado: r, totalVendido, efectivo, n: pedidos.length, domicilios: domic.length, retiros: retiros.length });
 });
 
@@ -1261,7 +1266,15 @@ app.post('/api/viandas/cierre-imprimir', async (req, res) => {
   let resultado;
   try { resultado = await imprimirTextoPlano('CIERRE DE VIANDAS', L, impresora, req.body.operador); }
   catch (e) { resultado = { ok: false, error: e.message }; }
-  const extraV = pend.n > 0 ? ['⚠ ' + pend.n + ' pedido(s) SIN cobrar (' + moneyTxt(pend.total) + ')'] : [];
+  const extraV = [];
+  const topVi = [
+    ...porMenu.map((m, i) => ({ nombre: 'Menú ' + (i + 1), c: m.cantidad })),
+    ...cartaItems.map((c) => ({ nombre: c.nombre, c: c.cantidad })),
+  ].filter((x) => x.c > 0).sort((a, b) => b.c - a.c).slice(0, 5);
+  if (topVi.length) extraV.push(topLinea(topVi));
+  const fiadoVi = fiadoDeMedios(medios);
+  if (fiadoVi > 0) extraV.push('📒 Fiado nuevo (a cobrar): ' + moneyTxt(fiadoVi));
+  if (pend.n > 0) extraV.push('⚠ ' + pend.n + ' pedido(s) SIN cobrar (' + moneyTxt(pend.total) + ')');
   enviarResumenCierre(textoResumenCierre('🍱 CIERRE VIANDAS — ' + ahoraTxt(), tot.total, tot.n, medios, extraV));
   res.json({ ok: true, resultado, fecha, totalVendido: tot.total, efectivo, totalViandas, pedidos: tot.n, sinCobrar: pend.n });
 });
@@ -1619,6 +1632,17 @@ function enviarResumenCierre(texto) {
     Promise.resolve(tg.enviar(String(chatId).trim(), texto)).catch(() => {});
   } catch (e) { console.error('resumen cierre Telegram:', e.message); }
 }
+// Top productos vendidos de un módulo desde el inicio del período (para el resumen del cierre)
+function topProductosPeriodo(filtroTipo, desde, limite = 5) {
+  return db.prepare(
+    `SELECT i.nombre, SUM(i.cantidad) c FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+     WHERE ${filtroTipo} AND o.estado='cobrado' AND o.cerrado_en > ?
+       AND i.estado<>'anulado' AND i.plato_id IS NOT NULL
+     GROUP BY i.nombre ORDER BY c DESC LIMIT ?`
+  ).all(desde, limite);
+}
+const topLinea = (rows) => (rows && rows.length) ? '🍽 Más vendidos: ' + rows.map((t) => t.nombre + ' x' + t.c).join(' · ') : '';
+const fiadoDeMedios = (ventas) => ((ventas || []).find((v) => /FIADO/i.test(v.medio)) || {}).total || 0;
 
 function resumenCaja() {
   const desde = inicioPeriodoCaja();
@@ -1754,6 +1778,10 @@ app.post('/api/caja/cerrar', async (req, res) => {
   if (req.body.imprimir) { try { impresion = await imprimirCierre(cierre, r); } catch (e) { console.error('print cierre:', e.message); } }
   // Resumen del turno por Telegram
   const extraCaja = [];
+  const topS = topProductosPeriodo("o.tipo NOT IN ('vianda','delivery')", r.desde);
+  if (topS.length) extraCaja.push(topLinea(topS));
+  const fiadoS = fiadoDeMedios(r.ventas);
+  if (fiadoS > 0) extraCaja.push('📒 Fiado nuevo (a cobrar): ' + moneyTxt(fiadoS));
   if (contado != null) {
     extraCaja.push('Efectivo esperado: ' + moneyTxt(r.esperado) + ' · contado: ' + moneyTxt(contado));
     extraCaja.push('Diferencia: ' + (diferencia === 0 ? 'OK' : (diferencia > 0 ? 'sobra ' + moneyTxt(diferencia) : 'falta ' + moneyTxt(-diferencia))));
