@@ -13,6 +13,7 @@ import * as tg from './telegram.js';
 import { parsearPedidoIA, parsearViandaIA, claudeConTools } from './ia.js';
 import { transcribirAudio } from './voz.js';
 import os from 'os';
+import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { iniciarBackups, listarBackups, hacerBackup } from './backup.js';
 import { registrarReportes } from './reportes.js';
@@ -25,6 +26,48 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 app.use(express.json());
+
+// ===== Candado de acceso remoto (protege API + socket cuando el sistema se expone por internet) =====
+const tokenAcceso = (clave) => crypto.createHash('sha256').update('cda-acceso|' + clave).digest('hex');
+function leerCookie(req, nombre) {
+  const raw = (req && req.headers && req.headers.cookie) || '';
+  for (const p of raw.split(';')) {
+    const i = p.indexOf('=');
+    if (i < 0) continue;
+    if (p.slice(0, i).trim() === nombre) return decodeURIComponent(p.slice(i + 1).trim());
+  }
+  return '';
+}
+// Estado y login: SIEMPRE accesibles, para poder mostrar la pantalla de clave
+app.get('/api/acceso/estado', (req, res) => {
+  const acc = getConfig().acceso || {};
+  const requiere = !!(acc.activo && acc.clave);
+  const autorizado = !requiere || leerCookie(req, 'acceso') === tokenAcceso(acc.clave);
+  res.json({ requiere, autorizado });
+});
+app.post('/api/acceso', (req, res) => {
+  const acc = getConfig().acceso || {};
+  if (!acc.activo || !acc.clave) return res.json({ ok: true });
+  if (String(req.body.clave || '') === acc.clave) {
+    res.cookie('acceso', tokenAcceso(acc.clave), { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 365 * 24 * 60 * 60 * 1000 });
+    return res.json({ ok: true });
+  }
+  return res.status(401).json({ ok: false, error: 'Clave incorrecta' });
+});
+// Protege TODO lo demás de /api cuando el candado está activo
+app.use('/api', (req, res, next) => {
+  const acc = getConfig().acceso || {};
+  if (!acc.activo || !acc.clave) return next();
+  if (leerCookie(req, 'acceso') === tokenAcceso(acc.clave)) return next();
+  return res.status(401).json({ error: 'No autorizado', requiereAcceso: true });
+});
+// El socket en vivo se protege igual que la API
+io.use((socket, next) => {
+  const acc = getConfig().acceso || {};
+  if (!acc.activo || !acc.clave) return next();
+  if (leerCookie(socket.handshake, 'acceso') === tokenAcceso(acc.clave)) return next();
+  next(new Error('no-autorizado'));
+});
 
 // Servir el frontend compilado si existe (modo producción / local).
 // Caché: index.html NUNCA se cachea (así el teléfono siempre baja la última versión y sus

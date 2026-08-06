@@ -84,6 +84,12 @@ const defaultConfig = {
     habilitado: false, // muestra el botón "Facturar" en Caja
     url: 'http://localhost:5000', // dirección del facturador AFIP (misma PC = localhost:5000)
   },
+  acceso: {
+    // Candado para cuando el sistema se usa por internet (túnel). Apagado por defecto: en la
+    // red local no cambia nada. Al prenderlo, se pide la clave una vez por dispositivo.
+    activo: false,
+    clave: '',
+  },
 };
 
 export function getConfig() {
@@ -96,6 +102,7 @@ export function getConfig() {
     c.backup = { ...defaultConfig.backup, ...(c.backup || {}) };
     c.caja = { ...defaultConfig.caja, ...(c.caja || {}) };
     c.facturador = { ...defaultConfig.facturador, ...(c.facturador || {}) };
+    c.acceso = { ...defaultConfig.acceso, ...(c.acceso || {}) };
     return c;
   } catch {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(defaultConfig, null, 2));
@@ -113,6 +120,10 @@ export function setConfig(nuevo) {
   c.backup = { ...c.backup, ...(nuevo.backup || {}) };
   c.caja = { ...c.caja, ...(nuevo.caja || {}) };
   c.facturador = { ...c.facturador, ...(nuevo.facturador || {}) };
+  // Candado de acceso remoto: no pisar la clave si llega enmascarada
+  const acc = { ...c.acceso, ...(nuevo.acceso || {}) };
+  if (acc.clave === MASK) acc.clave = c.acceso.clave;
+  c.acceso = acc;
   const tg = { ...c.telegram, ...(nuevo.telegram || {}) };
   // No sobreescribir los secretos si llegan enmascarados desde el frontend
   if (tg.token === MASK) tg.token = c.telegram.token;
@@ -139,6 +150,7 @@ export function getConfigPublic() {
       claveIA: c.telegram.claveIA ? MASK : '',
       claveVoz: c.telegram.claveVoz ? MASK : '',
     },
+    acceso: { ...c.acceso, clave: c.acceso.clave ? MASK : '' },
   };
 }
 

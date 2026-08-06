@@ -12,6 +12,7 @@ export default function Ajustes() {
   const [mozos, setMozos] = useState([]);
   const [nuevoMozo, setNuevoMozo] = useState('');
   const [vozNueva, setVozNueva] = useState(''); // clave de voz a pegar (visible, arranca vacía)
+  const [claveAcc, setClaveAcc] = useState(''); // clave nueva para el acceso remoto
 
   const refrescarTg = () => api.tgEstado().then(setTgEstado).catch(() => {});
   const cargarMozos = () => api.usuarios().then((u) => setMozos(u.filter((x) => x.rol === 'mozo')));
@@ -49,6 +50,15 @@ export default function Ajustes() {
   const backup = cfg.backup || {};
   const cajaCfg = cfg.caja || {};
   const fact = cfg.facturador || {};
+  const acc = cfg.acceso || {};
+  const guardarAcceso = async (campos) => {
+    const nuevo = { ...acc, ...campos };
+    try {
+      await api.guardarConfig({ acceso: nuevo });
+      api.config().then(setCfg);
+      setMsg('✅ Acceso remoto guardado.'); setTimeout(() => setMsg(''), 2500);
+    } catch { setMsg('❌ No se pudo guardar el acceso remoto.'); }
+  };
 
   // Cambiar una opción de impresión y GUARDARLA al instante (no depende del botón de abajo).
   // Todos los controles de impresión son desplegables/casillas, así que es un guardado por clic.
@@ -114,6 +124,31 @@ export default function Ajustes() {
           try { navigator.vibrate([120, 60, 120]); setMsg('Mandé la orden de vibrar. ¿Se sintió? Si no, el teléfono la está bloqueando.'); }
           catch (e) { setMsg('No se pudo vibrar: ' + e.message); }
         }}>📳 Probar vibración</button>
+      </div>
+
+      <h1 className="h1" style={{ marginTop: 24 }}>Ajustes · Acceso remoto (usar por internet)</h1>
+      <div className="card" style={{ marginBottom: 18, borderColor: acc.activo ? 'var(--green)' : '' }}>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
+          Poné una <b>clave</b> y activá el candado <b>solo si vas a usar el sistema por internet</b> (con el túnel).
+          Con el candado prendido, cada dispositivo pide la clave <b>una vez</b>. En la red local podés dejarlo apagado.
+          <br />⚠ Si lo activás sin acordarte la clave, la podés recuperar en la PC de la sede (archivo de configuración).
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          <input type="password" value={claveAcc} onChange={(e) => setClaveAcc(e.target.value)}
+            placeholder={acc.clave ? 'Cambiar clave (vacío = mantener)' : 'Elegí una clave'} style={{ flex: 1, minWidth: 180 }} />
+          <button className="btn-green" onClick={() => {
+            if (!claveAcc.trim()) { setMsg('Escribí una clave.'); return; }
+            guardarAcceso({ clave: claveAcc.trim() }); setClaveAcc('');
+          }}>Guardar clave</button>
+          {acc.clave ? <span style={{ color: 'var(--green)', fontSize: 13 }}>✓ Hay una clave guardada</span> : <span style={{ color: 'var(--orange)', fontSize: 13 }}>Sin clave todavía</span>}
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={!!acc.activo} onChange={(e) => {
+            if (e.target.checked && !acc.clave) { setMsg('Primero guardá una clave arriba.'); return; }
+            guardarAcceso({ activo: e.target.checked });
+          }} />
+          <b>{acc.activo ? '🔒 Candado ACTIVADO — se pide clave para entrar' : '🔓 Candado apagado (solo red local)'}</b>
+        </label>
       </div>
 
       <h1 className="h1" style={{ marginTop: 24 }}>Ajustes · Mozos</h1>
