@@ -1604,8 +1604,7 @@ function ahoraTxt() {
   return new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 function textoResumenCierre(titulo, total, tickets, ventas, extra) {
-  const prom = tickets ? Math.round(total / tickets) : 0;
-  const L = [titulo, '', '💰 Total: ' + moneyTxt(total), '🧾 ' + tickets + ' ticket(s) · promedio ' + moneyTxt(prom)];
+  const L = [titulo, '', '💰 Total: ' + moneyTxt(total), '🧾 ' + tickets + ' ticket(s)'];
   if (ventas && ventas.length) {
     L.push('', 'Formas de pago:');
     for (const v of ventas) L.push('  • ' + v.medio + ': ' + moneyTxt(v.total));
