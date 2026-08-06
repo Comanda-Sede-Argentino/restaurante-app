@@ -155,7 +155,7 @@ export default function Reportes() {
     ['hoy', 'Hoy'], ['ayer', 'Ayer'], ['ult7', 'Últimos 7'],
     ['ult30', 'Últimos 30'], ['mes', 'Este mes'], ['mespasado', 'Mes pasado'],
   ];
-  const GRUPOS = [['', 'Todos'], ['comida', '🍽 Comida'], ['bebidas', '🥤 Bebidas'], ['cafeteria', '☕ Cafetería']];
+  const GRUPOS = [['', 'Todos'], ['comida', '🍽 Comida'], ['bebidas', '🥤 Bebidas'], ['cafeteria', '☕ Cafetería'], ['otros', '🍴 Fuera de carta']];
 
   // "Más/menos vendidos" derivados de la lista completa de productos, filtrando por grupo (sin mezclar)
   const prodsFiltrados = ((d && d.productos) || []).filter((p) => !grupoProd || p.grupo === grupoProd);
@@ -455,11 +455,14 @@ export default function Reportes() {
               {(() => {
                 const GR = [{ k: 'comida', l: '🍽 Comida' }, { k: 'bebidas', l: '🥤 Bebidas' }, { k: 'cafeteria', l: '☕ Cafetería' }];
                 const find = (k) => (d.porGrupo || []).find((g) => g.grupo === k) || { total: 0, cant: 0 };
+                const otros = find('otros');
+                const lista = otros.total > 0 ? [...GR, { k: 'otros', l: '🍴 Fuera de carta' }] : GR;
                 return (
                   <div className="kpis" style={{ marginBottom: 0 }}>
-                    {GR.map((g) => { const x = find(g.k); return (
+                    {lista.map((g) => { const x = find(g.k); return (
                       <div className="kpi" key={g.k}><div className="v">{money(x.total)}</div><div className="l">{g.l} · {x.cant || 0} u.</div></div>
                     ); })}
+                    {d.envio > 0 && <div className="kpi"><div className="v">{money(d.envio)}</div><div className="l">🛵 Envíos</div></div>}
                   </div>
                 );
               })()}

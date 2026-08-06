@@ -71,35 +71,47 @@ export function registrarReportes(app) {
        FROM pago p ${wPago} GROUP BY dow ORDER BY dow`
     ).all(...rango);
 
-    // ---- Productos: pedidos cobrados en el rango (por cerrado_en), sin anulados ni la línea "Envío" ----
-    const wProd = "WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado' AND i.plato_id IS NOT NULL";
+    // ---- Productos: pedidos cobrados en el rango (por cerrado_en), sin anulados.
+    // Incluye los FUERA DE CARTA (varios) para que NO se escapen del ranking; solo excluye la
+    // línea de "Envío" (que no es un producto, se informa aparte). ----
+    const wProd = "WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado' AND NOT (i.plato_id IS NULL AND i.nombre='Envío')";
+    // Grupo: el de la categoría; si es un plato sin grupo -> comida; si es fuera de carta (sin plato) -> otros.
+    const GRUPO = "COALESCE(c.grupo, CASE WHEN i.plato_id IS NULL THEN 'otros' ELSE 'comida' END)";
+    const CAT = "COALESCE(c.nombre, CASE WHEN i.plato_id IS NULL THEN '(fuera de carta)' ELSE '(sin categoría)' END)";
 
-    // Todos los productos vendidos con su GRUPO (comida/bebidas/cafeteria). El front arma
-    // "más vendidos" y "menos vendidos" y permite filtrar por grupo sin mezclar.
+    // Todos los productos vendidos con su GRUPO. El front arma "más/menos vendidos" y filtra por grupo.
     const productos = db.prepare(
-      `SELECT i.nombre, COALESCE(c.grupo,'comida') grupo,
+      `SELECT i.nombre, ${GRUPO} grupo,
               SUM(i.cantidad) cant, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
        FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
        LEFT JOIN plato pl ON pl.id=i.plato_id LEFT JOIN categoria c ON c.id=pl.categoria_id
-       ${wProd} GROUP BY i.nombre, c.grupo ORDER BY cant DESC`
+       ${wProd} GROUP BY i.nombre, grupo ORDER BY cant DESC`
     ).all(...rango);
 
     const porCategoria = db.prepare(
-      `SELECT COALESCE(c.nombre,'(sin categoría)') categoria, SUM(i.cantidad) cant,
+      `SELECT ${CAT} categoria, SUM(i.cantidad) cant,
               COALESCE(SUM(i.cantidad*i.precio_unit),0) total
        FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
        LEFT JOIN plato pl ON pl.id=i.plato_id LEFT JOIN categoria c ON c.id=pl.categoria_id
        ${wProd} GROUP BY categoria ORDER BY total DESC`
     ).all(...rango);
 
-    // Ventas agrupadas en Comida / Bebidas / Cafetería (según el grupo de cada categoría)
+    // Ventas agrupadas en Comida / Bebidas / Cafetería / Fuera de carta
     const porGrupo = db.prepare(
-      `SELECT COALESCE(c.grupo,'comida') grupo, SUM(i.cantidad) cant,
+      `SELECT ${GRUPO} grupo, SUM(i.cantidad) cant,
               COALESCE(SUM(i.cantidad*i.precio_unit),0) total
        FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
        LEFT JOIN plato pl ON pl.id=i.plato_id LEFT JOIN categoria c ON c.id=pl.categoria_id
        ${wProd} GROUP BY grupo ORDER BY total DESC`
     ).all(...rango);
+
+    // Envío cobrado (informativo, no es un producto)
+    const envio = db.prepare(
+      `SELECT COALESCE(SUM(i.cantidad*i.precio_unit),0) t
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+       WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado'
+         AND i.plato_id IS NULL AND i.nombre='Envío'`
+    ).get(...rango).t;
 
     // ---- Anulaciones en el rango (control de pérdidas) ----
     const anulaciones = db.prepare(
@@ -135,7 +147,7 @@ export function registrarReportes(app) {
     res.json({
       desde, hasta, group,
       totales, serie, porMedio, porTipo, porMozo, propinasMozo, porHora, porDiaSemana,
-      productos, porCategoria, porGrupo, anulaciones, fiadoCobrado,
+      productos, porCategoria, porGrupo, anulaciones, fiadoCobrado, envio,
       descuentos: extra.descuentos, propinas: extra.propinas, comparativa,
     });
   });
