@@ -466,6 +466,7 @@ app.post('/api/delivery/cierre-imprimir', async (req, res) => {
   const fiadoD = fiadoDeMedios(medios);
   if (fiadoD > 0) extraD.push('📒 Fiado nuevo (a cobrar): ' + moneyTxt(fiadoD));
   enviarResumenCierre(textoResumenCierre('🛵 CIERRE DELIVERY (' + turnoAhora() + ') — ' + ahoraTxt(), totalVendido, pedidos.length, medios, extraD));
+  guardarCierreModulo({ modulo: 'delivery', clave: fechaHoy() + '|' + turnoAhora(), total: totalVendido, tickets: pedidos.length, titulo: 'CIERRE DE DELIVERY', lineas: L, operador: req.body.operador });
   res.json({ ok: true, resultado: r, totalVendido, efectivo, n: pedidos.length, domicilios: domic.length, retiros: retiros.length });
 });
 
@@ -1276,6 +1277,7 @@ app.post('/api/viandas/cierre-imprimir', async (req, res) => {
   if (fiadoVi > 0) extraV.push('📒 Fiado nuevo (a cobrar): ' + moneyTxt(fiadoVi));
   if (pend.n > 0) extraV.push('⚠ ' + pend.n + ' pedido(s) SIN cobrar (' + moneyTxt(pend.total) + ')');
   enviarResumenCierre(textoResumenCierre('🍱 CIERRE VIANDAS — ' + ahoraTxt(), tot.total, tot.n, medios, extraV));
+  guardarCierreModulo({ modulo: 'vianda', clave: fecha, total: tot.total, tickets: tot.n, titulo: 'CIERRE DE VIANDAS', lineas: L, operador: req.body.operador });
   res.json({ ok: true, resultado, fecha, totalVendido: tot.total, efectivo, totalViandas, pedidos: tot.n, sinCobrar: pend.n });
 });
 
@@ -1643,6 +1645,40 @@ function topProductosPeriodo(filtroTipo, desde, limite = 5) {
 }
 const topLinea = (rows) => (rows && rows.length) ? '🍽 Más vendidos: ' + rows.map((t) => t.nombre + ' x' + t.c).join(' · ') : '';
 const fiadoDeMedios = (ventas) => ((ventas || []).find((v) => /FIADO/i.test(v.medio)) || {}).total || 0;
+
+// Guarda (o actualiza) un cierre de delivery/viandas para poder consultarlo y reimprimirlo.
+// Upsert por (modulo, clave): así queda uno por día/turno, con el último estado.
+function guardarCierreModulo({ modulo, clave, total, tickets, titulo, lineas, operador }) {
+  try {
+    const datos = JSON.stringify(lineas || []);
+    const ex = db.prepare('SELECT id FROM cierre_modulo WHERE modulo=? AND clave=?').get(modulo, clave);
+    if (ex) {
+      db.prepare("UPDATE cierre_modulo SET fecha=datetime('now','localtime'), total=?, tickets=?, titulo=?, lineas=?, operador=? WHERE id=?")
+        .run(Math.round(total || 0), tickets || 0, titulo || '', datos, operador || null, ex.id);
+    } else {
+      db.prepare('INSERT INTO cierre_modulo (modulo, clave, total, tickets, titulo, lineas, operador) VALUES (?,?,?,?,?,?,?)')
+        .run(modulo, clave, Math.round(total || 0), tickets || 0, titulo || '', datos, operador || null);
+    }
+  } catch (e) { console.error('guardarCierreModulo:', e.message); }
+}
+// Listado y reimpresión de cierres guardados de delivery/viandas
+app.get('/api/cierres-modulo', (req, res) => {
+  res.json(db.prepare('SELECT id, modulo, clave, fecha, total, tickets, operador FROM cierre_modulo ORDER BY id DESC LIMIT 80').all());
+});
+app.get('/api/cierres-modulo/:id', (req, res) => {
+  const c = db.prepare('SELECT * FROM cierre_modulo WHERE id=?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'No existe' });
+  let lineas = []; try { lineas = JSON.parse(c.lineas || '[]'); } catch { /* nada */ }
+  res.json({ ...c, lineas });
+});
+app.post('/api/cierres-modulo/:id/imprimir', async (req, res) => {
+  const c = db.prepare('SELECT * FROM cierre_modulo WHERE id=?').get(req.params.id);
+  if (!c) return res.status(404).json({ error: 'No existe' });
+  let lineas = []; try { lineas = JSON.parse(c.lineas || '[]'); } catch { /* nada */ }
+  const impresora = (getConfig().impresion || {}).impresoraCuenta || undefined;
+  try { const imp = await imprimirTextoPlano(c.titulo || 'CIERRE', lineas, impresora, req.body.operador); res.json({ ok: true, impresion: imp }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 function resumenCaja() {
   const desde = inicioPeriodoCaja();

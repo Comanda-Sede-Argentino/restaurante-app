@@ -68,6 +68,9 @@ export const api = {
   cajaCerrar: (data) => req('/caja/cerrar', { method: 'POST', body: { ...data, usuario: (data && data.usuario) || operador() } }),
   cajaCierres: () => req('/caja/cierres'),
   cajaCierreImprimir: (id) => req('/caja/cierres/' + id + '/imprimir', { method: 'POST' }),
+  cierresModulo: () => req('/cierres-modulo'),
+  cierreModulo: (id) => req('/cierres-modulo/' + id),
+  cierreModuloImprimir: (id) => req('/cierres-modulo/' + id + '/imprimir', { method: 'POST', body: { operador: operador() } }),
   cajaMovimiento: (data) => req('/caja/movimiento', { method: 'POST', body: data }),
   reabrirPedido: (id) => req('/pedidos/' + id + '/reabrir', { method: 'POST' }),
   // Stock / inventario

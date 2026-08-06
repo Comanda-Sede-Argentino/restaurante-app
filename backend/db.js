@@ -242,6 +242,20 @@ addCol("ALTER TABLE cierre_caja ADD COLUMN contado REAL");
 addCol("ALTER TABLE cierre_caja ADD COLUMN diferencia REAL");
 addCol("CREATE INDEX IF NOT EXISTS idx_receta_plato ON receta(plato_id)");
 addCol("CREATE INDEX IF NOT EXISTS idx_stockmov_insumo ON stock_mov(insumo_id)");
+// Cierres de delivery y viandas guardados (para consultar el desglose y reimprimir).
+// Se guarda el ticket ya armado (lineas) para reimprimirlo idéntico y mostrarlo en pantalla.
+// clave = día (viandas) o día de emisión (delivery); se hace upsert por (modulo, clave).
+addCol(`CREATE TABLE IF NOT EXISTS cierre_modulo (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  modulo TEXT NOT NULL,                 -- 'delivery' | 'vianda'
+  clave TEXT,                           -- para no duplicar (un cierre por módulo y día)
+  fecha TEXT DEFAULT (datetime('now','localtime')),
+  total REAL DEFAULT 0,
+  tickets INTEGER DEFAULT 0,
+  titulo TEXT,
+  lineas TEXT,                          -- JSON con las líneas del ticket
+  operador TEXT
+)`);
 
 // ---------- VIANDAS (mediodía) ----------
 // Los 2 (o más) menús del día. Se cargan cada mañana y quedan guardados para el histórico/análisis.

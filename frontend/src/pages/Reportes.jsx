@@ -116,9 +116,25 @@ export default function Reportes() {
   const [cierreAbierto, setCierreAbierto] = useState(null);
   const [grupoProd, setGrupoProd] = useState(''); // filtro de "más/menos vendidos" por grupo ('' = todos)
 
+  const [cierresMod, setCierresMod] = useState([]);   // cierres guardados de delivery/viandas
+  const [cmAbierto, setCmAbierto] = useState(null);   // id del cierre de módulo expandido
+  const [cmLineas, setCmLineas] = useState({});       // id -> líneas del ticket (desglose)
   useEffect(() => { api.cajaCierres().then(setCierres).catch(() => {}); }, []);
+  useEffect(() => { api.cierresModulo().then(setCierresMod).catch(() => {}); }, []);
   const reimprimirCierre = async (c) => {
     try { await api.cajaCierreImprimir(c.id); toast('Cierre #' + c.id + ' enviado a la impresora.'); }
+    catch (e) { toast('No se pudo reimprimir: ' + e.message, 'error'); }
+  };
+  const verDetalleMod = async (c) => {
+    if (cmAbierto === c.id) { setCmAbierto(null); return; }
+    setCmAbierto(c.id);
+    if (!cmLineas[c.id]) {
+      try { const r = await api.cierreModulo(c.id); setCmLineas((m) => ({ ...m, [c.id]: r.lineas || [] })); }
+      catch { /* nada */ }
+    }
+  };
+  const reimprimirCierreMod = async (c) => {
+    try { await api.cierreModuloImprimir(c.id); toast('Cierre enviado a la impresora.'); }
     catch (e) { toast('No se pudo reimprimir: ' + e.message, 'error'); }
   };
 
@@ -607,6 +623,34 @@ export default function Reportes() {
                   <div className="cart-item"><span style={{ flex: 1 }}>Efectivo esperado</span><b>{money(c.esperado)}</b></div>
                   {c.contado != null && <div className="cart-item"><span style={{ flex: 1 }}>Contado</span><b>{money(c.contado)}</b></div>}
                 </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Cierres de delivery y viandas anteriores */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2 className="h2">🛵🍱 Cierres de delivery y viandas</h2>
+        {!cierresMod.length && <p style={{ color: 'var(--muted)' }}>Todavía no hay cierres de delivery/viandas guardados.</p>}
+        {cierresMod.map((c) => {
+          const abierto = cmAbierto === c.id;
+          const icono = c.modulo === 'vianda' ? '🍱 Viandas' : '🛵 Delivery';
+          return (
+            <div key={c.id} style={{ borderBottom: '1px solid var(--panel2)', padding: '8px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <b>{icono}</b>
+                <span style={{ color: 'var(--muted)', fontSize: 12 }}>{c.fecha}</span>
+                <span className="spacer" />
+                <span>Total: <b>{money(c.total)}</b></span>
+                <span style={{ color: 'var(--muted)', fontSize: 12 }}>{c.tickets} ticket(s)</span>
+                <button onClick={() => verDetalleMod(c)}>{abierto ? 'Ocultar' : 'Ver desglose'}</button>
+                <button className="btn-blue" onClick={() => reimprimirCierreMod(c)}>🖨 Reimprimir</button>
+              </div>
+              {abierto && (
+                <pre style={{ marginTop: 8, fontSize: 12, color: 'var(--text)', background: 'var(--panel2)', padding: 10, borderRadius: 8, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                  {(cmLineas[c.id] || []).map((l) => (typeof l === 'object' ? (l.t ?? '') : l)).join('\n') || 'Cargando…'}
+                </pre>
               )}
             </div>
           );
