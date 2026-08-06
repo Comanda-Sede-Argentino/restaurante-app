@@ -211,7 +211,14 @@ export function registrarReportes(app) {
        FROM pedido o JOIN pedido_item i ON i.pedido_id=o.id ${W} GROUP BY dow ORDER BY dow`
     ).all(...rango);
 
-    res.json({ desde, hasta, totales, serie, porMenu, porEntrega, clientes, porDiaSemana });
+    // Viandas que quedaron SIN COBRAR en el período (por fecha en que se tomaron)
+    const sinCobrar = db.prepare(
+      `SELECT COUNT(*) pedidos, COALESCE(SUM(total),0) total
+       FROM pedido WHERE tipo='vianda' AND estado<>'cobrado' AND estado<>'anulado'
+         AND date(abierto_en) BETWEEN ? AND ?`
+    ).get(...rango);
+
+    res.json({ desde, hasta, totales, serie, porMenu, porEntrega, clientes, porDiaSemana, sinCobrar });
   });
 
   // ---- Ventas por MÓDULO (Salón mediodía / Viandas / Salón noche / Delivery noche) ----

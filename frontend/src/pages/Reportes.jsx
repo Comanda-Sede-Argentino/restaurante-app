@@ -190,6 +190,7 @@ export default function Reportes() {
     if (mod?.totMod?.length) { sec('VENTAS POR MÓDULO'); f.push(['Módulo', 'Total', 'Tickets']); mod.totMod.forEach((m) => f.push([m.modulo, m.total, m.tickets])); }
     if (vi?.totales?.viandas) {
       sec('VIANDAS · RESUMEN'); f.push(['Viandas', vi.totales.viandas]); f.push(['Pedidos', vi.totales.pedidos]); f.push(['Total', vi.totales.total]);
+      if (vi.sinCobrar?.pedidos) { f.push(['Sin cobrar (pedidos)', vi.sinCobrar.pedidos]); f.push(['Sin cobrar (total)', vi.sinCobrar.total]); }
       sec('VIANDAS · POR MENÚ'); f.push(['Menú', 'Cantidad', 'Total', 'Días']); (vi.porMenu || []).forEach((m) => f.push([m.nombre, m.cantidad, m.total, m.dias]));
     }
     descargarCSV('reporte_completo_' + desde + '_a_' + hasta + '.csv', f);
@@ -544,6 +545,12 @@ export default function Reportes() {
             <div className="kpi"><div className="v">{vi.totales.pedidos}</div><div className="l">Pedidos</div></div>
             <div className="kpi"><div className="v">{money(vi.totales.total)}</div><div className="l">Total vendido</div></div>
             <div className="kpi"><div className="v">{money(vi.totales.ticketPromedio)}</div><div className="l">Ticket promedio</div></div>
+            {vi.sinCobrar?.pedidos > 0 && (
+              <div className="kpi" style={{ borderColor: 'var(--orange)' }}>
+                <div className="v" style={{ color: 'var(--orange)' }}>{vi.sinCobrar.pedidos}</div>
+                <div className="l">Sin cobrar · {money(vi.sinCobrar.total)}</div>
+              </div>
+            )}
           </div>
 
           <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
