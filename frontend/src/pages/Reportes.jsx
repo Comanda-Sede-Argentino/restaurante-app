@@ -119,8 +119,8 @@ export default function Reportes() {
   const [cierresMod, setCierresMod] = useState([]);   // cierres guardados de delivery/viandas
   const [cmAbierto, setCmAbierto] = useState(null);   // id del cierre de módulo expandido
   const [cmLineas, setCmLineas] = useState({});       // id -> líneas del ticket (desglose)
-  useEffect(() => { api.cajaCierres().then(setCierres).catch(() => {}); }, []);
-  useEffect(() => { api.cierresModulo().then(setCierresMod).catch(() => {}); }, []);
+  useEffect(() => { api.cajaCierres(desde, hasta).then(setCierres).catch(() => {}); }, [desde, hasta]);
+  useEffect(() => { api.cierresModulo(desde, hasta).then(setCierresMod).catch(() => {}); }, [desde, hasta]);
   const reimprimirCierre = async (c) => {
     try { await api.cajaCierreImprimir(c.id); toast('Cierre #' + c.id + ' enviado a la impresora.'); }
     catch (e) { toast('No se pudo reimprimir: ' + e.message, 'error'); }
@@ -162,6 +162,39 @@ export default function Reportes() {
   const prodTop = [...prodsFiltrados].sort((a, b) => b.cant - a.cant).slice(0, 20);
   const prodBottom = [...prodsFiltrados].sort((a, b) => a.cant - b.cant || a.total - b.total).slice(0, 15);
 
+  // Exporta TODO el reporte (todas las secciones) a un solo CSV para Excel
+  const exportarTodo = () => {
+    if (!d) return;
+    const f = [];
+    const sec = (t) => { f.push([]); f.push(['=== ' + t + ' ===']); };
+    sec('RESUMEN ' + desde + ' a ' + hasta);
+    f.push(['Ventas del período', d.totales.total]);
+    f.push(['Tickets', d.totales.tickets]);
+    f.push(['Ticket promedio', Math.round(d.totales.ticketPromedio || 0)]);
+    if (d.propinas) f.push(['Propinas', d.propinas]);
+    if (d.descuentos) f.push(['Descuentos', d.descuentos]);
+    if (d.envio) f.push(['Envíos', d.envio]);
+    if (d.fiadoCobrado?.total) f.push(['Cobros de fiado', d.fiadoCobrado.total]);
+    if (d.anulaciones?.total) f.push(['Anulado', d.anulaciones.total]);
+    if (d.comparativa) f.push(['Período anterior (' + d.comparativa.desde + ' a ' + d.comparativa.hasta + ')', d.comparativa.total]);
+    sec('POR MEDIO DE PAGO'); f.push(['Medio', 'Total', 'Operaciones']); (d.porMedio || []).forEach((m) => f.push([m.medio, m.total, m.n]));
+    sec('POR TIPO DE PEDIDO'); f.push(['Tipo', 'Total', 'Tickets']); (d.porTipo || []).forEach((m) => f.push([m.tipo, m.total, m.tickets]));
+    sec('POR MOZO'); f.push(['Mozo', 'Total', 'Tickets']); (d.porMozo || []).forEach((m) => f.push([m.mozo, m.total, m.tickets]));
+    if (d.propinasMozo?.length) { sec('PROPINAS POR MOZO'); f.push(['Mozo', 'Propinas']); d.propinasMozo.forEach((m) => f.push([m.mozo, m.total])); }
+    sec('POR GRUPO'); f.push(['Grupo', 'Unidades', 'Total']); (d.porGrupo || []).forEach((g) => f.push([g.grupo, g.cant, g.total]));
+    sec('POR CATEGORÍA'); f.push(['Categoría', 'Unidades', 'Total']); (d.porCategoria || []).forEach((c) => f.push([c.categoria, c.cant, c.total]));
+    sec('PRODUCTOS VENDIDOS'); f.push(['Producto', 'Grupo', 'Cantidad', 'Total']); (d.productos || []).forEach((p) => f.push([p.nombre, p.grupo, p.cant, p.total]));
+    sec('VENTAS POR ' + (group === 'dia' ? 'DÍA' : group === 'semana' ? 'SEMANA' : 'MES')); f.push(['Período', 'Total', 'Tickets']); (d.serie || []).forEach((s) => f.push([s.periodo, s.total, s.tickets]));
+    sec('POR HORARIO'); f.push(['Hora', 'Total', 'Tickets']); (d.porHora || []).forEach((h) => f.push([h.hora + ':00', h.total, h.tickets]));
+    sec('POR DÍA DE LA SEMANA'); f.push(['Día', 'Total', 'Tickets']); (d.porDiaSemana || []).forEach((x) => f.push([DIAS[Number(x.dow)], x.total, x.tickets]));
+    if (mod?.totMod?.length) { sec('VENTAS POR MÓDULO'); f.push(['Módulo', 'Total', 'Tickets']); mod.totMod.forEach((m) => f.push([m.modulo, m.total, m.tickets])); }
+    if (vi?.totales?.viandas) {
+      sec('VIANDAS · RESUMEN'); f.push(['Viandas', vi.totales.viandas]); f.push(['Pedidos', vi.totales.pedidos]); f.push(['Total', vi.totales.total]);
+      sec('VIANDAS · POR MENÚ'); f.push(['Menú', 'Cantidad', 'Total', 'Días']); (vi.porMenu || []).forEach((m) => f.push([m.nombre, m.cantidad, m.total, m.dias]));
+    }
+    descargarCSV('reporte_completo_' + desde + '_a_' + hasta + '.csv', f);
+  };
+
   return (
     <div>
       <h1 className="h1">📊 Reportes</h1>
@@ -194,6 +227,8 @@ export default function Reportes() {
             </select>
           </label>
           {cargando && <span style={{ color: 'var(--muted)' }}>Cargando…</span>}
+          <span className="spacer" />
+          {d && <button className="btn-green" onClick={exportarTodo} title="Descarga todas las secciones del reporte en un Excel">⬇ Exportar todo (CSV)</button>}
         </div>
       </div>
 
@@ -593,8 +628,8 @@ export default function Reportes() {
 
       {/* Cierres de caja anteriores */}
       <div className="card" style={{ marginTop: 16 }}>
-        <h2 className="h2">🔒 Cierres de caja anteriores</h2>
-        {!cierres.length && <p style={{ color: 'var(--muted)' }}>Todavía no hay cierres registrados.</p>}
+        <h2 className="h2">🔒 Cierres de caja <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 12 }}>(del período elegido arriba)</span></h2>
+        {!cierres.length && <p style={{ color: 'var(--muted)' }}>No hay cierres de caja en el período elegido.</p>}
         {cierres.map((c) => {
           let det = {}; try { det = JSON.parse(c.detalle || '{}'); } catch { /* nada */ }
           const abierto = cierreAbierto === c.id;
@@ -634,8 +669,8 @@ export default function Reportes() {
 
       {/* Cierres de delivery y viandas anteriores */}
       <div className="card" style={{ marginTop: 16 }}>
-        <h2 className="h2">🛵🍱 Cierres de delivery y viandas</h2>
-        {!cierresMod.length && <p style={{ color: 'var(--muted)' }}>Todavía no hay cierres de delivery/viandas guardados.</p>}
+        <h2 className="h2">🛵🍱 Cierres de delivery y viandas <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 12 }}>(del período elegido arriba)</span></h2>
+        {!cierresMod.length && <p style={{ color: 'var(--muted)' }}>No hay cierres de delivery/viandas en el período elegido.</p>}
         {cierresMod.map((c) => {
           const abierto = cmAbierto === c.id;
           const icono = c.modulo === 'vianda' ? '🍱 Viandas' : '🛵 Delivery';

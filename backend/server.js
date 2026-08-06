@@ -1663,7 +1663,12 @@ function guardarCierreModulo({ modulo, clave, total, tickets, titulo, lineas, op
 }
 // Listado y reimpresión de cierres guardados de delivery/viandas
 app.get('/api/cierres-modulo', (req, res) => {
-  res.json(db.prepare('SELECT id, modulo, clave, fecha, total, tickets, operador FROM cierre_modulo ORDER BY id DESC LIMIT 80').all());
+  const { desde, hasta } = req.query;
+  let sql = 'SELECT id, modulo, clave, fecha, total, tickets, operador FROM cierre_modulo';
+  const args = [];
+  if (desde && hasta) { sql += ' WHERE date(fecha) BETWEEN ? AND ?'; args.push(desde, hasta); }
+  sql += ' ORDER BY id DESC LIMIT 200';
+  res.json(db.prepare(sql).all(...args));
 });
 app.get('/api/cierres-modulo/:id', (req, res) => {
   const c = db.prepare('SELECT * FROM cierre_modulo WHERE id=?').get(req.params.id);
@@ -1826,9 +1831,14 @@ app.post('/api/caja/cerrar', async (req, res) => {
   res.json({ cierre, impresion });
 });
 
-app.get('/api/caja/cierres', (req, res) =>
-  res.json(db.prepare('SELECT * FROM cierre_caja ORDER BY id DESC LIMIT 60').all())
-);
+app.get('/api/caja/cierres', (req, res) => {
+  const { desde, hasta } = req.query;
+  let sql = 'SELECT * FROM cierre_caja';
+  const args = [];
+  if (desde && hasta) { sql += ' WHERE date(hasta) BETWEEN ? AND ?'; args.push(desde, hasta); }
+  sql += ' ORDER BY id DESC LIMIT 200';
+  res.json(db.prepare(sql).all(...args));
+});
 
 // Reimprimir un cierre anterior
 app.post('/api/caja/cierres/:id/imprimir', async (req, res) => {
