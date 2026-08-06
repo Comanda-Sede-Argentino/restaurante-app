@@ -460,6 +460,7 @@ app.post('/api/delivery/cierre-imprimir', async (req, res) => {
   let r;
   try { r = await imprimirTextoPlano('CIERRE DE DELIVERY', L, impresora, req.body.operador); }
   catch (e) { r = { ok: false, error: e.message }; }
+  enviarResumenCierre(textoResumenCierre('🛵 CIERRE DELIVERY (' + turnoAhora() + ') — ' + ahoraTxt(), totalVendido, pedidos.length, medios, []));
   res.json({ ok: true, resultado: r, totalVendido, efectivo, n: pedidos.length, domicilios: domic.length, retiros: retiros.length });
 });
 
@@ -1260,6 +1261,8 @@ app.post('/api/viandas/cierre-imprimir', async (req, res) => {
   let resultado;
   try { resultado = await imprimirTextoPlano('CIERRE DE VIANDAS', L, impresora, req.body.operador); }
   catch (e) { resultado = { ok: false, error: e.message }; }
+  const extraV = pend.n > 0 ? ['⚠ ' + pend.n + ' pedido(s) SIN cobrar (' + moneyTxt(pend.total) + ')'] : [];
+  enviarResumenCierre(textoResumenCierre('🍱 CIERRE VIANDAS — ' + ahoraTxt(), tot.total, tot.n, medios, extraV));
   res.json({ ok: true, resultado, fecha, totalVendido: tot.total, efectivo, totalViandas, pedidos: tot.n, sinCobrar: pend.n });
 });
 
@@ -1589,6 +1592,35 @@ function inicioPeriodoCaja() {
   return u && u.h ? u.h : '1970-01-01 00:00:00';
 }
 
+// ===== Resumen de cada cierre por Telegram (total, tickets, promedio, formas de pago) =====
+function turnoAhora() {
+  try {
+    const corte = (getConfig().caja || {}).corteNoche || '17:00';
+    const t = db.prepare("SELECT time('now','localtime') t").get().t.slice(0, 5);
+    return t < corte ? 'mediodía' : 'noche';
+  } catch { return ''; }
+}
+function ahoraTxt() {
+  return new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function textoResumenCierre(titulo, total, tickets, ventas, extra) {
+  const prom = tickets ? Math.round(total / tickets) : 0;
+  const L = [titulo, '', '💰 Total: ' + moneyTxt(total), '🧾 ' + tickets + ' ticket(s) · promedio ' + moneyTxt(prom)];
+  if (ventas && ventas.length) {
+    L.push('', 'Formas de pago:');
+    for (const v of ventas) L.push('  • ' + v.medio + ': ' + moneyTxt(v.total));
+  }
+  if (extra && extra.length) { L.push('', ...extra); }
+  return L.join('\n');
+}
+function enviarResumenCierre(texto) {
+  try {
+    const chatId = (getConfig().telegram || {}).resumenChatId;
+    if (!chatId || !texto) return;
+    Promise.resolve(tg.enviar(String(chatId).trim(), texto)).catch(() => {});
+  } catch (e) { console.error('resumen cierre Telegram:', e.message); }
+}
+
 function resumenCaja() {
   const desde = inicioPeriodoCaja();
   // La caja es SOLO del salón (mediodía + noche, incl. cafetería/mostrador). Viandas y delivery
@@ -1721,6 +1753,13 @@ app.post('/api/caja/cerrar', async (req, res) => {
   const cierre = db.prepare('SELECT * FROM cierre_caja WHERE id=?').get(ins.lastInsertRowid);
   let impresion = null;
   if (req.body.imprimir) { try { impresion = await imprimirCierre(cierre, r); } catch (e) { console.error('print cierre:', e.message); } }
+  // Resumen del turno por Telegram
+  const extraCaja = [];
+  if (contado != null) {
+    extraCaja.push('Efectivo esperado: ' + moneyTxt(r.esperado) + ' · contado: ' + moneyTxt(contado));
+    extraCaja.push('Diferencia: ' + (diferencia === 0 ? 'OK' : (diferencia > 0 ? 'sobra ' + moneyTxt(diferencia) : 'falta ' + moneyTxt(-diferencia))));
+  }
+  enviarResumenCierre(textoResumenCierre('🧾 CIERRE SALÓN (' + turnoAhora() + ') — ' + ahoraTxt(), r.totalVentas, r.tickets, r.ventas, extraCaja));
   res.json({ cierre, impresion });
 });
 

@@ -502,6 +502,15 @@ export default function Ajustes() {
           y lo actualiza antes de confirmar. Si está apagado, imprime al instante.
         </p>
 
+        <h2 className="h2" style={{ marginTop: 14 }}>6) Resumen de cierres por Telegram</h2>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 0 }}>
+          Cuando cierres un módulo (salón, viandas, delivery), te llega por Telegram un resumen con el total,
+          los tickets, el promedio y las formas de pago. Poné acá <b>tu ID de Telegram</b> (el mismo número que usás
+          arriba en "Quién puede mandar pedidos"). Dejalo vacío si no querés recibirlos.
+        </p>
+        <input type="text" value={tg.resumenChatId || ''} onChange={(e) => setTg('resumenChatId', e.target.value.replace(/[^\d]/g, ''))}
+          placeholder="Ej. 123456789 (tu ID de Telegram)" style={{ width: 260 }} />
+
         <div style={{ marginTop: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn-accent" onClick={conectarTg}>🔌 Guardar y conectar bot</button>
           <button onClick={desconectarTg}>⏹ Detener bot</button>

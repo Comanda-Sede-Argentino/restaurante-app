@@ -62,6 +62,7 @@ const defaultConfig = {
     costoEnvio: 0, // cargo de delivery que se suma al total (0 = sin cargo)
     guarnicionDefault: 'papas fritas', // guarnición por defecto si el cliente no aclara
     confirmar: false, // si true, el bot muestra el pedido y espera "SÍ" antes de imprimir
+    resumenChatId: '', // chat de Telegram donde llegan los resúmenes de cada cierre (vacío = no se manda)
   },
   cocina: {
     // Guarniciones que aparecen como botones rápidos al cargar platos con guarnición
