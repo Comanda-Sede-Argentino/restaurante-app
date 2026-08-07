@@ -48,6 +48,8 @@ export async function iniciar() {
     const makeWASocket = baileys.makeWASocket || baileys.default;
     const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = baileys;
     const pino = (await import('pino')).default;
+    const waLogger = pino({ level: 'silent' });
+    const downloadMediaMessage = baileys.downloadMediaMessage;
 
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     let version;
@@ -56,7 +58,7 @@ export async function iniciar() {
     sock = makeWASocket({
       version,
       auth: state,
-      logger: pino({ level: 'silent' }),
+      logger: waLogger,
       browser: Browsers ? Browsers.appropriate('Sede Social POS') : ['Sede Social POS', 'Chrome', '1.0'],
       printQRInTerminal: false,
       syncFullHistory: false,
@@ -110,9 +112,18 @@ export async function iniciar() {
           // Los canales/grupos/IDs internos no son teléfonos (18+ dígitos, ej. 120363...). Un número real tiene hasta 15.
           if (!telefono || telefono.length > 15) continue;
           const texto = textoDeMensaje(m).trim();
-          if (!texto) continue;
+          // Nota de voz: la descargamos y la mandamos como buffer (el server la transcribe con Groq).
+          let audio = null;
+          const am = m.message.audioMessage;
+          if (!texto && am && downloadMediaMessage) {
+            try {
+              const buff = await downloadMediaMessage(m, 'buffer', {}, { logger: waLogger, reuploadRequest: sock.updateMediaMessage });
+              if (buff && buff.length) audio = { base64: buff.toString('base64'), mime: am.mimetype || 'audio/ogg' };
+            } catch (e) { /* si no se pudo bajar el audio, seguimos sin él */ }
+          }
+          if (!texto && !audio) continue;
           const nombre = m.pushName || telefono;
-          onMensajeCb && onMensajeCb({ jid, telefono, nombre, texto });
+          onMensajeCb && onMensajeCb({ jid, telefono, nombre, texto, audio });
         } catch (e) { /* ignorar mensaje problemático */ }
       }
     });

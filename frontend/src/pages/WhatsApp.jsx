@@ -8,6 +8,9 @@ export default function WhatsApp() {
   const [inbox, setInbox] = useState([]);
   const [pedido, setPedido] = useState(null);   // pedido en edición tras convertir
   const [msgRef, setMsgRef] = useState(null);   // texto original del cliente
+  const [draft, setDraft] = useState(null);     // { m, prop } borrador armado con IA
+  const [armandoId, setArmandoId] = useState(null); // id que se está interpretando
+  const [confirmando, setConfirmando] = useState(false);
 
   const cargarInbox = () => api.waInbox('pendiente').then(setInbox);
   const cargarEstado = () => api.waEstado().then(setEstado);
@@ -57,6 +60,51 @@ export default function WhatsApp() {
     setPedido(await api.pedido(p.id));
     cargarInbox();
   };
+
+  // 🤖 Interpreta el mensaje con IA y abre el borrador editable
+  const armarPedido = async (m) => {
+    setArmandoId(m.id);
+    try {
+      const r = await api.waArmarPedido(m.id);
+      setDraft({ m, prop: r.propuesta });
+    } catch (e) {
+      toast('No se pudo armar el pedido: ' + e.message, 'error');
+    } finally { setArmandoId(null); }
+  };
+
+  // Ediciones sobre el borrador
+  const setCampo = (campo, val) => setDraft((d) => ({ ...d, prop: { ...d.prop, [campo]: val } }));
+  const patchItem = (idx, patch) => setDraft((d) => {
+    const items = d.prop.items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+    return { ...d, prop: { ...d.prop, items } };
+  });
+  const incItem = (idx, delta) => setDraft((d) => {
+    const items = d.prop.items.map((it, i) => (i === idx ? { ...it, cantidad: Math.max(1, (Number(it.cantidad) || 1) + delta) } : it));
+    return { ...d, prop: { ...d.prop, items } };
+  });
+  const delItem = (idx) => setDraft((d) => ({ ...d, prop: { ...d.prop, items: d.prop.items.filter((_, i) => i !== idx) } }));
+
+  const confirmarDraft = async () => {
+    if (!draft) return;
+    const items = draft.prop.items || [];
+    if (!items.length) { toast('El pedido no tiene items.', 'error'); return; }
+    const sinPrecio = items.filter((i) => !i.plato_id && !(Number(i.precio_unit) > 0));
+    if (sinPrecio.length && !(await confirmar(
+      `Hay ${sinPrecio.length} ítem(s) fuera de carta SIN precio (${sinPrecio.map((i) => i.nombre).join(', ')}). Van igual a la cocina y el precio se pone en la caja. ¿Confirmar así?`,
+      { ok: 'Sí, confirmar', cancelar: 'Volver a revisar' }
+    ))) return;
+    setConfirmando(true);
+    try {
+      const r = await api.waConfirmarPedido(draft.m.id, draft.prop);
+      const imp = r.impresion || {};
+      if (imp.ok === false) toast(`Pedido #${r.pedido.id} cargado, pero la comanda NO se imprimió. Revisá la impresora.`, 'error');
+      else toast(`✅ Pedido #${r.pedido.id} enviado a la cocina. Se le avisó al cliente.`);
+      setDraft(null);
+      cargarInbox();
+    } catch (e) {
+      toast('No se pudo confirmar: ' + e.message, 'error');
+    } finally { setConfirmando(false); }
+  };
   const refrescar = async () => { if (pedido) setPedido(await api.pedido(pedido.id)); };
   const setHora = async (hora) => {
     if (!pedido) return;
@@ -69,6 +117,91 @@ export default function WhatsApp() {
       toast('No se pudo guardar la hora de entrega.', 'error');
     }
   };
+
+  // Vista del BORRADOR armado con IA (revisar → confirmar → cocina)
+  if (draft) {
+    const prop = draft.prop;
+    const items = prop.items || [];
+    const subtotal = items.reduce((a, i) => a + (Number(i.cantidad) || 0) * (Number(i.precio_unit) || 0), 0);
+    return (
+      <div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+          <button onClick={() => setDraft(null)}>← Bandeja</button>
+          <h1 className="h1" style={{ margin: 0 }}>🤖 Revisá el pedido</h1>
+          <span className="spacer" />
+          <span className="badge warn">Subtotal {money(subtotal)}{prop.es_envio ? ' + envío' : ''}</span>
+        </div>
+
+        <div className="card" style={{ marginBottom: 12, borderColor: '#25D366' }}>
+          <div className="h2" style={{ marginBottom: 6 }}>📱 Mensaje del cliente</div>
+          <div style={{ whiteSpace: 'pre-wrap' }}>{draft.m.texto}</div>
+        </div>
+
+        {prop.no_reconocidos?.length > 0 && (
+          <div className="card" style={{ marginBottom: 12, borderColor: 'var(--orange)' }}>
+            ⚠️ No entendí: <b>{prop.no_reconocidos.join(', ')}</b>. Si es comida, agregala a mano después.
+          </div>
+        )}
+
+        {/* Datos del cliente */}
+        <div className="card" style={{ marginBottom: 12, display: 'grid', gap: 10 }}>
+          <div>
+            <label>👤 Cliente</label>
+            <input value={prop.cliente_nombre || ''} onChange={(e) => setCampo('cliente_nombre', e.target.value)} placeholder="Nombre" style={{ width: '100%' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className={prop.es_envio ? 'btn-green' : ''} onClick={() => setCampo('es_envio', true)}>🛵 Envío a domicilio</button>
+            <button className={!prop.es_envio ? 'btn-green' : ''} onClick={() => setCampo('es_envio', false)}>🏠 Retira</button>
+          </div>
+          {prop.es_envio && (
+            <div>
+              <label>📍 Dirección</label>
+              <input value={prop.cliente_direccion || ''} onChange={(e) => setCampo('cliente_direccion', e.target.value)} placeholder="Dirección de entrega" style={{ width: '100%' }} />
+            </div>
+          )}
+          <div style={{ color: 'var(--muted)', fontSize: 12 }}>
+            🕒 La hora se le avisa después por WhatsApp (depende de la cocina). Tel: {prop.cliente_telefono}
+          </div>
+        </div>
+
+        {/* Items */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="h2" style={{ marginBottom: 8 }}>🍽 Items</div>
+          {!items.length && <p style={{ color: 'var(--muted)' }}>Sin items. Cancelá y cargalo a mano.</p>}
+          {items.map((it, idx) => (
+            <div key={idx} className="cart-item" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => incItem(idx, -1)} style={{ minWidth: 34 }}>−</button>
+                <b style={{ minWidth: 24, textAlign: 'center' }}>{it.cantidad}</b>
+                <button onClick={() => incItem(idx, +1)} style={{ minWidth: 34 }}>+</button>
+              </div>
+              <span style={{ flex: 1, minWidth: 120 }}>
+                {it.nombre}{!it.plato_id && <span title="Fuera de carta" style={{ color: 'var(--orange)' }}> 📝</span>}
+                {it.observacion ? <span style={{ color: 'var(--muted)' }}> ({it.observacion})</span> : null}
+              </span>
+              {!it.plato_id ? (
+                <input type="number" value={it.precio_unit || ''} onChange={(e) => patchItem(idx, { precio_unit: Number(e.target.value) || 0 })}
+                  placeholder="precio" style={{ width: 90 }} />
+              ) : (
+                <span style={{ minWidth: 80, textAlign: 'right' }}>{money(it.cantidad * it.precio_unit)}</span>
+              )}
+              <button className="btn-red" onClick={() => delItem(idx)} style={{ minWidth: 34 }}>🗑</button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="btn-green" onClick={confirmarDraft} disabled={confirmando || !items.length} style={{ fontSize: 17, padding: '12px 20px' }}>
+            {confirmando ? 'Enviando…' : '✅ Confirmar y mandar a cocina'}
+          </button>
+          <button onClick={() => setDraft(null)}>Cancelar</button>
+        </div>
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8 }}>
+          Al confirmar: sale la comanda a la cocina y le llega al cliente un "¡Gracias! En breve te avisamos el horario".
+        </p>
+      </div>
+    );
+  }
 
   // Vista de carga de pedido (tras convertir un mensaje)
   if (pedido) {
@@ -175,8 +308,11 @@ export default function WhatsApp() {
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}>{m.telefono} · {m.fecha}</span>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap', margin: '8px 0' }}>{m.texto}</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn-green" onClick={() => convertir(m)}>✓ Crear pedido</button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button className="btn-green" onClick={() => armarPedido(m)} disabled={armandoId === m.id}>
+                    {armandoId === m.id ? '🤖 Interpretando…' : '🤖 Armar pedido'}
+                  </button>
+                  <button onClick={() => convertir(m)} title="Crear el pedido vacío y cargar los items a mano">✍ Cargar a mano</button>
                   <button className="btn-red" onClick={() => api.waDescartar(m.id).then(cargarInbox)}>Descartar</button>
                 </div>
               </div>

@@ -1902,7 +1902,15 @@ function enHorarioViandas(w) {
 
 wa.setHandlers({
   emitEstado: (st) => io.emit('wa:estado', st),
-  onMensaje: async ({ jid, telefono, nombre, texto }) => {
+  onMensaje: async ({ jid, telefono, nombre, texto, audio }) => {
+    // Nota de voz -> la transcribimos con Groq (si hay clave de voz). Queda como texto normal en la bandeja.
+    if (!texto && audio) {
+      try {
+        const claveVoz = (getConfig().telegram || {}).claveVoz;
+        if (claveVoz) texto = await transcribirAudio(audio.base64, audio.mime, claveVoz);
+      } catch (e) { console.error('WhatsApp voz:', e.message); }
+      if (!texto) texto = '🎤 (nota de voz — no se pudo transcribir)';
+    }
     const r = db.prepare(
       'INSERT INTO wa_inbox (wa_jid, telefono, nombre, texto) VALUES (?,?,?,?)'
     ).run(jid, telefono, nombre, texto);
@@ -2031,6 +2039,132 @@ app.post('/api/whatsapp/inbox/:id/convertir', (req, res) => {
   io.emit('wa:actualizado', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(msg.id));
   emitDashboard();
   res.json(p);
+});
+
+// Crea un pedido de delivery a partir de una propuesta (items ya resueltos), lo manda a cocina e imprime.
+// Devuelve el pedido y el resultado REAL de la impresión. Reutiliza toda la lógica de delivery.
+async function crearPedidoDeliveryImprimir(prop, mozo) {
+  const r = db.prepare(
+    `INSERT INTO pedido (tipo, mozo_nombre, cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega, observacion, estado)
+     VALUES ('delivery', ?, ?, ?, ?, ?, ?, 'en_cocina')`
+  ).run(mozo || 'WhatsApp', prop.cliente_nombre || null, prop.cliente_telefono || null, prop.cliente_direccion || null,
+        prop.hora_entrega || null, prop.nota || null);
+  const pedidoId = r.lastInsertRowid;
+  const ins = db.prepare(
+    `INSERT INTO pedido_item (pedido_id, plato_id, nombre, cantidad, precio_unit, observacion, sector_id, sector_nombre)
+     VALUES (?,?,?,?,?,?,?,?)`
+  );
+  for (const it of (prop.items || [])) {
+    let sector_id = null, sector_nombre = null, precio = Math.round(Number(it.precio_unit) || 0), nombre = (it.nombre || '').trim();
+    if (it.plato_id) {
+      // Re-derivamos precio/sector desde la DB (no confiamos en lo que mande el front para la cocina)
+      const plato = db.prepare('SELECT p.*, s.nombre sector FROM plato p LEFT JOIN sector_cocina s ON s.id=p.sector_id WHERE p.id=?').get(it.plato_id);
+      if (plato) { sector_id = plato.sector_id; sector_nombre = plato.sector; nombre = plato.nombre; if (!precio) precio = plato.precio; }
+    }
+    if (!nombre) continue;
+    const cant = clampCant(it.cantidad);
+    ins.run(pedidoId, it.plato_id || null, nombre, cant, precio, it.observacion || null, sector_id, sector_nombre);
+    consumirStockVenta(pedidoId, it.plato_id || null, cant);
+  }
+  const envio = (prop.es_envio !== false) ? costoEnvioDefault() : 0;
+  if (envio > 0) {
+    db.prepare(
+      `INSERT INTO pedido_item (pedido_id, plato_id, nombre, cantidad, precio_unit, sector_nombre, estado)
+       VALUES (?, NULL, 'Envío', 1, ?, 'Delivery', 'entregado')`
+    ).run(pedidoId, envio);
+  }
+  recalcTotal(pedidoId);
+  const p = pedidoCompleto(pedidoId);
+  io.emit('pedido:nuevo', p);
+  for (const it of p.items) { if (it.estado === 'pendiente') io.emit('item:nuevo', { ...it, pedido: p }); }
+  emitDashboard();
+  const aCocina = itemsComandaCocina(p.items, p.tipo);
+  let printRes = { ok: true, modo: 'sin-cocina' };
+  if (aCocina.length) {
+    try { printRes = await imprimirComandaUnica(p, aCocina); }
+    catch (e) { console.error('Impresión WhatsApp:', e.message); printRes = { ok: false, modo: 'error-impresion', error: e.message }; }
+    if (!printRes || printRes.ok === false) io.emit('impresion:error', { pedido_id: pedidoId, resultado: printRes });
+  }
+  const bebidas = bebidasDeItems(p.items);
+  if (bebidas.length) imprimirBebidas(p, bebidas).catch((e) => console.error('Bebidas:', e.message));
+  return { pedido: p, printRes };
+}
+
+// Interpreta con IA un mensaje de la bandeja y lo deja como PROPUESTA de delivery (borrador editable).
+// No crea el pedido todavía: solo arma el borrador para que el operador lo revise.
+app.post('/api/whatsapp/inbox/:id/armar-pedido', async (req, res) => {
+  const msg = db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(req.params.id);
+  if (!msg) return res.status(404).json({ error: 'No existe' });
+  const cfg = getConfig();
+  const t = cfg.telegram || {};
+  if (!t.claveIA) return res.status(400).json({ error: 'Falta la clave de IA (Ajustes › Telegram) para interpretar pedidos.' });
+  try {
+    const platos = db.prepare(
+      `SELECT p.id, p.nombre, p.precio, p.alias_ia, COALESCE(c.guarnicion,0) guarnicion
+       FROM plato p LEFT JOIN categoria c ON c.id=p.categoria_id WHERE p.activo=1 AND p.disponible=1`
+    ).all();
+    const horaActual = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const parsed = await parsearPedidoIA(msg.texto, platos, t.claveIA, t.modeloIA || 'claude-haiku-4-5', horaActual, t.guarnicionDefault || 'papas fritas');
+    const items = preparaItemsTg(parsed);
+    // Completar nombre/dirección desde el historial de ese teléfono
+    const prev = db.prepare(
+      `SELECT cliente_nombre nombre, cliente_direccion direccion FROM pedido
+       WHERE tipo IN ('delivery','vianda') AND cliente_telefono=? AND cliente_nombre IS NOT NULL
+       ORDER BY id DESC LIMIT 1`
+    ).get(msg.telefono);
+    const pushName = (msg.nombre && msg.nombre !== msg.telefono) ? msg.nombre : '';
+    const propuesta = {
+      cliente_nombre: (parsed.cliente_nombre || '').trim() || (prev?.nombre || '').trim() || pushName || '',
+      cliente_telefono: msg.telefono,
+      cliente_direccion: (parsed.direccion || '').trim() || (prev?.direccion || ''),
+      hora_entrega: (parsed.hora_entrega || '').trim(),
+      es_envio: parsed.es_envio !== false,
+      nota: (parsed.nota || '').trim(),
+      items,
+      no_reconocidos: (parsed.no_reconocidos || []).filter(Boolean),
+    };
+    db.prepare("UPDATE wa_inbox SET clase='delivery', propuesta=? WHERE id=?").run(JSON.stringify(propuesta), msg.id);
+    const row = db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(msg.id);
+    io.emit('wa:actualizado', row);
+    res.json({ propuesta, row });
+  } catch (e) {
+    console.error('armar-pedido WhatsApp:', e.message);
+    res.status(500).json({ error: 'No pude interpretar el pedido: ' + e.message });
+  }
+});
+
+// Confirma la propuesta (posiblemente editada por el operador): crea el delivery, imprime la comanda
+// de cocina y le avisa al cliente por WhatsApp.
+app.post('/api/whatsapp/inbox/:id/confirmar-pedido', async (req, res) => {
+  const msg = db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(req.params.id);
+  if (!msg) return res.status(404).json({ error: 'No existe' });
+  const base = msg.propuesta ? JSON.parse(msg.propuesta) : null;
+  const prop = (req.body && req.body.propuesta) ? req.body.propuesta : base;
+  if (!prop || !Array.isArray(prop.items) || !prop.items.length)
+    return res.status(400).json({ error: 'No hay items para confirmar. Armá el pedido primero.' });
+  prop.cliente_telefono = prop.cliente_telefono || msg.telefono;
+  try {
+    const { pedido, printRes } = await crearPedidoDeliveryImprimir(prop, (req.body.operador || '').trim() || 'WhatsApp');
+    db.prepare("UPDATE wa_inbox SET estado='convertido', pedido_id=? WHERE id=?").run(pedido.id, msg.id);
+    io.emit('wa:actualizado', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(msg.id));
+    emitDashboard();
+    // Aviso al cliente (al confirmar el operador). El horario se avisa después (depende de la cocina).
+    const w = getConfig().whatsapp || {};
+    if (w.avisarPedidoConfirmado !== false && msg.wa_jid) {
+      const esRetiro = prop.es_envio === false;
+      // Si hay un texto configurado a mano se usa ese; si no, uno que se adapta a envío/retiro.
+      const txtOk = (w.textoPedidoConfirmado || '').trim() || (
+        esRetiro
+          ? '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora lo podés pasar a retirar (depende de cómo venga la cocina).'
+          : '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora te lo llevamos (depende de cómo venga la cocina).'
+      );
+      wa.enviarMensaje(msg.wa_jid, txtOk);
+    }
+    res.json({ pedido, impresion: printRes });
+  } catch (e) {
+    console.error('confirmar-pedido WhatsApp:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/whatsapp/inbox/:id/descartar', (req, res) => {
