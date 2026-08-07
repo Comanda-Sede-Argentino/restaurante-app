@@ -139,7 +139,15 @@ OTRAS REGLAS:
 - Interpretá cantidades escritas en palabras ("dos" = 2).
 - HORA DE ENTREGA: si dan hora exacta usala ("21:45"). Si dan un tiempo relativo ("en 40 minutos",
   "en una hora"), SUMALO a la HORA ACTUAL y devolvé HH:MM (24hs). Si no la mencionan, dejá vacío.
-- Si no aclara nombre o dirección, dejá esos campos vacíos.`;
+
+NOMBRE DEL CLIENTE (MUY IMPORTANTE — no te confundas):
+- Un SALUDO NO es el nombre del cliente. Si el mensaje arranca con "Hola X", "Buenas X", "Qué tal X",
+  ese X es a QUIÉN SALUDA (la persona del local), NO quién pide. NUNCA lo pongas en cliente_nombre.
+  Ej: "Hola Mati, quiero 2 milanesas" -> cliente_nombre VACÍO (Mati es del local, no el cliente).
+- Los nombres del local/dueño ("Mati", "Matias") JAMÁS son el cliente: ignoralos como nombre.
+- Poné cliente_nombre SOLO si el cliente se identifica a sí mismo: "soy X", "mi nombre es X",
+  "para X", "a nombre de X", "es para X". Si no se identifica así, dejá cliente_nombre VACÍO.
+- Si no aclara dirección, dejá ese campo vacío.`;
 
 // ---------- ASISTENTE: una llamada a Claude con herramientas (para el chat de reportes) ----------
 // Devuelve la respuesta cruda de la API (con los bloques de contenido y stop_reason).

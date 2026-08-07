@@ -2114,7 +2114,9 @@ app.post('/api/whatsapp/inbox/:id/armar-pedido', async (req, res) => {
     ).get(msg.telefono);
     const pushName = (msg.nombre && msg.nombre !== msg.telefono) ? msg.nombre : '';
     const propuesta = {
-      cliente_nombre: (parsed.cliente_nombre || '').trim() || (prev?.nombre || '').trim() || pushName || '',
+      // Prioridad del nombre: lo guardado de pedidos anteriores > nombre del contacto de WhatsApp
+      // > lo que la IA sacó del texto. Así un "Hola Mati" nunca pisa al cliente real.
+      cliente_nombre: (prev?.nombre || '').trim() || pushName || (parsed.cliente_nombre || '').trim() || '',
       cliente_telefono: msg.telefono,
       cliente_direccion: (parsed.direccion || '').trim() || (prev?.direccion || ''),
       hora_entrega: (parsed.hora_entrega || '').trim(),
@@ -2155,8 +2157,8 @@ app.post('/api/whatsapp/inbox/:id/confirmar-pedido', async (req, res) => {
       // Si hay un texto configurado a mano se usa ese; si no, uno que se adapta a envío/retiro.
       const txtOk = (w.textoPedidoConfirmado || '').trim() || (
         esRetiro
-          ? '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora lo podés pasar a retirar (depende de cómo venga la cocina).'
-          : '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora te lo llevamos (depende de cómo venga la cocina).'
+          ? '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora lo podés retirar'
+          : '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora te lo llevamos'
       );
       wa.enviarMensaje(msg.wa_jid, txtOk);
     }
