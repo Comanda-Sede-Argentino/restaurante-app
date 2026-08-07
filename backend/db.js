@@ -242,6 +242,10 @@ addCol("ALTER TABLE cierre_caja ADD COLUMN contado REAL");
 addCol("ALTER TABLE cierre_caja ADD COLUMN diferencia REAL");
 addCol("CREATE INDEX IF NOT EXISTS idx_receta_plato ON receta(plato_id)");
 addCol("CREATE INDEX IF NOT EXISTS idx_stockmov_insumo ON stock_mov(insumo_id)");
+// Auditoría para el ranking de mozos (premio): quién cobró y quién anuló cada pedido
+addCol("ALTER TABLE pedido ADD COLUMN cobrado_por TEXT");
+addCol("ALTER TABLE pedido ADD COLUMN anulado_por TEXT");
+addCol("ALTER TABLE pedido ADD COLUMN reabierto_por TEXT");
 // Cierres de delivery y viandas guardados (para consultar el desglose y reimprimir).
 // Se guarda el ticket ya armado (lineas) para reimprimirlo idéntico y mostrarlo en pantalla.
 // clave = día (viandas) o día de emisión (delivery); se hace upsert por (modulo, clave).

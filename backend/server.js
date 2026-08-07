@@ -502,6 +502,10 @@ app.post('/api/pedidos', (req, res) => {
     ).get(mesa_id);
     if (ex) return res.json(pedidoCompleto(ex.id));
   }
+  // En el SALÓN es obligatorio el mozo (para que la venta quede atribuida — clave para el ranking/premio)
+  if (tipo === 'salon' && !(mozo_nombre && String(mozo_nombre).trim())) {
+    return res.status(400).json({ error: 'Elegí tu nombre (arriba) antes de abrir la mesa.' });
+  }
   const r = db.prepare(
     `INSERT INTO pedido (tipo, mesa_id, mozo_id, mozo_nombre, cubiertos, cliente_nombre, cliente_telefono, cliente_direccion, hora_entrega)
      VALUES (?,?,?,?,?,?,?,?,?)`
@@ -1366,8 +1370,8 @@ app.post('/api/pedidos/:id/pagar', (req, res) => {
         "INSERT INTO cuenta_mov (cuenta_id, tipo, importe, pedido_id, detalle) VALUES (?, 'cargo', ?, ?, ?)"
       ).run(req.body.cuenta_id, importeFiado, pedidoId, req.body.detalle || null);
     }
-    db.prepare("UPDATE pedido SET estado='cobrado', descuento=?, propina=?, cerrado_en=datetime('now','localtime') WHERE id=?")
-      .run(descuento, propina, pedidoId);
+    db.prepare("UPDATE pedido SET estado='cobrado', descuento=?, propina=?, cobrado_por=?, cerrado_en=datetime('now','localtime') WHERE id=?")
+      .run(descuento, propina, (req.body.operador || '').trim() || null, pedidoId);
     const ped = db.prepare('SELECT mesa_id FROM pedido WHERE id=?').get(pedidoId);
     if (ped.mesa_id) db.prepare("UPDATE mesa SET estado='libre' WHERE id=?").run(ped.mesa_id);
   });
@@ -1384,12 +1388,17 @@ app.post('/api/pedidos/:id/reabrir', (req, res) => {
   const ped = db.prepare('SELECT * FROM pedido WHERE id=?').get(pedidoId);
   if (!ped) return res.status(404).json({ error: 'No existe' });
   if (ped.estado !== 'cobrado') return res.status(409).json({ error: 'El pedido no está cobrado' });
+  // Anti-trampa: un cobro de un turno YA CERRADO no se puede reabrir (ni, por lo tanto, anular).
+  // Así nadie puede tocar ventas de turnos anteriores; solo se corrige lo del turno en curso.
+  if (ped.cerrado_en && ped.cerrado_en < inicioPeriodoCaja())
+    return res.status(409).json({ error: 'Ese cobro es de un turno ya cerrado: no se puede reabrir. Registralo como corrección aparte.' });
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM pago WHERE pedido_id=?').run(pedidoId);
     // revertir cargos de fiado de este pedido
     db.prepare("DELETE FROM cuenta_mov WHERE pedido_id=? AND tipo='cargo'").run(pedidoId);
     const nuevoEstado = ped.mesa_id ? 'servido' : 'en_cocina';
-    db.prepare("UPDATE pedido SET estado=?, cerrado_en=NULL, descuento=0, propina=0 WHERE id=?").run(nuevoEstado, pedidoId);
+    db.prepare("UPDATE pedido SET estado=?, cerrado_en=NULL, descuento=0, propina=0, reabierto_por=? WHERE id=?")
+      .run(nuevoEstado, (req.body.operador || '').trim() || null, pedidoId);
     if (ped.mesa_id) db.prepare("UPDATE mesa SET estado='ocupada' WHERE id=?").run(ped.mesa_id);
   });
   tx();
@@ -1451,8 +1460,8 @@ app.post('/api/pedidos/:id/anular', (req, res) => {
   devolverStockPedido(pedidoId); // devolver al stock lo consumido antes de anular
   const motivo = (req.body.motivo || '').trim();
   const obs = motivo ? ('Anulado: ' + motivo + (ped.observacion ? ' · ' + ped.observacion : '')) : ped.observacion;
-  db.prepare("UPDATE pedido SET estado='anulado', observacion=?, cerrado_en=datetime('now','localtime') WHERE id=?")
-    .run(obs, pedidoId);
+  db.prepare("UPDATE pedido SET estado='anulado', observacion=?, anulado_por=?, cerrado_en=datetime('now','localtime') WHERE id=?")
+    .run(obs, (req.body.operador || '').trim() || null, pedidoId);
   if (ped.mesa_id) db.prepare("UPDATE mesa SET estado='libre' WHERE id=?").run(ped.mesa_id);
   io.emit('pedido:actualizado', pedidoCompleto(pedidoId));
   emitDashboard();

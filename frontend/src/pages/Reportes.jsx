@@ -110,6 +110,7 @@ export default function Reportes() {
   const [d, setD] = useState(null);
   const [vi, setVi] = useState(null);
   const [mod, setMod] = useState(null);
+  const [mozosRank, setMozosRank] = useState(null); // 🏆 ranking de mozos del salón (para el premio)
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [cierres, setCierres] = useState([]);
@@ -149,6 +150,7 @@ export default function Reportes() {
       .finally(() => setCargando(false));
     api.reportesViandas(desde, hasta).then(setVi).catch(() => setVi(null));
     api.reportesModulos(desde, hasta).then(setMod).catch(() => setMod(null));
+    api.reportesMozos(desde, hasta).then(setMozosRank).catch(() => setMozosRank(null));
   }, [desde, hasta, group]);
 
   const PRESETS = [
@@ -300,6 +302,50 @@ export default function Reportes() {
           </div>
         );
       })()}
+
+      {/* 🏆 RANKING DE MOZOS (solo salón) — para el premio al que más vende */}
+      {mozosRank && mozosRank.ranking?.length > 0 && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            <h2 className="h2" style={{ margin: 0 }}>🏆 Ranking de mozos <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 13 }}>(salón)</span></h2>
+            <span className="spacer" style={{ flex: 1 }} />
+            <button onClick={() => descargarCSV(`ranking_mozos_${desde}_a_${hasta}.csv`,
+              [['#', 'Mozo', 'Total vendido', 'Tickets', 'Propinas', 'Descuentos', 'Anulados (ítems)', 'Anulados ($)'],
+              ...mozosRank.ranking.map((m, i) => [i + 1, m.mozo, m.total, m.tickets, m.propinas, m.descuentos, m.anulados, m.anuladoTotal])])}>⬇ CSV</button>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color: 'var(--muted)', fontSize: 12, textAlign: 'left' }}>
+                  <th style={{ padding: '4px 6px' }}>#</th>
+                  <th style={{ padding: '4px 6px' }}>Mozo</th>
+                  <th style={{ padding: '4px 6px', textAlign: 'right' }}>Total vendido</th>
+                  <th style={{ padding: '4px 6px', textAlign: 'right' }}>Tickets</th>
+                  <th style={{ padding: '4px 6px', textAlign: 'right' }}>Propinas</th>
+                  <th style={{ padding: '4px 6px', textAlign: 'right' }}>Descuentos</th>
+                  <th style={{ padding: '4px 6px', textAlign: 'right' }} title="Ítems anulados en sus mesas (control anti-trampa)">Anulados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mozosRank.ranking.map((m, i) => (
+                  <tr key={m.mozo} style={{ borderTop: '1px solid var(--border)', background: i === 0 ? 'rgba(80,200,120,.10)' : undefined }}>
+                    <td style={{ padding: '6px', fontWeight: 800, fontSize: i < 3 ? 18 : 14 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
+                    <td style={{ padding: '6px', fontWeight: i === 0 ? 800 : 600 }}>{m.mozo}</td>
+                    <td style={{ padding: '6px', textAlign: 'right', fontWeight: 800, color: i === 0 ? 'var(--green)' : undefined }}>{money(m.total)}</td>
+                    <td style={{ padding: '6px', textAlign: 'right' }}>{m.tickets}</td>
+                    <td style={{ padding: '6px', textAlign: 'right', color: 'var(--muted)' }}>{m.propinas ? money(m.propinas) : '—'}</td>
+                    <td style={{ padding: '6px', textAlign: 'right', color: m.descuentos > 0 ? 'var(--orange)' : 'var(--muted)' }}>{m.descuentos ? money(m.descuentos) : '—'}</td>
+                    <td style={{ padding: '6px', textAlign: 'right', color: m.anulados > 0 ? 'var(--orange)' : 'var(--muted)' }}>{m.anulados ? `${m.anulados} · ${money(m.anuladoTotal)}` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 8, marginBottom: 0 }}>
+            El total ya es <b>neto</b>: lo reabierto o anulado no suma. Mirá la columna <b>Anulados</b> y <b>Descuentos</b> como control — mucho ahí puede ser una señal.
+          </p>
+        </div>
+      )}
 
       {d && (
         <>

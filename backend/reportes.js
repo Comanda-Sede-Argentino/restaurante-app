@@ -258,4 +258,45 @@ export function registrarReportes(app) {
     const totalGeneral = totMod.reduce((a, m) => a + m.total, 0);
     res.json({ desde, hasta, corte, totMod, filas, porDia, totalGeneral });
   });
+
+  // ---- Ranking de mozos del SALÓN (para el premio): total neto + control de anulaciones/descuentos ----
+  app.get('/api/reportes/mozos', (req, res) => {
+    const hoy = new Date();
+    const desde = req.query.desde || fmtFecha(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    const hasta = req.query.hasta || fmtFecha(hoy);
+    const rango = [desde, hasta];
+    const NOM = "COALESCE(NULLIF(TRIM(o.mozo_nombre),''),'(sin mozo)')";
+    // Ventas del salón por mozo (por pago.fecha). El total ya es NETO: si se reabre, se borran los pagos.
+    const ventas = db.prepare(
+      `SELECT ${NOM} mozo, COALESCE(SUM(pg.importe),0) total, COUNT(DISTINCT pg.pedido_id) tickets
+       FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+       WHERE o.tipo='salon' AND date(pg.fecha) BETWEEN ? AND ? GROUP BY mozo`
+    ).all(...rango);
+    // Propinas y descuentos por mozo (pedidos de salón cobrados)
+    const extra = db.prepare(
+      `SELECT COALESCE(NULLIF(TRIM(mozo_nombre),''),'(sin mozo)') mozo,
+              COALESCE(SUM(propina),0) propinas, COALESCE(SUM(descuento),0) descuentos
+       FROM pedido WHERE tipo='salon' AND estado='cobrado' AND date(cerrado_en) BETWEEN ? AND ? GROUP BY mozo`
+    ).all(...rango);
+    // Anulaciones por mozo (ítems anulados en pedidos de salón) — control anti-trampa
+    const anul = db.prepare(
+      `SELECT ${NOM} mozo, COUNT(*) n, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
+       FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+       WHERE o.tipo='salon' AND i.estado='anulado' AND date(o.abierto_en) BETWEEN ? AND ? GROUP BY mozo`
+    ).all(...rango);
+    const mapV = Object.fromEntries(ventas.map((x) => [x.mozo, x]));
+    const mapE = Object.fromEntries(extra.map((x) => [x.mozo, x]));
+    const mapA = Object.fromEntries(anul.map((x) => [x.mozo, x]));
+    const mozos = [...new Set([...ventas.map((v) => v.mozo), ...anul.map((a) => a.mozo)])];
+    const ranking = mozos.map((m) => ({
+      mozo: m,
+      total: mapV[m]?.total || 0,
+      tickets: mapV[m]?.tickets || 0,
+      propinas: mapE[m]?.propinas || 0,
+      descuentos: mapE[m]?.descuentos || 0,
+      anulados: mapA[m]?.n || 0,
+      anuladoTotal: mapA[m]?.total || 0,
+    })).sort((a, b) => b.total - a.total);
+    res.json({ desde, hasta, ranking });
+  });
 }
