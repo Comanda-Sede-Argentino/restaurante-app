@@ -2095,6 +2095,11 @@ async function crearPedidoDeliveryImprimir(prop, mozo) {
 app.post('/api/whatsapp/inbox/:id/armar-pedido', async (req, res) => {
   const msg = db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(req.params.id);
   if (!msg) return res.status(404).json({ error: 'No existe' });
+  // Si ya tiene un borrador armado, lo reusamos (no gastamos otra llamada de IA) salvo que pidan re-interpretar.
+  if (msg.clase === 'delivery' && msg.propuesta && !(req.body && req.body.reinterpretar)) {
+    try { return res.json({ propuesta: JSON.parse(msg.propuesta), row: msg, reusado: true }); }
+    catch { /* propuesta corrupta: seguimos y re-parseamos */ }
+  }
   const cfg = getConfig();
   const t = cfg.telegram || {};
   if (!t.claveIA) return res.status(400).json({ error: 'Falta la clave de IA (Ajustes › Telegram) para interpretar pedidos.' });
@@ -2121,6 +2126,7 @@ app.post('/api/whatsapp/inbox/:id/armar-pedido', async (req, res) => {
       cliente_direccion: (parsed.direccion || '').trim() || (prev?.direccion || ''),
       hora_entrega: (parsed.hora_entrega || '').trim(),
       es_envio: parsed.es_envio !== false,
+      envio_costo: costoEnvioDefault(),
       nota: (parsed.nota || '').trim(),
       items,
       no_reconocidos: (parsed.no_reconocidos || []).filter(Boolean),
@@ -2137,35 +2143,44 @@ app.post('/api/whatsapp/inbox/:id/armar-pedido', async (req, res) => {
 
 // Confirma la propuesta (posiblemente editada por el operador): crea el delivery, imprime la comanda
 // de cocina y le avisa al cliente por WhatsApp.
+const confirmandoWa = new Set(); // ids en confirmación ahora mismo (evita duplicados por doble toque)
 app.post('/api/whatsapp/inbox/:id/confirmar-pedido', async (req, res) => {
   const msg = db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(req.params.id);
   if (!msg) return res.status(404).json({ error: 'No existe' });
+  // Anti doble-confirmación (evita comanda y pedido duplicados): ya convertido, o confirmándose en paralelo.
+  if (msg.estado === 'convertido' && msg.pedido_id)
+    return res.status(409).json({ error: 'Este mensaje ya se convirtió en el pedido #' + msg.pedido_id + '.' });
+  if (confirmandoWa.has(msg.id))
+    return res.status(409).json({ error: 'Ese pedido ya se está confirmando. Esperá un segundo.' });
   const base = msg.propuesta ? JSON.parse(msg.propuesta) : null;
   const prop = (req.body && req.body.propuesta) ? req.body.propuesta : base;
   if (!prop || !Array.isArray(prop.items) || !prop.items.length)
     return res.status(400).json({ error: 'No hay items para confirmar. Armá el pedido primero.' });
   prop.cliente_telefono = prop.cliente_telefono || msg.telefono;
+  confirmandoWa.add(msg.id);
   try {
     const { pedido, printRes } = await crearPedidoDeliveryImprimir(prop, (req.body.operador || '').trim() || 'WhatsApp');
     db.prepare("UPDATE wa_inbox SET estado='convertido', pedido_id=? WHERE id=?").run(pedido.id, msg.id);
     io.emit('wa:actualizado', db.prepare('SELECT * FROM wa_inbox WHERE id=?').get(msg.id));
     emitDashboard();
-    // Aviso al cliente (al confirmar el operador). El horario se avisa después (depende de la cocina).
+    // Aviso al cliente (al confirmar). Esperamos el resultado para no decir "avisado" si WhatsApp está caído.
     const w = getConfig().whatsapp || {};
+    let avisado = false;
     if (w.avisarPedidoConfirmado !== false && msg.wa_jid) {
       const esRetiro = prop.es_envio === false;
-      // Si hay un texto configurado a mano se usa ese; si no, uno que se adapta a envío/retiro.
       const txtOk = (w.textoPedidoConfirmado || '').trim() || (
         esRetiro
           ? '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora lo podés retirar'
           : '✅ ¡Gracias por tu pedido! Ya lo estamos preparando 🙌\nEn un ratito te avisamos a qué hora te lo llevamos'
       );
-      wa.enviarMensaje(msg.wa_jid, txtOk);
+      avisado = await wa.enviarMensaje(msg.wa_jid, txtOk);
     }
-    res.json({ pedido, impresion: printRes });
+    res.json({ pedido, impresion: printRes, avisado });
   } catch (e) {
     console.error('confirmar-pedido WhatsApp:', e.message);
     res.status(500).json({ error: e.message });
+  } finally {
+    confirmandoWa.delete(msg.id);
   }
 });
 

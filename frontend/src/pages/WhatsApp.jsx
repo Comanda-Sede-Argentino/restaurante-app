@@ -79,15 +79,22 @@ export default function WhatsApp() {
     return { ...d, prop: { ...d.prop, items } };
   });
   const incItem = (idx, delta) => setDraft((d) => {
-    const items = d.prop.items.map((it, i) => (i === idx ? { ...it, cantidad: Math.max(1, (Number(it.cantidad) || 1) + delta) } : it));
+    // Tope 50 = el mismo máximo que aplica el backend, así lo que ves es lo que sale.
+    const items = d.prop.items.map((it, i) => (i === idx ? { ...it, cantidad: Math.min(50, Math.max(1, (Number(it.cantidad) || 1) + delta)) } : it));
     return { ...d, prop: { ...d.prop, items } };
   });
   const delItem = (idx) => setDraft((d) => ({ ...d, prop: { ...d.prop, items: d.prop.items.filter((_, i) => i !== idx) } }));
 
   const confirmarDraft = async () => {
     if (!draft) return;
-    const items = draft.prop.items || [];
+    const prop = draft.prop;
+    const items = prop.items || [];
     if (!items.length) { toast('El pedido no tiene items.', 'error'); return; }
+    // Envío a domicilio sin dirección: avisar antes de mandar a cocina.
+    if (prop.es_envio && !(prop.cliente_direccion || '').trim() && !(await confirmar(
+      'Es un envío a domicilio pero NO tiene dirección. El repartidor no sabría adónde ir. ¿Confirmar igual?',
+      { peligro: true, ok: 'Confirmar igual', cancelar: 'Cargar dirección' }
+    ))) return;
     const sinPrecio = items.filter((i) => !i.plato_id && !(Number(i.precio_unit) > 0));
     if (sinPrecio.length && !(await confirmar(
       `Hay ${sinPrecio.length} ítem(s) fuera de carta SIN precio (${sinPrecio.map((i) => i.nombre).join(', ')}). Van igual a la cocina y el precio se pone en la caja. ¿Confirmar así?`,
@@ -98,6 +105,7 @@ export default function WhatsApp() {
       const r = await api.waConfirmarPedido(draft.m.id, draft.prop);
       const imp = r.impresion || {};
       if (imp.ok === false) toast(`Pedido #${r.pedido.id} cargado, pero la comanda NO se imprimió. Revisá la impresora.`, 'error');
+      else if (r.avisado === false) toast(`✅ Pedido #${r.pedido.id} a la cocina. ⚠ No se pudo avisar al cliente (WhatsApp desconectado).`, 'error');
       else toast(`✅ Pedido #${r.pedido.id} enviado a la cocina. Se le avisó al cliente.`);
       setDraft(null);
       cargarInbox();
@@ -123,13 +131,16 @@ export default function WhatsApp() {
     const prop = draft.prop;
     const items = prop.items || [];
     const subtotal = items.reduce((a, i) => a + (Number(i.cantidad) || 0) * (Number(i.precio_unit) || 0), 0);
+    const envio = prop.es_envio ? (Number(prop.envio_costo) || 0) : 0;
+    const total = subtotal + envio;
+    const labelSt = { display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 4 };
     return (
       <div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
           <button onClick={() => setDraft(null)}>← Bandeja</button>
           <h1 className="h1" style={{ margin: 0 }}>🤖 Revisá el pedido</h1>
           <span className="spacer" />
-          <span className="badge warn">Subtotal {money(subtotal)}{prop.es_envio ? ' + envío' : ''}</span>
+          <span className="badge warn">Total {money(total)}</span>
         </div>
 
         <div className="card" style={{ marginBottom: 12, borderColor: '#25D366' }}>
@@ -146,7 +157,7 @@ export default function WhatsApp() {
         {/* Datos del cliente */}
         <div className="card" style={{ marginBottom: 12, display: 'grid', gap: 10 }}>
           <div>
-            <label>👤 Cliente</label>
+            <label style={labelSt}>👤 Cliente</label>
             <input value={prop.cliente_nombre || ''} onChange={(e) => setCampo('cliente_nombre', e.target.value)} placeholder="Nombre" style={{ width: '100%' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -155,12 +166,20 @@ export default function WhatsApp() {
           </div>
           {prop.es_envio && (
             <div>
-              <label>📍 Dirección</label>
+              <label style={labelSt}>📍 Dirección</label>
               <input value={prop.cliente_direccion || ''} onChange={(e) => setCampo('cliente_direccion', e.target.value)} placeholder="Dirección de entrega" style={{ width: '100%' }} />
             </div>
           )}
+          <div>
+            <label style={labelSt}>🕒 Hora pedida (si el cliente pidió una hora puntual)</label>
+            <input type="time" value={prop.hora_entrega || ''} onChange={(e) => setCampo('hora_entrega', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelSt}>📝 Nota para la cocina (opcional)</label>
+            <input value={prop.nota || ''} onChange={(e) => setCampo('nota', e.target.value)} placeholder="Ej. tocar timbre, sin sal en todo…" style={{ width: '100%' }} />
+          </div>
           <div style={{ color: 'var(--muted)', fontSize: 12 }}>
-            🕒 La hora se le avisa después por WhatsApp (depende de la cocina). Tel: {prop.cliente_telefono}
+            Tel: {prop.cliente_telefono} · El horario final se le avisa después por WhatsApp (depende de la cocina).
           </div>
         </div>
 
@@ -188,6 +207,16 @@ export default function WhatsApp() {
               <button className="btn-red" onClick={() => delItem(idx)} style={{ minWidth: 34 }}>🗑</button>
             </div>
           ))}
+          {items.length > 0 && (
+            <div style={{ marginTop: 8, borderTop: '1px solid var(--panel2)', paddingTop: 8 }}>
+              {envio > 0 && (
+                <div className="cart-item"><span style={{ flex: 1 }}>🛵 Envío</span><span>{money(envio)}</span></div>
+              )}
+              <div className="cart-item" style={{ fontWeight: 800, fontSize: 17 }}>
+                <span style={{ flex: 1 }}>TOTAL</span><span>{money(total)}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -301,22 +330,33 @@ export default function WhatsApp() {
           </div>
           {!inbox.length && <p style={{ color: 'var(--muted)' }}>No hay mensajes pendientes.</p>}
           <div className="grid" style={{ gap: 10, marginTop: 10 }}>
-            {inbox.map((m) => (
+            {inbox.map((m) => {
+              const vozSinTexto = (m.texto || '').startsWith('🎤 (nota de voz');
+              const yaArmado = m.clase === 'delivery' && m.propuesta;
+              return (
               <div key={m.id} className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <b>📱 {m.nombre}</b>
+                  <b>📱 {m.nombre}{yaArmado && <span className="badge" style={{ marginLeft: 6 }}>borrador listo</span>}</b>
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}>{m.telefono} · {m.fecha}</span>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap', margin: '8px 0' }}>{m.texto}</div>
+                {vozSinTexto && (
+                  <div style={{ color: 'var(--orange)', fontSize: 12, marginBottom: 8 }}>
+                    Para transcribir las notas de voz automáticamente, cargá la <b>clave de voz</b> en Ajustes › Telegram.
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button className="btn-green" onClick={() => armarPedido(m)} disabled={armandoId === m.id}>
-                    {armandoId === m.id ? '🤖 Interpretando…' : '🤖 Armar pedido'}
-                  </button>
+                  {!vozSinTexto && (
+                    <button className="btn-green" onClick={() => armarPedido(m)} disabled={armandoId === m.id}>
+                      {armandoId === m.id ? '⏳ Abriendo…' : yaArmado ? '📝 Ver borrador' : '🤖 Armar pedido'}
+                    </button>
+                  )}
                   <button onClick={() => convertir(m)} title="Crear el pedido vacío y cargar los items a mano">✍ Cargar a mano</button>
                   <button className="btn-red" onClick={() => api.waDescartar(m.id).then(cargarInbox)}>Descartar</button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
