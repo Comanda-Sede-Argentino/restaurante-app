@@ -246,6 +246,10 @@ addCol("CREATE INDEX IF NOT EXISTS idx_stockmov_insumo ON stock_mov(insumo_id)")
 addCol("ALTER TABLE pedido ADD COLUMN cobrado_por TEXT");
 addCol("ALTER TABLE pedido ADD COLUMN anulado_por TEXT");
 addCol("ALTER TABLE pedido ADD COLUMN reabierto_por TEXT");
+// Transferencias "prometidas": confirmado=0 = todavía no se vio entrar la plata (queda en seguimiento).
+// Default 1 para no tocar los pagos existentes ni el efectivo/tarjeta (esos siempre van confirmados).
+addCol("ALTER TABLE pago ADD COLUMN confirmado INTEGER DEFAULT 1");
+addCol("ALTER TABLE pago ADD COLUMN recordado_en TEXT"); // cuándo se le mandó el último recordatorio
 // Cierres de delivery y viandas guardados (para consultar el desglose y reimprimir).
 // Se guarda el ticket ya armado (lineas) para reimprimirlo idéntico y mostrarlo en pantalla.
 // clave = día (viandas) o día de emisión (delivery); se hace upsert por (modulo, clave).

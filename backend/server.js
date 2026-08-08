@@ -1373,9 +1373,10 @@ app.post('/api/pedidos/:id/pagar', (req, res) => {
     const c = db.prepare('SELECT id FROM cuenta WHERE id=? AND activo=1').get(req.body.cuenta_id);
     if (!c) return res.status(400).json({ error: 'La cuenta corriente no existe' });
   }
-  const insPago = db.prepare('INSERT INTO pago (pedido_id, medio, importe) VALUES (?,?,?)');
+  const insPago = db.prepare('INSERT INTO pago (pedido_id, medio, importe, confirmado) VALUES (?,?,?,?)');
   const tx = db.transaction(() => {
-    for (const pg of pagos) insPago.run(pedidoId, pg.medio || 'EFECTIVO', pg.importe);
+    // confirmado=0 SOLO cuando el front lo pide (transferencia "prometida"); el resto va confirmado.
+    for (const pg of pagos) insPago.run(pedidoId, pg.medio || 'EFECTIVO', pg.importe, pg.confirmado === 0 ? 0 : 1);
     // Cargo a la cuenta corriente por la parte fiada (importe ya redondeado, topeado a lo cobrable)
     if (fiado) {
       const cobrable = Math.max(0, Math.round(actual.total - descuento + propina));
@@ -1394,6 +1395,91 @@ app.post('/api/pedidos/:id/pagar', (req, res) => {
   io.emit('pedido:cobrado', p);
   emitDashboard();
   res.json(p);
+});
+
+// ===== TRANSFERENCIAS "PROMETIDAS" (por confirmar): seguimiento para que no se escapen cobros =====
+function textoRecordatorioTransf(nombre, importe) {
+  const w = getConfig().whatsapp || {};
+  const base = (w.textoRecordatorioTransf || '').trim() ||
+    'Hola{nombre}! 👋 Te recordamos que quedó pendiente la transferencia de tu pedido por {monto}. Cuando puedas la hacés y nos avisás 🙏 ¡Gracias!';
+  return base.replace('{nombre}', nombre ? ' ' + String(nombre).split(' ')[0] : '').replace('{monto}', moneyTxt(importe));
+}
+async function enviarRecordatorioTransf(row) {
+  const tel = (row.cliente_telefono || '').replace(/\D/g, '');
+  if (!tel) return { ok: false, error: 'sin-telefono' };
+  const avisado = await wa.enviarMensaje(tel, textoRecordatorioTransf(row.cliente_nombre, row.importe));
+  if (avisado) db.prepare("UPDATE pago SET recordado_en=datetime('now','localtime') WHERE id=?").run(row.id);
+  return { ok: avisado, avisado };
+}
+// Consulta base de las transferencias sin confirmar (con datos del cliente y días transcurridos)
+const SQL_TRANSF_PEND =
+  `SELECT pg.id, pg.importe, pg.fecha, pg.recordado_en, pg.medio,
+          o.id pedido_id, o.tipo, o.cliente_nombre, o.cliente_telefono,
+          CAST(julianday('now','localtime') - julianday(pg.fecha) AS INT) dias
+   FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
+   WHERE pg.confirmado=0`;
+
+app.get('/api/transferencias-pendientes', (req, res) => {
+  const pendientes = db.prepare(SQL_TRANSF_PEND + ' ORDER BY pg.fecha ASC').all();
+  const total = pendientes.reduce((a, r) => a + Math.round(r.importe || 0), 0);
+  res.json({ pendientes, total });
+});
+
+// La plata entró: se confirma la transferencia
+app.post('/api/pagos/:id/confirmar', (req, res) => {
+  const r = db.prepare('UPDATE pago SET confirmado=1 WHERE id=? AND confirmado=0').run(req.params.id);
+  if (!r.changes) return res.status(404).json({ error: 'No estaba pendiente' });
+  emitDashboard();
+  res.json({ ok: true });
+});
+
+// Al final pagó de otra forma (efectivo, tarjeta): se cambia el medio y se da por cobrada
+app.post('/api/pagos/:id/cambiar-medio', (req, res) => {
+  const medio = (req.body.medio || '').trim();
+  if (!medio) return res.status(400).json({ error: 'Falta el medio' });
+  const r = db.prepare('UPDATE pago SET medio=?, confirmado=1 WHERE id=?').run(medio, req.params.id);
+  if (!r.changes) return res.status(404).json({ error: 'No existe' });
+  emitDashboard();
+  res.json({ ok: true });
+});
+
+// Recordatorio por WhatsApp de UNA transferencia
+app.post('/api/pagos/:id/recordar', async (req, res) => {
+  const row = db.prepare(SQL_TRANSF_PEND + ' AND pg.id=?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'No está pendiente' });
+  const r = await enviarRecordatorioTransf(row);
+  if (r.error === 'sin-telefono') return res.status(400).json({ error: 'El pedido no tiene teléfono para avisar.' });
+  res.json({ ok: r.ok, avisado: r.avisado });
+});
+
+// Recordatorio masivo a todas las que ya llevan N días sin confirmar (default 1)
+app.post('/api/pagos/recordar-vencidas', async (req, res) => {
+  const dias = Math.max(0, Number(req.body.dias) || 1);
+  const rows = db.prepare(SQL_TRANSF_PEND + ' AND CAST(julianday(\'now\',\'localtime\') - julianday(pg.fecha) AS INT) >= ? ORDER BY pg.fecha ASC').all(dias);
+  let enviados = 0, sinTel = 0;
+  for (const row of rows) {
+    const r = await enviarRecordatorioTransf(row);
+    if (r.ok) enviados++; else if (r.error === 'sin-telefono') sinTel++;
+  }
+  res.json({ ok: true, enviados, sinTel, total: rows.length });
+});
+
+// Después del recordatorio tampoco llegó: se guarda como FIADO (deuda del cliente en su cuenta)
+app.post('/api/pagos/:id/pasar-a-fiado', (req, res) => {
+  const cuentaId = req.body.cuenta_id;
+  if (!cuentaId) return res.status(400).json({ error: 'Elegí la cuenta corriente' });
+  const c = db.prepare('SELECT id FROM cuenta WHERE id=? AND activo=1').get(cuentaId);
+  if (!c) return res.status(400).json({ error: 'La cuenta no existe' });
+  const pg = db.prepare('SELECT id, pedido_id, importe FROM pago WHERE id=? AND confirmado=0').get(req.params.id);
+  if (!pg) return res.status(404).json({ error: 'No está pendiente' });
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE pago SET medio='FIADO', confirmado=1 WHERE id=?").run(pg.id);
+    db.prepare("INSERT INTO cuenta_mov (cuenta_id, tipo, importe, pedido_id, detalle) VALUES (?, 'cargo', ?, ?, ?)")
+      .run(cuentaId, Math.round(pg.importe), pg.pedido_id, 'Transferencia no acreditada');
+  });
+  tx();
+  emitDashboard();
+  res.json({ ok: true });
 });
 
 // Reabrir un pedido cobrado por error: borra sus pagos, revierte el fiado y lo deja para volver a cobrar
@@ -2671,6 +2757,12 @@ function dashboardData() {
   const horasSinCierre = sinCerrar.n > 0 ? Math.round(sinCerrar.horas * 10) / 10 : null;
   const avisarCajaHoras = Math.max(0, Math.round(Number((getConfig().caja || {}).avisarHoras) || 0));
   const turnoSinCerrar = avisoTurnoSinCerrar();
+  // Transferencias prometidas sin confirmar (para que no se escapen cobros): cantidad, plata y vencidas (+1 día)
+  const transfPend = db.prepare(
+    `SELECT COUNT(*) n, COALESCE(SUM(importe),0) total,
+            SUM(CASE WHEN CAST(julianday('now','localtime') - julianday(fecha) AS INT) >= 1 THEN 1 ELSE 0 END) vencidas
+     FROM pago WHERE confirmado=0`
+  ).get();
   return {
     ventasHoy: ventas.total,
     tickets: ventas.tickets,
@@ -2689,6 +2781,7 @@ function dashboardData() {
     horasSinCierre,
     avisarCajaHoras,
     turnoSinCerrar,
+    transfPendientes: { n: transfPend.n || 0, total: transfPend.total || 0, vencidas: transfPend.vencidas || 0 },
     ts: new Date().toISOString(),
   };
 }

@@ -56,6 +56,13 @@ export const api = {
   estadoItem: (id, estado) => req('/items/' + id + '/estado', { method: 'PUT', body: { estado } }),
   pagar: (id, pagos, extra = {}) => req('/pedidos/' + id + '/pagar', { method: 'POST', body: { pagos, operador: operador(), ...extra } }),
   envio: (id, data) => req('/pedidos/' + id + '/envio', { method: 'POST', body: data }),
+  // Transferencias "prometidas" (por confirmar)
+  transferenciasPendientes: () => req('/transferencias-pendientes'),
+  confirmarPago: (id) => req('/pagos/' + id + '/confirmar', { method: 'POST' }),
+  cambiarMedioPago: (id, medio) => req('/pagos/' + id + '/cambiar-medio', { method: 'POST', body: { medio } }),
+  recordarPago: (id) => req('/pagos/' + id + '/recordar', { method: 'POST' }),
+  recordarVencidas: (dias = 1) => req('/pagos/recordar-vencidas', { method: 'POST', body: { dias } }),
+  pasarPagoAFiado: (id, cuenta_id) => req('/pagos/' + id + '/pasar-a-fiado', { method: 'POST', body: { cuenta_id } }),
   // Cuentas corrientes (fiado)
   cuentas: () => req('/cuentas'),
   cuenta: (id) => req('/cuentas/' + id),

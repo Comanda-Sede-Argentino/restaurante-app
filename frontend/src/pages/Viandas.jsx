@@ -5,10 +5,12 @@ import { dibujarMenuHistoria, CANT_FONDOS } from '../menuImagen.js';
 
 // Módulo de VIANDAS del mediodía: cargar los 2 menús del día, tomar pedidos rápido
 // (el "cuaderno digital") y repartir/cobrar como en el módulo de Reparto.
+// La transferencia se parte en dos: "ya entró" (confirmada) y "prometida" (queda por confirmar).
 const MEDIOS = [
-  { k: 'EFECTIVO', label: '💵 Efectivo', cls: 'btn-green' },
-  { k: 'QR / TRANSFERENCIA', label: '📱 Transf.', cls: 'btn-blue' },
-  { k: 'TARJETA DÉBITO', label: '💳 Débito', cls: 'btn-blue' },
+  { k: 'EFECTIVO', label: '💵 Efectivo', cls: 'btn-green', confirmado: 1 },
+  { k: 'QR / TRANSFERENCIA', label: '📱 Transf. ✅', cls: 'btn-blue', confirmado: 1 },
+  { k: 'QR / TRANSFERENCIA', label: '🕒 Transf. prometida', cls: '', confirmado: 0 },
+  { k: 'TARJETA DÉBITO', label: '💳 Débito', cls: 'btn-blue', confirmado: 1 },
 ];
 
 export default function Viandas() {
@@ -639,11 +641,15 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
     try { await api.entregar(p.id, false); recargar(); toast('↩ Marcado como que todavía no salió.'); }
     catch (e) { toast('No se pudo: ' + e.message, 'error'); }
   };
-  const cobrar = async (p, medio) => {
-    if (!(await confirmar(`¿Cobrar ${money(p.total)} de ${p.cliente_nombre || 'la vianda'} en ${medio}?`, { ok: 'Cobrar' }))) return;
+  const cobrar = async (p, medio, confirmado = 1) => {
+    const prometida = confirmado === 0;
+    const msg = prometida
+      ? `¿Registrar ${money(p.total)} de ${p.cliente_nombre || 'la vianda'} como transferencia PROMETIDA (queda por confirmar)?`
+      : `¿Cobrar ${money(p.total)} de ${p.cliente_nombre || 'la vianda'} en ${medio}?`;
+    if (!(await confirmar(msg, { ok: prometida ? 'Sí, prometida' : 'Cobrar' }))) return;
     try {
-      await api.pagar(p.id, [{ medio, importe: Math.round(p.total) }], {});
-      setCobrarId(null); recargar(); toast('✅ Cobrado.');
+      await api.pagar(p.id, [{ medio, importe: Math.round(p.total), confirmado }], {});
+      setCobrarId(null); recargar(); toast(prometida ? '🕒 Anotada como transferencia por confirmar.' : '✅ Cobrado.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya estaba cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
       recargar();
@@ -788,7 +794,7 @@ function DelDia({ pedidos, porMenu, totalDia, recargar, onEditar }) {
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>¿Cómo paga?</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {MEDIOS.map((m) => <button key={m.k} className={m.cls} onClick={() => cobrar(p, m.k)}>{m.label}</button>)}
+              {MEDIOS.map((m) => <button key={m.label} className={m.cls} onClick={() => cobrar(p, m.k, m.confirmado)}>{m.label}</button>)}
               <button className="btn-blue" onClick={() => { setFiadoId(p.id); setCobrarId(null); setCuentaId(''); }}>📒 Fiado</button>
               <button onClick={() => setCobrarId(null)}>✕</button>
             </div>

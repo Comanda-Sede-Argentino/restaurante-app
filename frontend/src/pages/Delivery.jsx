@@ -10,12 +10,14 @@ const horaEn = (mins) => {
   const d = new Date(Date.now() + mins * 60000);
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 };
-// Botones rápidos de forma de pago en la lista (para cobrar sin abrir el detalle)
+// Botones rápidos de forma de pago en la lista (para cobrar sin abrir el detalle).
+// La transferencia se parte en dos: "ya entró" (confirmada) y "prometida" (queda por confirmar).
 const MEDIOS_RAPIDOS = [
-  { k: 'EFECTIVO', label: '💵 Efvo', cls: 'btn-green' },
-  { k: 'QR / TRANSFERENCIA', label: '📱 Transf', cls: 'btn-blue' },
-  { k: 'TARJETA DÉBITO', label: '💳 Déb', cls: 'btn-blue' },
-  { k: 'TARJETA CRÉDITO', label: '💳 Créd', cls: 'btn-blue' },
+  { k: 'EFECTIVO', label: '💵 Efvo', cls: 'btn-green', confirmado: 1 },
+  { k: 'QR / TRANSFERENCIA', label: '📱 Transf ✅', cls: 'btn-blue', confirmado: 1 },
+  { k: 'QR / TRANSFERENCIA', label: '🕒 Transf prometida', cls: '', confirmado: 0 },
+  { k: 'TARJETA DÉBITO', label: '💳 Déb', cls: 'btn-blue', confirmado: 1 },
+  { k: 'TARJETA CRÉDITO', label: '💳 Créd', cls: 'btn-blue', confirmado: 1 },
 ];
 
 export default function Delivery() {
@@ -132,12 +134,17 @@ export default function Delivery() {
   };
 
   // Cobro desde la lista eligiendo la forma de pago (1 toque). Para fiado se abre el detalle (cuenta).
-  const cobrarConMedio = async (p, medio) => {
-    if (!(await confirmar(`¿Cobrar ${money(p.total)} de ${p.cliente_nombre || 'delivery'} en ${medio}?`, { ok: 'Cobrar' }))) return;
+  // confirmado=0 = transferencia PROMETIDA (queda por confirmar, no se da por cobrada la plata).
+  const cobrarConMedio = async (p, medio, confirmado = 1) => {
+    const prometida = confirmado === 0;
+    const msg = prometida
+      ? `¿Registrar ${money(p.total)} de ${p.cliente_nombre || 'delivery'} como transferencia PROMETIDA (queda por confirmar)?`
+      : `¿Cobrar ${money(p.total)} de ${p.cliente_nombre || 'delivery'} en ${medio}?`;
+    if (!(await confirmar(msg, { ok: prometida ? 'Sí, prometida' : 'Cobrar' }))) return;
     try {
-      await api.pagar(p.id, [{ medio, importe: p.total }], {});
+      await api.pagar(p.id, [{ medio, importe: p.total, confirmado }], {});
       setCobrarId(null); cargarActivos(); cargarCuentas();
-      toast('✅ Cobrado.');
+      toast(prometida ? '🕒 Anotada como transferencia por confirmar.' : '✅ Cobrado.');
     } catch (err) {
       toast(err.message.includes('409') ? 'Ese pedido ya estaba cobrado.' : 'No se pudo cobrar: ' + err.message, 'error');
       cargarActivos();
@@ -162,10 +169,14 @@ export default function Delivery() {
     const p = await api.pedido(pedido.id);
     const esFiado = esFiadoMedio(medio);
     if (esFiado && !cuentaId) { toast('Elegí a qué cuenta corriente va el fiado.', 'error'); return; }
+    const esTransf = !esFiado && /TRANSFER|QR/i.test(medio);
     const quien = esFiado ? (cuentas.find((c) => String(c.id) === String(cuentaId))?.nombre || '') : '';
     if (!(await confirmar(esFiado ? `¿Cargar ${money(p.total)} al fiado de ${quien}?` : `¿Cobrar ${money(p.total)} en ${medio}?`, { ok: esFiado ? 'Cargar' : 'Cobrar' }))) return;
+    // Transferencia: preguntar si YA entró o es una promesa (para no dar por cobrada plata que no llegó)
+    let confirmado = 1;
+    if (esTransf) confirmado = (await confirmar('¿Ya viste entrar la transferencia?', { ok: '✅ Sí, ya entró', cancelar: '🕒 No, es una promesa' })) ? 1 : 0;
     try {
-      await api.pagar(p.id, [{ medio: esFiado ? 'FIADO' : medio, importe: p.total }],
+      await api.pagar(p.id, [{ medio: esFiado ? 'FIADO' : medio, importe: p.total, confirmado }],
         esFiado ? { cuenta_id: Number(cuentaId), detalle: detalleFiado || null } : {});
       // El comprobante con firma NO se imprime solo (el cliente casi nunca está para firmar).
       // Si hace falta, se imprime a mano con el botón "🖨 Con firma".
@@ -173,7 +184,7 @@ export default function Delivery() {
       setCli({ cliente_nombre: '', cliente_telefono: '', cliente_direccion: '', hora_entrega: '' });
       setMedio('EFECTIVO'); setCuentaId(''); setDetalleFiado('');
       cargarActivos(); cargarCuentas();
-      toast(esFiado ? '✅ Cargado al fiado.' : '✅ Cobrado.');
+      toast(esFiado ? '✅ Cargado al fiado.' : confirmado === 0 ? '🕒 Anotada como transferencia por confirmar.' : '✅ Cobrado.');
     } catch (e) {
       toast(e.message.includes('409') ? 'Ese pedido ya fue cobrado.' : 'No se pudo cobrar: ' + e.message, 'error');
       cargarActivos();
@@ -353,7 +364,7 @@ export default function Delivery() {
                   <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 8, borderTop: '1px solid var(--panel2)', paddingTop: 8 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>¿Cómo paga?</div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {MEDIOS_RAPIDOS.map((m) => <button key={m.k} className={m.cls} style={{ padding: '6px 10px' }} onClick={() => cobrarConMedio(p, m.k)}>{m.label}</button>)}
+                      {MEDIOS_RAPIDOS.map((m) => <button key={m.label} className={m.cls} style={{ padding: '6px 10px' }} onClick={() => cobrarConMedio(p, m.k, m.confirmado)}>{m.label}</button>)}
                       <button className="btn-blue" style={{ padding: '6px 10px' }} onClick={() => { setCobrarId(null); setMedio('FIADO (cuenta corriente)'); abrir(p.id); }}>📒 Fiado</button>
                       <button style={{ padding: '6px 10px' }} onClick={() => setCobrarId(null)}>✕</button>
                     </div>

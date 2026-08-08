@@ -10,6 +10,7 @@ import Viandas from './pages/Viandas.jsx';
 import KDS from './pages/KDS.jsx';
 import Caja from './pages/Caja.jsx';
 import Cuentas from './pages/Cuentas.jsx';
+import Transferencias from './pages/Transferencias.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Admin from './pages/Admin.jsx';
 import Ajustes from './pages/Ajustes.jsx';
@@ -23,6 +24,7 @@ export default function App() {
   const [online, setOnline] = useState(socket.connected);
   const [caja, setCaja] = useState({ horas: null, umbral: 0 });
   const [turnoMsg, setTurnoMsg] = useState(null);
+  const [transfPend, setTransfPend] = useState({ n: 0, total: 0, vencidas: 0 });
   const [menuOpen, setMenuOpen] = useState(false); // menú ☰ desplegable (solo teléfono)
   const [snoozeCaja, setSnoozeCaja] = useState(() => Number(localStorage.getItem('snoozeCaja') || 0));
   // Quién está usando este dispositivo (para las comandas/cierres). Chip siempre visible en la barra.
@@ -43,7 +45,7 @@ export default function App() {
       toast('⚠ La comanda del pedido #' + (d.pedido_id ?? '?') +
             ' NO se imprimió. Revisá la COMANDERA y reimprimí desde Cocina.', 'error');
     const onTrancada = (d) => toast(`⚠ La impresora tiene ${d.count ?? ''} comanda(s) sin salir. Revisá el papel o si está encendida.`, 'error');
-    const onDash = (d) => { setCaja({ horas: d?.horasSinCierre ?? null, umbral: d?.avisarCajaHoras ?? 0 }); setTurnoMsg(d?.turnoSinCerrar ?? null); };
+    const onDash = (d) => { setCaja({ horas: d?.horasSinCierre ?? null, umbral: d?.avisarCajaHoras ?? 0 }); setTurnoMsg(d?.turnoSinCerrar ?? null); setTransfPend(d?.transfPendientes ?? { n: 0, total: 0, vencidas: 0 }); };
     socket.on('connect', on);
     socket.on('disconnect', off);
     socket.on('impresion:error', onImpError);
@@ -72,6 +74,9 @@ export default function App() {
           <NavLink to="/kds" className={link}>Cocina (KDS)</NavLink>
           <NavLink to="/caja" className={link}>Caja</NavLink>
           <NavLink to="/cuentas" className={link}>Cuentas</NavLink>
+          <NavLink to="/transferencias" className={link}>
+            💸 Transf.{transfPend.n > 0 && <span className="badge warn" style={{ marginLeft: 4 }}>{transfPend.n}</span>}
+          </NavLink>
           <NavLink to="/dashboard" className={link}>Monitoreo</NavLink>
           <NavLink to="/reportes" className={link}>Reportes</NavLink>
           <NavLink to="/stock" className={link}>Stock</NavLink>
@@ -137,6 +142,7 @@ export default function App() {
           <Route path="/kds" element={<KDS />} />
           <Route path="/caja" element={<PinGate area="la Caja"><Caja /></PinGate>} />
           <Route path="/cuentas" element={<PinGate area="las Cuentas corrientes"><Cuentas /></PinGate>} />
+          <Route path="/transferencias" element={<Transferencias />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/reportes" element={<PinGate area="los Reportes" clave="soloyo25" store="pin_reportes"><Reportes /></PinGate>} />
           <Route path="/stock" element={<PinGate area="el Stock"><Stock /></PinGate>} />
