@@ -1617,11 +1617,19 @@ function inicioPeriodoCaja() {
 }
 
 // ===== Resumen de cada cierre por Telegram (total, tickets, promedio, formas de pago) =====
+// Turno de un horario 'HH:MM': mediodía SOLO entre la apertura (7:00) y el corte (17:00).
+// Todo lo demás —incluida la MADRUGADA (00:00–07:00)— es NOCHE, porque la noche cruza la medianoche.
+// (Antes se hacía t < corte, y así un cierre a la 1am caía como "mediodía".)
+function turnoDeHora(hhmm) {
+  const caja = getConfig().caja || {};
+  const corte = caja.corteNoche || '17:00';
+  const apertura = caja.aperturaMediodia || '07:00';
+  return (hhmm >= apertura && hhmm < corte) ? 'mediodía' : 'noche';
+}
 function turnoAhora() {
   try {
-    const corte = (getConfig().caja || {}).corteNoche || '17:00';
     const t = db.prepare("SELECT time('now','localtime') t").get().t.slice(0, 5);
-    return t < corte ? 'mediodía' : 'noche';
+    return turnoDeHora(t);
   } catch { return ''; }
 }
 function ahoraTxt() {
@@ -2675,14 +2683,18 @@ function dashboardData() {
 // de salón sin cerrar es de un turno distinto al actual, hay un cierre pendiente del turno anterior.
 function avisoTurnoSinCerrar() {
   const desde = inicioPeriodoCaja();
-  const corte = (getConfig().caja || {}).corteNoche || '17:00';
+  const caja = getConfig().caja || {};
+  const corte = caja.corteNoche || '17:00';
+  const apertura = caja.aperturaMediodia || '07:00';
   const first = db.prepare(
     `SELECT MIN(pg.fecha) f FROM pago pg JOIN pedido o ON o.id=pg.pedido_id
      WHERE pg.fecha > ? AND o.tipo NOT IN ('vianda','delivery')`
   ).get(desde).f;
   if (!first) return null; // no hay ventas de salón en el período abierto
   const nowTs = db.prepare("SELECT datetime('now','localtime') t").get().t;
-  const turno = (ts) => ({ dia: ts.slice(0, 10), parte: (ts.slice(11, 16) < corte ? 'mediodia' : 'noche') });
+  // mediodía SOLO entre apertura y corte; la madrugada es noche (la noche cruza la medianoche)
+  const parteDe = (hhmm) => (hhmm >= apertura && hhmm < corte) ? 'mediodia' : 'noche';
+  const turno = (ts) => ({ dia: ts.slice(0, 10), parte: parteDe(ts.slice(11, 16)) });
   const a = turno(first), b = turno(nowTs);
   if (a.dia === b.dia && a.parte === b.parte) return null; // mismo turno, todo bien
   return a.parte === 'mediodia'
@@ -2768,12 +2780,15 @@ function ejecutarHerramientaAsistente(name, input = {}) {
     return { desde: d, hasta: h, producto: input.nombre, cantidad: row.cantidad, total: row.total };
   }
   if (name === 'ventas_por_modulo') {
-    const corte = (getConfig().caja || {}).corteNoche || '17:00';
-    const MOD = `CASE WHEN o.tipo='vianda' THEN 'Viandas' WHEN o.tipo='delivery' AND time(o.abierto_en) < ? THEN 'Delivery mediodia' WHEN o.tipo='delivery' THEN 'Delivery noche' WHEN time(o.abierto_en) < ? THEN 'Salon mediodia' ELSE 'Salon noche' END`;
+    const caja = getConfig().caja || {};
+    const corte = caja.corteNoche || '17:00';
+    const apertura = caja.aperturaMediodia || '07:00';
+    // mediodía SOLO entre apertura y corte; la madrugada (00:00–apertura) es NOCHE
+    const MOD = `CASE WHEN o.tipo='vianda' THEN 'Viandas' WHEN o.tipo='delivery' AND time(o.abierto_en) >= ? AND time(o.abierto_en) < ? THEN 'Delivery mediodia' WHEN o.tipo='delivery' THEN 'Delivery noche' WHEN time(o.abierto_en) >= ? AND time(o.abierto_en) < ? THEN 'Salon mediodia' ELSE 'Salon noche' END`;
     const modulos = db.prepare(
       `SELECT ${MOD} modulo, SUM(pg.importe) total, COUNT(DISTINCT pg.pedido_id) tickets
        FROM pago pg JOIN pedido o ON o.id=pg.pedido_id WHERE date(o.abierto_en) BETWEEN ? AND ? GROUP BY modulo ORDER BY total DESC`
-    ).all(corte, corte, d, h);
+    ).all(apertura, corte, apertura, corte, d, h);
     return { desde: d, hasta: h, modulos };
   }
   if (name === 'viandas') {

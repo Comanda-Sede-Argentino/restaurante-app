@@ -78,8 +78,9 @@ const defaultConfig = {
   caja: {
     // Avisar "cerrá la caja" si pasan más de estas horas con ventas sin cerrar (0 = sin aviso)
     avisarHoras: 8,
-    // Hora de corte para separar "Salón mediodía" de "Salón noche" en el reporte por módulo
-    corteNoche: '17:00',
+    // Ventana del turno MEDIODÍA: de la apertura al corte. Todo lo demás (incluida la madrugada) es NOCHE.
+    aperturaMediodia: '07:00', // arranca el mediodía (antes de esto, p. ej. la 1am, es NOCHE)
+    corteNoche: '17:00',       // termina el mediodía y arranca la noche
   },
   facturador: {
     habilitado: false, // muestra el botón "Facturar" en Caja
