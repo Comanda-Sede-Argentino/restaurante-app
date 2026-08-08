@@ -2725,8 +2725,8 @@ const HERR_ASISTENTE = [
     input_schema: { type: 'object', properties: { desde: { type: 'string', description: 'YYYY-MM-DD (por defecto hoy)' }, hasta: { type: 'string', description: 'YYYY-MM-DD (por defecto hoy)' } } } },
   { name: 'ventas_por_dia', description: 'Total vendido y tickets por cada día del rango.',
     input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' } } } },
-  { name: 'productos_mas_vendidos', description: 'Ranking de productos por cantidad vendida en el rango.',
-    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' }, limite: { type: 'integer' }, orden: { type: 'string', description: '"mas" (por defecto) o "menos"' } } } },
+  { name: 'productos_mas_vendidos', description: 'Ranking de productos por cantidad vendida en el rango. Por defecto trae SOLO comida (los "platos"). La cafetería (cafés, medialunas, matecocido, bizcochos…) y las bebidas van APARTE: para esos pasá grupo="cafeteria" o grupo="bebidas". Para todo junto, grupo="todos".',
+    input_schema: { type: 'object', properties: { desde: { type: 'string' }, hasta: { type: 'string' }, limite: { type: 'integer' }, orden: { type: 'string', description: '"mas" (por defecto) o "menos"' }, grupo: { type: 'string', description: 'comida (por defecto) | cafeteria | bebidas | todos' } } } },
   { name: 'ventas_de_producto', description: 'Cantidad y monto vendido de un producto puntual (búsqueda por nombre) en el rango.',
     input_schema: { type: 'object', properties: { nombre: { type: 'string' }, desde: { type: 'string' }, hasta: { type: 'string' } }, required: ['nombre'] } },
   { name: 'ventas_por_modulo', description: 'Total por módulo (Salón mediodía, Viandas, Delivery mediodía, Salón noche, Delivery noche) en el rango. Cuenta por fecha del pedido; delivery separado por la hora de corte.',
@@ -2776,13 +2776,23 @@ function ejecutarHerramientaAsistente(name, input = {}) {
   if (name === 'productos_mas_vendidos') {
     const limite = Math.min(50, Math.max(1, Number(input.limite) || 10));
     const orden = input.orden === 'menos' ? 'ASC' : 'DESC';
+    // Por defecto SOLO comida: la cafetería (cafés, medialunas, etc.) y las bebidas NO son "platos",
+    // van como grupos APARTE. grupo='todos' trae todo junto.
+    const grupo = String(input.grupo || 'comida').toLowerCase();
+    const args = [d, h];
+    let filtroGrupo = '';
+    if (grupo !== 'todos') { filtroGrupo = "AND COALESCE(c.grupo, 'comida') = ?"; args.push(grupo); }
+    args.push(limite);
     const productos = db.prepare(
       `SELECT i.nombre, SUM(i.cantidad) cantidad, COALESCE(SUM(i.cantidad*i.precio_unit),0) total
        FROM pedido_item i JOIN pedido o ON o.id=i.pedido_id
+       LEFT JOIN plato p ON p.id=i.plato_id
+       LEFT JOIN categoria c ON c.id=p.categoria_id
        WHERE o.estado='cobrado' AND date(o.cerrado_en) BETWEEN ? AND ? AND i.estado<>'anulado' AND i.plato_id IS NOT NULL
+         ${filtroGrupo}
        GROUP BY i.nombre ORDER BY cantidad ${orden} LIMIT ?`
-    ).all(d, h, limite);
-    return { desde: d, hasta: h, productos };
+    ).all(...args);
+    return { desde: d, hasta: h, grupo, productos };
   }
   if (name === 'ventas_de_producto') {
     const q = '%' + String(input.nombre || '').trim() + '%';
@@ -2851,7 +2861,8 @@ Para preguntas comunes usá las herramientas específicas. Para CUALQUIER otra c
 - pedido(id, tipo, estado, abierto_en, cerrado_en, total, propina, descuento, mozo_nombre, cliente_nombre, cliente_telefono, entrega, fijo_id). tipo ∈ 'salon','mostrador','cafeteria','delivery','vianda'. Una VENTA es estado='cobrado'. abierto_en = cuándo se tomó, cerrado_en = cuándo se cobró.
 - pedido_item(id, pedido_id, plato_id, menu_dia_id, nombre, cantidad, precio_unit, observacion, estado). Ítem vendido: estado<>'anulado' y el pedido cobrado.
 - pago(id, pedido_id, medio, importe, fecha). fecha = cuándo se cobró. medio: 'EFECTIVO','QR / TRANSFERENCIA','TARJETA DÉBITO','TARJETA CRÉDITO','FIADO'.
-- plato(id, nombre, categoria_id, precio); categoria(id, nombre, cafeteria). Los CAFÉS/cafetería son platos cuya categoría tiene cafeteria=1.
+- plato(id, nombre, categoria_id, precio); categoria(id, nombre, cafeteria, grupo). categoria.grupo ∈ 'comida','bebidas','cafeteria' (clasifica cada producto). La cafetería (cafés, medialunas, matecocido, bizcochos…) tiene grupo='cafeteria'; las bebidas grupo='bebidas'; el resto grupo='comida'.
+- REGLA IMPORTANTE: cuando el dueño habla de "PLATOS" (ej. "platos más vendidos", "qué comida se vendió") se refiere SOLO a grupo='comida'. La cafetería y las bebidas van SIEMPRE aparte, nunca mezcladas con los platos. Para "platos" usá la herramienta productos_mas_vendidos (que ya filtra comida por defecto), o si hacés SQL filtrá por COALESCE(c.grupo,'comida')='comida'. Solo mezclá todo si el dueño pide explícitamente "todo" o "en general".
 - cuenta(id, nombre, activo); cuenta_mov(id, cuenta_id, tipo, importe, pedido_id, medio, fecha). tipo='cargo' = fiado nuevo (deuda), tipo='pago' = pagó su cuenta. El pedido_id te permite unir el cargo al pedido (y ver su tipo/módulo).
 - menu_dia(id, fecha, opcion, nombre, precio); un ítem de vianda tiene menu_dia_id no nulo.
 - Fechas locales: usá date(columna), time(columna), strftime('%H',columna), strftime('%w',columna) (0=Dom..6=Sáb).
