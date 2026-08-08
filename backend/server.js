@@ -423,7 +423,9 @@ app.post('/api/delivery/cierre-imprimir', async (req, res) => {
   const base = "o.tipo='delivery' AND o.estado='cobrado' AND o.cerrado_en > ?";
   const DOM = "EXISTS (SELECT 1 FROM pedido_item i WHERE i.pedido_id=o.id AND i.nombre='Envío' AND i.estado<>'anulado')";
   const pedidos = db.prepare(
-    `SELECT o.cliente_nombre, o.total, o.cerrado_en, (${DOM}) domicilio FROM pedido o WHERE ${base} ORDER BY o.cerrado_en ASC`
+    `SELECT o.cliente_nombre, o.total, o.cerrado_en, (${DOM}) domicilio,
+            (SELECT GROUP_CONCAT(DISTINCT UPPER(pg.medio)) FROM pago pg WHERE pg.pedido_id=o.id) medios
+     FROM pedido o WHERE ${base} ORDER BY o.cerrado_en ASC`
   ).all(desde);
   const medios = db.prepare(
     `SELECT pg.medio, COALESCE(SUM(pg.importe),0) total, COUNT(*) n
@@ -441,10 +443,22 @@ app.post('/api/delivery/cierre-imprimir', async (req, res) => {
   L.push('(D = a domicilio · R = retira)');
   L.push('----------------------------------------');
   if (!pedidos.length) L.push('Sin delivery cobrado en el turno.');
+  // Cómo pagó cada uno, abreviado para que entre en el ticket (en lugar de la hora)
+  const abreviarMedio = (medios) => {
+    if (!medios) return '—';
+    const arr = String(medios).split(',');
+    if (arr.length > 1) return 'MIXTO';
+    const m = arr[0];
+    if (/EFECT/i.test(m)) return 'EFVO';
+    if (/FIADO/i.test(m)) return 'FIADO';
+    if (/QR|TRANSF|MERCADO|\bMP\b/i.test(m)) return 'TRANSF';
+    if (/TARJ|DEBITO|CREDITO|POS|VISA|MASTER|NARANJA/i.test(m)) return 'TARJ';
+    return m.slice(0, 6);
+  };
   for (const p of pedidos) {
-    const h = (p.cerrado_en || '').slice(11, 16);
-    const nom = (p.cliente_nombre || 'Cliente').slice(0, 14);
-    L.push(h + ' ' + (p.domicilio ? 'D' : 'R') + ' ' + nom + '  ' + moneyTxt(p.total));
+    const nom = (p.cliente_nombre || 'Cliente').slice(0, 13);
+    const med = abreviarMedio(p.medios).padEnd(6);
+    L.push((p.domicilio ? 'D' : 'R') + ' ' + med + ' ' + nom + '  ' + moneyTxt(p.total));
   }
   L.push('----------------------------------------');
   L.push('Pedidos: ' + pedidos.length + '  (D:' + domic.length + '  R:' + retiros.length + ')');
